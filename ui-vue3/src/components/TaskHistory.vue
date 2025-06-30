@@ -26,7 +26,7 @@
             <a-tag size="small" :color="getStatusColor(task.planStatus)">
               {{ getStatusText(task.planStatus) }}
             </a-tag>
-            <span class="step-count">{{ task.steps.length }} 步骤</span>
+            <span class="step-count">1 步骤</span>
           </div>
         </div>
 

@@ -7,9 +7,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.messages.Message;
+import org.springframework.ai.chat.messages.SystemMessage;
 import org.springframework.ai.chat.messages.UserMessage;
 import org.springframework.ai.chat.prompt.Prompt;
-import org.springframework.ai.chat.prompt.SystemPromptTemplate;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
 
@@ -17,6 +17,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
@@ -56,27 +57,39 @@ public class TaskCoordinator {
      * 开始执行任务
      * @param userRequest 用户请求
      * @param taskId 任务ID
-     * @return 任务计划
      */
     public void startTask(String userRequest, String taskId) {
         logger.info("开始执行任务，任务ID: {}", taskId);
+        // 异步执行模板项目生成
+        CompletableFuture.runAsync(() -> {
+            try {
+                // 1. 执行模板项目生成
+                String projectInfo = executeTemplateProjectGeneration(userRequest, taskId);
 
-        // 检查是否需要使用模板项目生成
-        if (shouldUseTemplateGeneration(userRequest)) {
-            logger.info("检测到项目生成需求，使用模板项目生成，任务ID: {}", taskId);
-            // 执行模板项目生成，收集执行信息后继续处理
-            handleTemplateBasedProjectGenerationAndContinue(userRequest, taskId);
-        }
+                // 2. 获取下一步执行计划
+                TaskPlan continuePlan = planningService.createInitialPlan(projectInfo, taskId);
 
+                // 3. 开始循环执行计划（会自动执行所有步骤直到完成）
+                executeStep(taskId, continuePlan);
+
+            } catch (Exception e) {
+                logger.error("模板项目生成和继续处理失败，任务ID: {}", taskId, e);
+                // 发送错误信息
+                sseService.sendTaskUpdate(taskId, createErrorTaskPlan(taskId, e.getMessage()));
+            }
+        });
     }
 
 
     /**
      * 执行单个步骤
      * @param taskPlan 任务计划
-     * @param step 步骤
      */
-    private void executeStep(String taskId,TaskPlan taskPlan, TaskStep step) {
+    private void executeStep(String taskId,TaskPlan taskPlan) {
+
+        TaskStep step = taskPlan.getStep();
+
+
         logger.info("开始执行步骤，任务ID: {}, 步骤: {}", taskId, step.getStepIndex());
 
         // 构建提示内容
@@ -96,9 +109,8 @@ public class TaskCoordinator {
         TaskPlanningPromptBuilder promptBuilder = new TaskPlanningPromptBuilder();
         String systemText = promptBuilder.buildTaskPlanningPrompt(taskPlan, step.getStepIndex(), step.getStepRequirement());
         Message userMessage = new UserMessage(promptContent);
-        SystemPromptTemplate systemPromptTemplate = new SystemPromptTemplate(systemText);
-        Message systemMessage = systemPromptTemplate.createMessage();
-        Prompt prompt = new Prompt(List.of(userMessage, systemMessage));
+        SystemMessage systemMessage = new SystemMessage(systemText);
+        Prompt prompt = new Prompt(List.of(systemMessage,userMessage));
 
         // 更新步骤状态为执行中
         step.setStatus("executing");
@@ -112,12 +124,12 @@ public class TaskCoordinator {
         // 实时处理流式响应
         StringBuilder resultBuilder = new StringBuilder();
         AtomicLong lastUpdateTime = new AtomicLong(0);
-        final long UPDATE_INTERVAL = 300; // 300ms更新间隔
+        final long UPDATE_INTERVAL = 100; // 300ms更新间隔
 
         content.doOnNext(chunk -> {
             // 每收到一个块就追加到结果中
             resultBuilder.append(chunk);
-            logger.info("打印返回的块信息：{}", chunk);
+            logger.info("返回信息：{}", chunk);
             // 实时发送chunk到前端（用于流式显示）
             sseService.sendStepChunkUpdate(taskId, step.getStepIndex(), chunk, false);
 
@@ -131,7 +143,18 @@ public class TaskCoordinator {
         }).doOnComplete(() -> {
             // 发送步骤完成的chunk标记
             sseService.sendStepChunkUpdate(taskId, step.getStepIndex(), "", true);
-        }).blockLast();
+            // 执行完当前步骤后，继续执行下一步
+            continueNextStep(taskId, taskPlan, resultBuilder.toString());
+        }).doOnError(error -> {
+            logger.error("流式响应处理出错，任务ID: {}, 步骤: {}, 错误: {}", taskId, step.getStepIndex(), error.getMessage(), error);
+            // 设置步骤状态为失败
+            step.setStatus("failed");
+            step.setEndTime(System.currentTimeMillis());
+            step.setResult("执行失败: " + error.getMessage());
+            // 发送错误状态更新
+            sseService.sendTaskUpdate(taskId, taskPlan);
+            sseService.sendStepChunkUpdate(taskId, step.getStepIndex(), "", true);
+        }).subscribe();
 
         // 步骤执行完成
         String finalResult = resultBuilder.toString();
@@ -143,6 +166,82 @@ public class TaskCoordinator {
         sseService.sendTaskUpdate(taskId, taskPlan);
 
         logger.info("步骤执行完成，任务ID: {}, 步骤: {}", taskId, step.getStepIndex());
+
+
+    }
+
+    /**
+     * 继续执行下一步
+     * 根据当前步骤执行结果，获取下一步计划并执行
+     * 实现循环执行逻辑：每次执行完成后将执行信息加入上下文再次获取下一步执行计划，直到大模型确认任务已经完成
+     * 如果没有下一步，则标记任务完成
+     * @param taskId 任务ID
+     * @param currentTaskPlan 当前任务计划
+     * @param stepResult 当前步骤执行结果
+     */
+    private void continueNextStep(String taskId, TaskPlan currentTaskPlan, String stepResult) {
+        try {
+            logger.info("开始获取下一步执行计划，任务ID: {}", taskId);
+
+            // 将当前任务计划存储到活跃任务中
+            activeTasks.put(taskId, currentTaskPlan);
+
+            // 调用规划服务获取下一步计划
+            TaskPlan nextTaskPlan = planningService.generateNextStep(stepResult,taskId);
+
+            if (nextTaskPlan != null && nextTaskPlan.getStep() != null) {
+                // 有下一步，继续执行
+                logger.info("获取到下一步计划，任务ID: {}, 下一步索引: {}", taskId, nextTaskPlan.getStep().getStepIndex());
+
+                // 保持任务的基本信息连续性
+                nextTaskPlan.setTaskId(taskId);
+                if (nextTaskPlan.getTitle() == null || nextTaskPlan.getTitle().isEmpty()) {
+                    nextTaskPlan.setTitle(currentTaskPlan.getTitle());
+                }
+                if (nextTaskPlan.getDescription() == null || nextTaskPlan.getDescription().isEmpty()) {
+                    nextTaskPlan.setDescription(currentTaskPlan.getDescription());
+                }
+                nextTaskPlan.setPlanStatus("processing");
+
+                // 更新活跃任务
+                activeTasks.put(taskId, nextTaskPlan);
+
+                // 发送任务更新
+                sseService.sendTaskUpdate(taskId, nextTaskPlan);
+
+                // 递归执行下一步
+                executeStep(taskId, nextTaskPlan);
+
+            } else {
+                // 没有下一步，任务完成
+                logger.info("任务执行完成，任务ID: {}", taskId);
+
+                // 标记任务为完成状态
+                currentTaskPlan.setPlanStatus("completed");
+                activeTasks.put(taskId, currentTaskPlan);
+
+                // 发送任务完成通知
+                sseService.sendTaskUpdate(taskId, currentTaskPlan);
+
+                // 发送任务完成的特殊消息
+                sseService.sendStepChunkUpdate(taskId, -1, "\n\n## 🎉 任务执行完成！\n\n所有步骤已成功执行，您的项目已准备就绪。", true);
+            }
+
+        } catch (Exception e) {
+            logger.error("获取下一步计划失败，任务ID: {}", taskId, e);
+
+            // 标记任务为失败状态
+            currentTaskPlan.setPlanStatus("failed");
+            if (currentTaskPlan.getStep() != null) {
+                currentTaskPlan.getStep().setStatus("failed");
+                currentTaskPlan.getStep().setResult("获取下一步计划失败: " + e.getMessage());
+            }
+            activeTasks.put(taskId, currentTaskPlan);
+
+            // 发送错误通知
+            sseService.sendTaskUpdate(taskId, currentTaskPlan);
+            sseService.sendStepChunkUpdate(taskId, -1, "\n\n❌ 任务执行失败: " + e.getMessage(), true);
+        }
     }
 
     /**
@@ -197,19 +296,18 @@ public class TaskCoordinator {
      * @param stepResult 步骤执行结果
      * @return 更新后的任务计划
      */
-    public TaskPlan triggerNextStep(String taskId, String stepResult) {
+    public void triggerNextStep(String taskId, String stepResult) {
         TaskPlan taskPlan = activeTasks.get(taskId);
         if (taskPlan == null) {
             throw new IllegalArgumentException("任务不存在: " + taskId);
         }
-
         try {
-            TaskPlan updatedPlan = planningService.generateNextStep(taskPlan, stepResult);
-            activeTasks.put(taskId, updatedPlan);
-            sseService.sendTaskUpdate(taskId, updatedPlan);
-
-            logger.info("手动触发下一步规划完成，任务ID: {}", taskId);
-            return updatedPlan;
+            TaskPlan updatedPlan = planningService.generateNextStep(stepResult,taskId);
+            if(updatedPlan!=null){
+                activeTasks.put(taskId, updatedPlan);
+                sseService.sendTaskUpdate(taskId, updatedPlan);
+                logger.info("手动触发下一步规划完成，任务ID: {}", taskId);
+            }
 
         } catch (Exception e) {
             logger.error("手动触发下一步规划失败，任务ID: {}", taskId, e);
@@ -221,7 +319,6 @@ public class TaskCoordinator {
      * 重新执行失败的步骤
      * @param taskId 任务ID
      * @param stepIndex 步骤索引
-     * @return 执行结果
      */
     public void  retryFailedStep(String taskId, int stepIndex) {
         TaskPlan taskPlan = activeTasks.get(taskId);
@@ -229,10 +326,8 @@ public class TaskCoordinator {
             throw new IllegalArgumentException("任务不存在: " + taskId);
         }
 
-        TaskStep step = taskPlan.getSteps().stream()
-            .filter(s -> s.getStepIndex() == stepIndex)
-            .findFirst()
-            .orElseThrow(() -> new IllegalArgumentException("步骤不存在: " + stepIndex));
+        TaskStep step = taskPlan.getStep();
+        // TODO 重新执行失败的步骤
 
         if (!"failed".equals(step.getStatus())) {
             throw new IllegalStateException("只能重试失败的步骤");
@@ -248,50 +343,8 @@ public class TaskCoordinator {
 
     }
 
-    /**
-     * 检查是否应该使用模板项目生成
-     * @param userRequest 用户请求
-     * @return 是否使用模板生成
-     */
-    private boolean shouldUseTemplateGeneration(String userRequest) {
-        String request = userRequest.toLowerCase();
 
-        // 检查关键词，判断是否是项目生成需求
-        return request.contains("创建项目") ||
-               request.contains("生成项目") ||
-               request.contains("新建项目") ||
-               request.contains("项目模板") ||
-               request.contains("spring boot") && (request.contains("vue") || request.contains("前端")) ||
-               request.contains("聊天应用") ||
-               request.contains("ai应用") ||
-               request.contains("对话系统");
-    }
 
-    /**
-     * 处理基于模板的项目生成，完成后收集信息并继续执行
-     * @param userRequest 用户请求
-     * @param taskId 任务ID
-     */
-    private void handleTemplateBasedProjectGenerationAndContinue(String userRequest, String taskId) {
-        // 异步执行模板项目生成
-        CompletableFuture.runAsync(() -> {
-            try {
-                // 1. 执行模板项目生成
-                String projectInfo = executeTemplateProjectGeneration(userRequest, taskId);
-
-                // 2. 收集执行信息，更新用户请求
-                String enhancedUserRequest = enhanceUserRequestWithProjectInfo(userRequest, projectInfo);
-
-                // 3. 继续执行后续任务处理
-                continueTaskProcessingWithEnhancedRequest(enhancedUserRequest, taskId);
-
-            } catch (Exception e) {
-                logger.error("模板项目生成和继续处理失败，任务ID: {}", taskId, e);
-                // 发送错误信息
-                sseService.sendTaskUpdate(taskId, createErrorTaskPlan(taskId, e.getMessage()));
-            }
-        });
-    }
 
 
     /**
@@ -301,113 +354,56 @@ public class TaskCoordinator {
         ProjectInfo info = new ProjectInfo();
 
         // 使用AI来解析用户请求
-        try {
-            String prompt = String.format("""
-                请分析以下用户请求，提取项目信息：
-
-                用户请求: %s
-
-                请提取以下信息（如果用户没有明确指定，请提供合理的默认值）：
-                1. 项目名称（简短的英文名称，适合作为文件夹名）
-                2. 项目描述（一句话描述项目功能）
-                3. 特殊需求（用户提到的特定功能或要求）
-
-                请按以下格式返回：
-                项目名称: [名称]
-                项目描述: [描述]
-                特殊需求: [需求]
-                """, userRequest);
-
-            String response = llmService.getChatClient().prompt()
-                .user(prompt)
-                .call()
-                .content();
-
-            // 解析AI响应
-            String[] lines = response.split("\n");
-            for (String line : lines) {
-                if (line.startsWith("项目名称:")) {
-                    info.name = line.substring(5).trim();
-                } else if (line.startsWith("项目描述:")) {
-                    info.description = line.substring(5).trim();
-                } else if (line.startsWith("特殊需求:")) {
-                    info.requirements = line.substring(5).trim();
-                }
-            }
-
-        } catch (Exception e) {
-            logger.warn("AI解析项目信息失败，使用默认值", e);
-        }
+//        try {
+//            String prompt = String.format("""
+//                请分析以下用户请求，提取项目信息：
+//
+//                用户请求: %s
+//
+//                请提取以下信息（如果用户没有明确指定，请提供合理的默认值）：
+//                1. 项目名称（简短的英文名称，适合作为文件夹名）
+//                2. 项目描述（一句话描述项目功能）
+//                3. 特殊需求（用户提到的特定功能或要求）
+//
+//                请按以下格式返回：
+//                项目名称: [名称]
+//                项目描述: [描述]
+//                特殊需求: [需求]
+//                """, userRequest);
+//
+//            String response = llmService.getChatClient().prompt()
+//                .user(prompt)
+//                .call()
+//                .content();
+//
+//            // 解析AI响应
+//            String[] lines = response.split("\n");
+//            for (String line : lines) {
+//                if (line.startsWith("项目名称:")) {
+//                    info.name = line.substring(5).trim();
+//                } else if (line.startsWith("项目描述:")) {
+//                    info.description = line.substring(5).trim();
+//                } else if (line.startsWith("特殊需求:")) {
+//                    info.requirements = line.substring(5).trim();
+//                }
+//            }
+//
+//        } catch (Exception e) {
+//            logger.warn("AI解析项目信息失败，使用默认值", e);
+//        }
 
         // 设置默认值
         if (info.name == null || info.name.isEmpty()) {
             info.name = "ai-chat-app";
         }
         if (info.description == null || info.description.isEmpty()) {
-            info.description = "基于Spring AI和Vue3的智能聊天应用";
+            info.description = "基于Spring AI和Vue3的智能聊天应用" + userRequest;
         }
         if (info.requirements == null || info.requirements.isEmpty()) {
             info.requirements = "基础聊天功能";
         }
 
         return info;
-    }
-
-    /**
-     * 执行深度定制 - 简化版本，避免重复执行
-     * 只提供项目信息和基本指导，不进行复杂的AI调用
-     */
-    private String executeDeepCustomization(String projectPath, String userRequest, String taskId) {
-        try {
-            logger.info("开始简化深度定制，项目路径: {}, 用户需求: {}", projectPath, userRequest);
-
-            // 获取项目结构信息
-            String projectStructure = getProjectStructure(projectPath);
-
-            // 构建简化的结果信息
-            String result = String.format("""
-                ## 项目创建完成！
-
-                **项目路径**: %s
-                **用户需求**: %s
-
-                ## 当前项目结构
-                %s
-
-                ## 下一步操作建议
-                1. 项目已基于模板创建并完成基础配置
-                2. 您可以直接在项目目录中进行进一步的代码编辑
-                3. 后端代码位于: %s/backend/
-                4. 前端代码位于: %s/frontend/
-                5. 可以根据需求添加新的功能模块
-
-                ## 项目已就绪
-                基础的Spring AI + Vue3聊天应用已经创建完成，您可以开始进行具体的功能开发。
-                """, projectPath, userRequest, projectStructure, projectPath, projectPath);
-
-            // 通过SSE发送完成信息
-            sseService.sendStepChunkUpdate(taskId, 2, result, true);
-
-            logger.info("简化深度定制完成");
-            return result;
-
-        } catch (Exception e) {
-            logger.error("简化深度定制失败", e);
-            return "项目创建完成，但获取详细信息失败: " + e.getMessage();
-        }
-    }
-
-    /**
-     * 构建深度定制的AI提示词 - 简化版本
-     */
-    private String buildDeepCustomizationPrompt(String projectPath, String userRequest) {
-        // 简化版本，不再使用复杂的AI提示词
-        return String.format("""
-            项目路径: %s
-            用户需求: %s
-
-            项目已创建完成，可以进行进一步的开发。
-            """, projectPath, userRequest);
     }
 
     /**
@@ -419,46 +415,11 @@ public class TaskCoordinator {
     private String executeTemplateProjectGeneration(String userRequest, String taskId) throws IOException {
         logger.info("开始执行模板项目生成，任务ID: {}", taskId);
 
-        // 解析用户请求，提取项目信息
-        ProjectInfo projectInfo = parseProjectInfo(userRequest);
-
-        // 创建任务计划
-        TaskPlan taskPlan = createTemplateProjectTaskPlan(taskId, projectInfo);
-        activeTasks.put(taskId, taskPlan);
-        sseService.sendTaskUpdate(taskId, taskPlan);
-
-        String projectPath = null;
-
         try {
-            // 步骤1: 复制模板项目
-            TaskStep copyStep = taskPlan.getSteps().get(0);
-            copyStep.setStatus("executing");
-            copyStep.setStartTime(System.currentTimeMillis());
-            sseService.sendTaskUpdate(taskId, taskPlan);
+            // 解析用户请求，提取项目信息
+            ProjectInfo projectInfo = parseProjectInfo(userRequest);
 
-            projectPath = templateGenerator.copyTemplateProject(projectInfo.name);
-
-            copyStep.setStatus("completed");
-            copyStep.setEndTime(System.currentTimeMillis());
-            copyStep.setResult("模板项目复制完成，路径: " + projectPath);
-            sseService.sendTaskUpdate(taskId, taskPlan);
-
-            // 步骤2: 基础定制
-            TaskStep basicStep = taskPlan.getSteps().get(1);
-            basicStep.setStatus("executing");
-            basicStep.setStartTime(System.currentTimeMillis());
-            sseService.sendTaskUpdate(taskId, taskPlan);
-
-            templateGenerator.customizeProjectBasics(projectPath, projectInfo.name, projectInfo.description, projectInfo.requirements);
-
-            basicStep.setStatus("completed");
-            basicStep.setEndTime(System.currentTimeMillis());
-            basicStep.setResult("基础项目信息定制完成");
-            sseService.sendTaskUpdate(taskId, taskPlan);
-
-            // 完成模板项目生成阶段
-            taskPlan.setPlanStatus("template_completed");
-            sseService.sendTaskUpdate(taskId, taskPlan);
+            String projectPath = createTemplateProjectTaskPlan(taskId, projectInfo);
 
             // 收集项目信息
             String projectStructure = getProjectStructure(projectPath);
@@ -468,7 +429,7 @@ public class TaskCoordinator {
 
                 **项目名称**: %s
                 **项目描述**: %s
-                **项目路径**: %s
+                **项目绝对路径**: %s
                 **自定义需求**: %s
 
                 ## 项目结构
@@ -568,124 +529,17 @@ public class TaskCoordinator {
         }
     }
 
-    /**
-     * 使用项目信息增强用户请求
-     * @param originalRequest 原始用户请求
-     * @param projectInfo 项目信息
-     * @return 增强后的用户请求
-     */
-    private String enhanceUserRequestWithProjectInfo(String originalRequest, String projectInfo) {
-        return String.format("""
-            ## 原始用户需求
-            %s
-
-            ## 项目执行情况
-            %s
-
-            ## 继续处理指令
-            基于上述已完成的模板项目，请继续根据用户的原始需求进行深度定制和功能开发。
-            项目基础框架已就绪，现在可以专注于实现具体的业务功能。
-            """, originalRequest, projectInfo);
-    }
-
-    /**
-     * 使用增强的用户请求继续任务处理
-     * @param enhancedUserRequest 增强后的用户请求
-     * @param taskId 任务ID
-     */
-    private void continueTaskProcessingWithEnhancedRequest(String enhancedUserRequest, String taskId) {
-        logger.info("继续处理增强后的用户请求，任务ID: {}", taskId);
-
-        try {
-            // 获取当前任务计划
-            TaskPlan currentPlan = activeTasks.get(taskId);
-            if (currentPlan == null) {
-                logger.warn("任务计划不存在，创建新的计划，任务ID: {}", taskId);
-                currentPlan = new TaskPlan();
-                currentPlan.setTaskId(taskId);
-                currentPlan.setTitle("继续处理用户需求");
-                currentPlan.setDescription("基于已完成的模板项目继续处理用户需求");
-            }
-
-            // 更新任务状态为继续处理
-            currentPlan.setPlanStatus("continuing");
-            sseService.sendTaskUpdate(taskId, currentPlan);
-
-            // 使用增强的请求继续生成任务计划
-            TaskPlan continuePlan = planningService.createInitialPlan(enhancedUserRequest, taskId);
-
-            logger.info("输出最终Request: {}", enhancedUserRequest);
-
-            // 合并任务计划（保留已完成的步骤，添加新的步骤）
-            if (currentPlan.getSteps() != null) {
-                for (TaskStep existingStep : currentPlan.getSteps()) {
-                    if (!"completed".equals(existingStep.getStatus())) {
-                        break; // 只保留已完成的步骤
-                    }
-                    continuePlan.getSteps().add(0, existingStep); // 添加到开头
-                }
-            }
-
-            // 更新任务计划
-            activeTasks.put(taskId, continuePlan);
-            sseService.sendTaskUpdate(taskId, continuePlan);
-
-            // 执行任务子任务
-            executeStepsSequentially(taskId, currentPlan);
-
-        } catch (Exception e) {
-            logger.error("继续处理任务失败，任务ID: {}", taskId, e);
-            // 发送错误信息
-            sseService.sendTaskUpdate(taskId, createErrorTaskPlan(taskId, "继续处理失败: " + e.getMessage()));
-        }
-    }
-
-    /**
-     * 顺序执行任务步骤
-     * @param taskPlan 任务计划
-     */
-    private void executeStepsSequentially(String taskId,TaskPlan taskPlan) {
-        for (TaskStep step : taskPlan.getSteps()) {
-            try {
-                // 设置步骤状态为等待执行
-                step.setStatus("waiting");
-                sseService.sendTaskUpdate(taskId, taskPlan);
-
-                // 短暂延迟以显示等待状态
-                Thread.sleep(500);
-
-                // 执行步骤
-                executeStep(taskId,taskPlan, step);
-
-            } catch (Exception e) {
-                logger.error("步骤执行失败，任务ID: {}, 步骤: {}", taskId, step.getStepIndex(), e);
-                step.setStatus("failed");
-                step.setEndTime(System.currentTimeMillis());
-                step.setResult("执行失败: " + e.getMessage());
-                sseService.sendTaskUpdate(taskId, taskPlan);
-
-                // 如果某个步骤失败，标记整个任务失败
-                taskPlan.setPlanStatus("failed");
-                sseService.sendTaskUpdate(taskId, taskPlan);
-                return;
-            }
-        }
-
-        // 所有步骤完成，标记任务完成
-        taskPlan.setPlanStatus("completed");
-        sseService.sendTaskUpdate(taskId, taskPlan);
-        logger.info("任务执行完成，任务ID: {}", taskId);
-    }
 
     /**
      * 创建模板项目任务计划
      */
-    private TaskPlan createTemplateProjectTaskPlan(String taskId, ProjectInfo projectInfo) {
+    private String createTemplateProjectTaskPlan(String taskId, ProjectInfo projectInfo) throws IOException {
         TaskPlan taskPlan = new TaskPlan();
         taskPlan.setTaskId(taskId);
         taskPlan.setTitle("基于模板生成项目: " + projectInfo.name);
-        taskPlan.setDescription("使用Spring AI + Vue3模板生成项目");
+        taskPlan.setDescription(projectInfo.description);
         taskPlan.setPlanStatus("processing");
+
 
         // 步骤1: 复制模板项目
         TaskStep copyTemplateStep = new TaskStep();
@@ -693,7 +547,16 @@ public class TaskCoordinator {
         copyTemplateStep.setStepRequirement("复制基础模板项目");
         copyTemplateStep.setToolName("template_copier");
         copyTemplateStep.setStatus("pending");
-        taskPlan.addStep(copyTemplateStep);
+        copyTemplateStep.setStartTime(System.currentTimeMillis());
+        taskPlan.setStep(copyTemplateStep);
+        sseService.sendTaskUpdate(taskId, taskPlan);
+
+        String projectPath = templateGenerator.copyTemplateProject(projectInfo.name);
+        copyTemplateStep.setStatus("completed");
+        copyTemplateStep.setEndTime(System.currentTimeMillis());
+        copyTemplateStep.setResult("模板项目复制完成，路径: " + projectPath);
+        sseService.sendTaskUpdate(taskId, taskPlan);
+
 
         // 步骤2: 基础定制
         TaskStep basicCustomizeStep = new TaskStep();
@@ -701,9 +564,18 @@ public class TaskCoordinator {
         basicCustomizeStep.setStepRequirement("基础项目信息定制");
         basicCustomizeStep.setToolName("basic_customizer");
         basicCustomizeStep.setStatus("pending");
-        taskPlan.addStep(basicCustomizeStep);
+        basicCustomizeStep.setStartTime(System.currentTimeMillis());
+        taskPlan.setStep(basicCustomizeStep);
+        sseService.sendTaskUpdate(taskId, taskPlan);
 
-        return taskPlan;
+        templateGenerator.customizeProjectBasics(projectPath, projectInfo.name, projectInfo.description, projectInfo.requirements);
+
+        basicCustomizeStep.setStatus("completed");
+        basicCustomizeStep.setEndTime(System.currentTimeMillis());
+        basicCustomizeStep.setResult("基础项目信息定制完成");
+        sseService.sendTaskUpdate(taskId, taskPlan);
+
+        return projectPath;
     }
 
     /**

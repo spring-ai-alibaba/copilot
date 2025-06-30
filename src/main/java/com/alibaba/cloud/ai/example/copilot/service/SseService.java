@@ -64,49 +64,7 @@ public class SseService {
         logger.info("移除SSE连接，任务ID: {}, 客户端ID: {}", taskId, clientId);
     }
     
-    /**
-     * 发送任务状态更新
-     * @param taskId 任务ID
-     * @param taskPlan 任务计划
-     * @param summary 执行摘要
-     */
-    public void sendTaskStatusUpdate(String taskId, TaskPlan taskPlan, String summary) {
-        Map<String, SseEmitter> emitters = taskEmitters.get(taskId);
-        if (emitters == null || emitters.isEmpty()) {
-            return;
-        }
-        
-        try {
-            // 构建消息数据
-            Map<String, Object> data = Map.of(
-                "taskId", taskId,
-                "taskPlan", taskPlan,
-                "summary", summary,
-                "timestamp", System.currentTimeMillis()
-            );
-            
-            String jsonData = objectMapper.writeValueAsString(data);
-            
-            // 向所有连接的客户端发送消息
-            emitters.entrySet().removeIf(entry -> {
-                try {
-                    entry.getValue().send(SseEmitter.event()
-                        .name("taskStatusUpdate")
-                        .data(jsonData));
-                    return false;
-                } catch (IOException e) {
-                    logger.error("发送SSE消息失败，任务ID: {}, 客户端ID: {}", taskId, entry.getKey(), e);
-                    return true; // 移除失败的连接
-                }
-            });
-            
-            logger.info("已通过SSE发送任务状态更新，任务ID: {}, 连接数: {}", taskId, emitters.size());
-            
-        } catch (Exception e) {
-            logger.error("构建SSE消息失败，任务ID: {}", taskId, e);
-        }
-    }
-    
+
     /**
      * 发送步骤流式内容更新
      * @param taskId 任务ID

@@ -14,7 +14,7 @@ export interface TaskPlan {
   taskId: string
   title: string
   description: string
-  steps: TaskStep[]
+  step: TaskStep
   planStatus: 'planning' | 'processing' | 'completed' | 'failed' | 'cancelled'
   extraParams?: string
 }
@@ -31,6 +31,7 @@ export interface CreateTaskResponse {
   taskId: string
   status: string
   message: string
+  timestamp: number
 }
 
 // 活跃任务响应

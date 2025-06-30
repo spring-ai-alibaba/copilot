@@ -5,7 +5,7 @@
       "args": [
         "-y",
         "@modelcontextprotocol/server-filesystem",
-        "C:\\project\\spring-ai-alibaba-copilot"
+        "."
       ]
     },
     "context7": {

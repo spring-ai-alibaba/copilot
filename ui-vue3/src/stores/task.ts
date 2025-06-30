@@ -38,18 +38,7 @@ export const useTaskStore = defineStore('task', {
       }
     },
 
-    /**
-     * 获取任务状态
-     */
-    async getTaskStatus(taskId: string): Promise<TaskPlan | null> {
-      try {
-        const response = await api.get<any, TaskPlan>(`/status/${taskId}`)
-        return response
-      } catch (error) {
-        console.error('获取任务状态失败:', error)
-        return null
-      }
-    },
+
 
     /**
      * 取消任务

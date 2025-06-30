@@ -20,7 +20,6 @@ import java.util.UUID;
  */
 @RestController
 @RequestMapping("/api/task")
-@CrossOrigin(origins = "*")
 public class TaskController {
 
     private static final Logger logger = LoggerFactory.getLogger(TaskController.class);
@@ -114,9 +113,7 @@ public class TaskController {
             response.put("status", taskPlan.getPlanStatus());
             response.put("title", taskPlan.getTitle());
             response.put("description", taskPlan.getDescription());
-            response.put("steps", taskPlan.getSteps());
-            response.put("stepCount", taskPlan.getStepCount());
-
+            response.put("steps", taskPlan.getStep());
             return ResponseEntity.ok(response);
 
         } catch (Exception e) {

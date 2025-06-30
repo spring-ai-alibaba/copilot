@@ -45,24 +45,4 @@ public class LlmService {
     public ChatClient getChatClient() {
         return chatClient;
     }
-
-    /**
-     * 获取规划专用的ChatClient
-     * 可以在这里配置特定的参数或工具
-     * @return 规划专用的ChatClient
-     */
-    public ChatClient getPlanningChatClient() {
-        // 可以为规划任务配置特定的参数
-        return chatClient;
-    }
-
-    /**
-     * 获取执行专用的ChatClient
-     * 可以在这里配置特定的参数或工具
-     * @return 执行专用的ChatClient
-     */
-    public ChatClient getExecutionChatClient() {
-        // 可以为执行任务配置特定的参数
-        return chatClient;
-    }
 }

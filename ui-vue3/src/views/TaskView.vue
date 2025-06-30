@@ -10,7 +10,7 @@
           </h1>
           <div class="header-actions">
             <a-badge :count="activeTasks.length" :offset="[10, 0]">
-              <a-button type="text" @click="showActiveTasksModal = true">
+              <a-button type="text" @click="handleShowActiveTasks">
                 <UnorderedListOutlined />
                 活跃任务
               </a-button>
@@ -61,8 +61,19 @@
               />
             </div>
 
+            <!-- 等待提示区 -->
+            <div class="task-waiting-section" v-if="isCreatingTask || isTaskWaiting">
+              <div class="waiting-container">
+                <a-spin size="large" />
+                <div class="waiting-content">
+                  <h3>{{ waitingMessage }}</h3>
+                  <p class="waiting-description">{{ waitingDescription }}</p>
+                </div>
+              </div>
+            </div>
+
             <!-- 任务执行区 -->
-            <div class="task-execution-section" v-if="currentTask">
+            <div class="task-execution-section" v-else-if="currentTask && !isTaskWaiting">
               <TaskExecution
                 :task="currentTask"
                 :sse-connection="sseConnection"
@@ -96,7 +107,7 @@
 </template>
 
 <script setup lang="ts">
-import {onMounted, onUnmounted, ref} from 'vue'
+import {computed, onMounted, onUnmounted, ref} from 'vue'
 import {Empty} from 'ant-design-vue'
 import {CodeOutlined, MenuFoldOutlined, MenuUnfoldOutlined, UnorderedListOutlined} from '@ant-design/icons-vue'
 import TaskInput from '@/components/TaskInput.vue'
@@ -112,28 +123,46 @@ const taskStore = useTaskStore()
 const collapsed = ref(false)
 const showActiveTasksModal = ref(false)
 const isCreatingTask = ref(false)
+const isTaskWaiting = ref(false) // 添加这行：定义isTaskWaiting属性，默认为false
 const currentTask = ref<TaskPlan | null>(null)
 const sseConnection = ref<EventSource | null>(null)
 const taskHistory = ref<TaskPlan[]>([])
 const activeTasks = ref<TaskPlan[]>([])
 
+
+
+// 等待提示信息
+const waitingMessage = computed(() => {
+  return '任务正在规划中，请等待...'
+})
+
+const waitingDescription = computed(() => {
+   return 'AI正在分析您的需求并创建任务计划'
+})
+
 // 处理任务提交
-const handleTaskSubmit = async (query: string) => {
+const handleTaskSubmit = async () => {
   isCreatingTask.value = true
 }
 
 // 处理任务创建完成
 const handleTaskCreated = async (taskId: string) => {
   try {
+    isTaskWaiting.value = true // 添加这行：设置任务等待状态为true
+    
     // 创建SSE连接
     const eventSource = new EventSource(`/api/task/stream/${taskId}?clientId=web-client`)
     sseConnection.value = eventSource
 
     // 监听任务更新
     eventSource.addEventListener('taskUpdate', (event) => {
+       isTaskWaiting.value = false // 
       console.log('收到taskUpdate事件:', event.data)
       const data = JSON.parse(event.data)
       if (data.taskPlan) {
+        console.log('更新currentTask:', data.taskPlan)
+        console.log('任务状态:', data.taskPlan.planStatus, '步骤:', data.taskPlan.step)
+        
         currentTask.value = data.taskPlan
         updateTaskInHistory(data.taskPlan)
       }
@@ -160,17 +189,14 @@ const handleTaskCreated = async (taskId: string) => {
       eventSource.close()
       sseConnection.value = null
       isCreatingTask.value = false
+      isTaskWaiting.value = false // 添加这行：出错时取消等待状态
     }
 
-    // 获取初始任务状态
-    const taskStatus = await taskStore.getTaskStatus(taskId)
-    if (taskStatus) {
-      currentTask.value = taskStatus
-      addToTaskHistory(taskStatus)
-    }
+    // SSE连接会自动推送任务状态更新，无需手动获取
 
   } catch (error) {
     console.error('处理任务创建失败:', error)
+    isTaskWaiting.value = false // 添加这行：出错时取消等待状态
   } finally {
     isCreatingTask.value = false
   }
@@ -202,6 +228,11 @@ const selectTask = (task: TaskPlan) => {
     eventSource.addEventListener('taskUpdate', (event) => {
       const data = JSON.parse(event.data)
       if (data.taskPlan) {
+        // 检查任务是否已完成
+        if (data.taskPlan.planStatus === 'completed') {
+          console.log('选择的任务已完成，状态为已完成')
+        }
+        
         currentTask.value = data.taskPlan
         updateTaskInHistory(data.taskPlan)
       }
@@ -211,6 +242,11 @@ const selectTask = (task: TaskPlan) => {
     eventSource.addEventListener('taskStatusUpdate', (event) => {
       const data = JSON.parse(event.data)
       if (data.taskPlan) {
+        // 检查任务是否已完成
+        if (data.taskPlan.planStatus === 'completed') {
+          console.log('选择的任务状态更新：任务已完成')
+        }
+        
         currentTask.value = data.taskPlan
         updateTaskInHistory(data.taskPlan)
       }
@@ -249,6 +285,12 @@ const addToTaskHistory = (task: TaskPlan) => {
 // 更新任务历史中的任务
 const updateTaskInHistory = (task: TaskPlan) => {
   console.log('更新任务历史:', task)
+  
+  // 检查任务是否已完成
+  if (task.planStatus === 'completed') {
+    console.log('任务历史更新：任务已完成，taskId:', task.taskId)
+  }
+  
   const index = taskHistory.value.findIndex(t => t.taskId === task.taskId)
   if (index !== -1) {
     taskHistory.value[index] = JSON.parse(JSON.stringify(task))
@@ -267,15 +309,20 @@ const loadActiveTasks = async () => {
   }
 }
 
-// 组件挂载时加载活跃任务
-onMounted(() => {
-  loadActiveTasks()
+// 处理显示活跃任务模态框
+const handleShowActiveTasks = async () => {
+  // 点击按钮时获取最新的活跃任务数据
+  await loadActiveTasks()
+  // 然后显示模态框
+  showActiveTasksModal.value = true
+}
 
-  // 定期刷新活跃任务
-  const interval = setInterval(loadActiveTasks, 30000) // 30秒刷新一次
+// 组件挂载时的初始化
+onMounted(() => {
+  // 移除自动加载活跃任务和轮询机制
+  // 现在只有用户点击活跃任务按钮时才会获取
 
   onUnmounted(() => {
-    clearInterval(interval)
     if (sseConnection.value) {
       sseConnection.value.close()
     }
@@ -333,11 +380,11 @@ onMounted(() => {
 }
 
 .content-wrapper {
-  height: 100%;
   display: flex;
   flex-direction: column;
   padding: 24px;
   gap: 24px;
+  min-height: calc(100vh - 64px);
 }
 
 .task-input-section {
@@ -347,13 +394,45 @@ onMounted(() => {
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
-.task-execution-section {
+.task-waiting-section {
   flex: 1;
   background: #fff;
   border-radius: 8px;
   padding: 24px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.waiting-container {
+  text-align: center;
+  padding: 40px;
+}
+
+.waiting-content {
+  margin-top: 24px;
+}
+
+.waiting-content h3 {
+  color: #1890ff;
+  font-size: 18px;
+  margin-bottom: 8px;
+  font-weight: 500;
+}
+
+.waiting-description {
+  color: #666;
+  font-size: 14px;
+  margin: 0;
+  line-height: 1.5;
+}
+
+.task-execution-section {
+  background: #fff;
+  border-radius: 8px;
+  padding: 24px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
 .empty-state {

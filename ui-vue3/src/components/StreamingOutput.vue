@@ -142,22 +142,7 @@ const formatDuration = (ms: number) => {
   background: #001529;
   padding: 12px;
   position: relative;
-  max-height: 600px; /* 增加最大高度 */
-  overflow-y: auto;
   min-height: 100px;
-}
-
-/* 添加响应式高度 */
-@media (max-height: 800px) {
-  .streaming-container {
-    max-height: 300px;
-  }
-}
-
-@media (min-height: 1200px) {
-  .streaming-container {
-    max-height: 800px;
-  }
 }
 
 .streaming-container.auto-scroll {

@@ -51,7 +51,7 @@
 
       <div class="steps-list">
         <div
-          v-for="(step) in task.steps"
+          v-for="step in executedSteps"
           :key="step.stepIndex"
           :data-step-index="step.stepIndex"
           class="step-item"
@@ -172,7 +172,7 @@
 </template>
 
 <script setup lang="ts">
-import {computed, nextTick, ref, watch} from 'vue'
+import {computed, nextTick, onMounted, onUnmounted, ref, watch} from 'vue'
 import {Empty} from 'ant-design-vue'
 import {
   CheckCircleOutlined,
@@ -198,10 +198,9 @@ const props = defineProps<{
   sseConnection?: EventSource | null
 }>()
 
-const emit = defineEmits<{
-  cancel: [taskId: string]
-  retry: [taskId: string, stepIndex: number]
-}>()
+const executedSteps = ref<TaskStep[]>([])
+
+const emit = defineEmits(['cancel', 'retry'])
 
 const expandedSteps = ref<number[]>([])
 const logs = ref<LogItem[]>([])
@@ -210,111 +209,65 @@ const streamingContent = ref<Record<number, string>>({})
 const streamingContainer = ref<HTMLElement>()
 
 // 计算属性
-const totalSteps = computed(() => props.task.steps.length)
-const completedSteps = computed(() =>
-  props.task.steps.filter(step => step.status === 'completed').length
-)
+const totalSteps = computed(() => props.task.step ? 1 : 0)
+const completedSteps = computed(() => {
+  if (!props.task.step) return 0
+  return props.task.step.status === 'completed' ? 1 : 0
+})
 const progressPercent = computed(() => {
   if (totalSteps.value === 0) return 0
-  return Math.round((completedSteps.value / totalSteps.value) * 100)
+  return (completedSteps.value / totalSteps.value) * 100
 })
 
-// 当前执行的步骤
-const currentExecutingStep = computed(() =>
-  props.task.steps.find(step => step.status === 'executing')
+// 添加当前执行中的步骤计算属性
+const currentExecutingStep = computed(() => {
+  return executedSteps.value.find(step => step.status === 'executing')
+})
+
+watch(
+  () => props.task.step,
+  (newStep, oldStep) => {
+    if (newStep) {
+      const existingStepIndex = executedSteps.value.findIndex(
+        (s) => s.stepIndex === newStep.stepIndex
+      )
+      if (existingStepIndex !== -1) {
+        // 更新现有步骤
+        const oldStepData = executedSteps.value[existingStepIndex]
+        executedSteps.value[existingStepIndex] = newStep
+        
+        // 如果步骤状态从非executing变为executing，初始化流式内容
+        if (oldStepData.status !== 'executing' && newStep.status === 'executing') {
+          streamingContent.value[newStep.stepIndex] = ''
+        }
+        
+        // 如果步骤完成，可以选择保留或清空流式内容
+        if (newStep.status === 'completed' || newStep.status === 'failed') {
+          // 保留流式内容以供查看
+        }
+      } else {
+        // 添加新步骤并排序
+        executedSteps.value.push(newStep)
+        
+        // 如果新步骤是executing状态，初始化流式内容
+        if (newStep.status === 'executing') {
+          streamingContent.value[newStep.stepIndex] = ''
+        }
+        
+        // 修改排序逻辑：使用startTime而不是stepIndex
+        executedSteps.value.sort((a, b) => {
+          // 如果startTime存在，则按startTime排序
+          if (a.startTime && b.startTime) {
+            return a.startTime - b.startTime
+          }
+          // 如果startTime不存在，则回退到使用stepIndex
+          return a.stepIndex - b.stepIndex
+        })
+      }
+    }
+  },
+  { deep: true, immediate: true }
 )
-
-// 监听SSE连接
-watch(() => props.sseConnection, (newConnection) => {
-  if (newConnection) {
-    // 监听任务更新
-    newConnection.addEventListener('taskUpdate', (event) => {
-      const data = JSON.parse(event.data)
-      addLog('info', `任务状态更新: ${data.message || '正在执行...'}`)
-    })
-
-    // 监听步骤流式内容更新
-    newConnection.addEventListener('stepChunk', (event) => {
-      try {
-        const data = JSON.parse(event.data)
-        const { stepIndex, chunk, isComplete } = data
-
-        console.log('收到stepChunk事件:', { stepIndex, chunk: chunk?.substring(0, 100), isComplete })
-
-        // 自动展开正在执行的步骤
-        if (!expandedSteps.value.includes(stepIndex)) {
-          expandedSteps.value.push(stepIndex)
-        }
-
-        if (isComplete) {
-          // 步骤完成，保留内容但停止流式更新
-          addLog('success', `步骤 ${stepIndex} 执行完成`)
-          console.log(`步骤 ${stepIndex} 流式输出完成`)
-        } else {
-          // 使用响应式更新方式追加流式内容
-          const currentContent = streamingContent.value[stepIndex] || ''
-          const newContent = currentContent + chunk
-
-          // 重新赋值整个对象以确保响应式更新
-          streamingContent.value = {
-            ...streamingContent.value,
-            [stepIndex]: newContent
-          }
-
-          console.log(`步骤 ${stepIndex} 内容更新，当前长度: ${newContent.length}`)
-
-          // 自动滚动到当前执行的步骤
-          nextTick(() => {
-            const stepElement = document.querySelector(`[data-step-index="${stepIndex}"]`)
-            if (stepElement) {
-              stepElement.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
-            }
-          })
-        }
-      } catch (error) {
-        console.error('解析stepChunk数据失败:', error)
-      }
-    })
-
-    // 监听任务状态更新
-    newConnection.addEventListener('taskStatusUpdate', (event) => {
-      const data = JSON.parse(event.data)
-      addLog('success', `任务完成: ${data.summary || '任务执行完成'}`)
-    })
-  }
-})
-
-// 监听任务步骤变化，自动展开新的执行步骤
-watch(() => props.task.steps, (newSteps, oldSteps) => {
-  if (newSteps && oldSteps) {
-    newSteps.forEach(step => {
-      // 如果步骤开始执行，自动展开
-      if (step.status === 'executing' && !expandedSteps.value.includes(step.stepIndex)) {
-        expandedSteps.value.push(step.stepIndex)
-        addLog('info', `开始执行步骤 ${step.stepIndex}: ${step.stepRequirement}`)
-      }
-
-      // 如果步骤完成，添加日志
-      if (step.status === 'completed') {
-        const oldStep = oldSteps.find(s => s.stepIndex === step.stepIndex)
-        if (oldStep && oldStep.status !== 'completed') {
-          addLog('success', `步骤 ${step.stepIndex} 执行完成`)
-        }
-      }
-
-      // 如果步骤失败，添加日志并展开
-      if (step.status === 'failed') {
-        const oldStep = oldSteps.find(s => s.stepIndex === step.stepIndex)
-        if (oldStep && oldStep.status !== 'failed') {
-          addLog('error', `步骤 ${step.stepIndex} 执行失败`)
-          if (!expandedSteps.value.includes(step.stepIndex)) {
-            expandedSteps.value.push(step.stepIndex)
-          }
-        }
-      }
-    })
-  }
-}, { deep: true })
 
 // 获取状态颜色
 const getStatusColor = (status: string) => {
@@ -418,6 +371,55 @@ const addLog = (type: LogItem['type'], message: string) => {
     }
   })
 }
+
+// 处理stepChunk事件
+const handleStepChunk = (event: MessageEvent) => {
+  try {
+    const data = JSON.parse(event.data)
+    const { stepIndex, chunk, isComplete } = data
+    
+    if (stepIndex !== undefined) {
+      if (!streamingContent.value[stepIndex]) {
+        streamingContent.value[stepIndex] = ''
+      }
+      
+      if (chunk) {
+        streamingContent.value[stepIndex] += chunk
+      }
+      
+      // 如果步骤完成，可以选择清空流式内容或保留
+      if (isComplete) {
+        console.log(`步骤 ${stepIndex} 流式输出完成`)
+      }
+    }
+  } catch (error) {
+    console.error('解析stepChunk数据失败:', error)
+  }
+}
+
+// 监听SSE连接，处理stepChunk事件
+watch(
+  () => props.sseConnection,
+  (newConnection, oldConnection) => {
+    // 移除旧连接的监听器
+    if (oldConnection) {
+      oldConnection.removeEventListener('stepChunk', handleStepChunk)
+    }
+    
+    // 添加新连接的监听器
+    if (newConnection) {
+      newConnection.addEventListener('stepChunk', handleStepChunk)
+    }
+  },
+  { immediate: true }
+)
+
+// 组件卸载时清理事件监听器
+onUnmounted(() => {
+  if (props.sseConnection) {
+    props.sseConnection.removeEventListener('stepChunk', handleStepChunk)
+  }
+})
 </script>
 
 <style scoped>
@@ -601,8 +603,6 @@ const addLog = (type: LogItem['type'], message: string) => {
   white-space: pre-wrap;
   word-break: break-all;
   min-height: 250px; /* 增加最小高度 */
-  max-height: 500px; /* 增加最大高度 */
-  overflow-y: auto;
 }
 
 /* 流式内容样式 - 扩大显示区域 */
@@ -611,7 +611,6 @@ const addLog = (type: LogItem['type'], message: string) => {
   margin-bottom: 20px;
   border: 1px solid #e8e8e8;
   border-radius: 8px;
-  overflow: hidden;
   min-height: 350px; /* 增加最小高度 */
   background: #fff;
 }
@@ -668,8 +667,6 @@ const addLog = (type: LogItem['type'], message: string) => {
   border-radius: 6px;
   padding: 16px;
   min-height: 300px;
-  max-height: 600px; /* 增加最大高度 */
-  overflow-y: auto;
   font-family: 'Courier New', monospace;
   font-size: 13px;
   line-height: 1.6;
@@ -694,7 +691,6 @@ const addLog = (type: LogItem['type'], message: string) => {
 
 .step-streaming :deep(.streaming-content) {
   min-height: 250px;
-  max-height: 450px;
   font-size: 13px;
   line-height: 1.6;
   padding: 16px;
@@ -708,7 +704,6 @@ const addLog = (type: LogItem['type'], message: string) => {
 
   .result-content {
     min-height: 350px;
-    max-height: 700px;
   }
 
   .step-streaming {
@@ -717,7 +712,6 @@ const addLog = (type: LogItem['type'], message: string) => {
 
   .log-container {
     min-height: 400px;
-    max-height: 800px;
   }
 }
 </style>
