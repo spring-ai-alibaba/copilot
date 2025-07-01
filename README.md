@@ -17,6 +17,12 @@
 - **通信**: RESTful API + Server-Sent Events (SSE)
 - **AI模型**: 支持多种LLM模型（通过Spring AI）
 
+### 流程示例
+
+<p align="center">
+    <img src="./docs/imgs/ai-copilpt-workflow.png" alt="architecture" style="max-width: 740px; height: 508px" /> 
+</p>
+
 ## 📋 系统要求
 
 - Java 17+
@@ -37,16 +43,15 @@ cd spring-ai-alibaba-copilot
 ```properties
 # AI模型配置
 spring.ai.openai.api-key=your-api-key
-spring.ai.openai.base-url=https://api.openai.com
+spring.ai.openai.base-url=https://dashscope.aliyuncs.com
 ```
 
 ### 3. 构建前端
 ```bash
-# 给构建脚本执行权限
-chmod +x build-ui.sh
+安装依赖 npm install
 
-# 执行构建
-./build-ui.sh
+运行项目 npm run dev
+
 ```
 
 ### 4. 启动应用

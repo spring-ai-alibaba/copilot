@@ -6,6 +6,9 @@ import com.alibaba.cloud.ai.example.copilot.template.TemplateBasedProjectGenerat
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.ai.chat.client.ChatClient;
+import org.springframework.ai.chat.client.advisor.MessageChatMemoryAdvisor;
+import org.springframework.ai.chat.memory.ChatMemory;
+import org.springframework.ai.chat.memory.MessageWindowChatMemory;
 import org.springframework.ai.chat.messages.Message;
 import org.springframework.ai.chat.messages.SystemMessage;
 import org.springframework.ai.chat.messages.UserMessage;
@@ -40,6 +43,8 @@ public class TaskCoordinator {
     private final SseService sseService;
     private final TemplateBasedProjectGenerator templateGenerator;
 
+    private final ChatMemory chatMemory = MessageWindowChatMemory.builder().build();
+
     // 存储正在执行的任务
     private final ConcurrentMap<String, TaskPlan> activeTasks = new ConcurrentHashMap<>();
 
@@ -61,23 +66,64 @@ public class TaskCoordinator {
     public void startTask(String userRequest, String taskId) {
         logger.info("开始执行任务，任务ID: {}", taskId);
         // 异步执行模板项目生成
-        CompletableFuture.runAsync(() -> {
-            try {
-                // 1. 执行模板项目生成
-                String projectInfo = executeTemplateProjectGeneration(userRequest, taskId);
+        try {
+            // 1. 执行模板项目生成
+            String projectInfo = executeTemplateProjectGeneration(userRequest, taskId);
 
-                // 2. 获取下一步执行计划
-                TaskPlan continuePlan = planningService.createInitialPlan(projectInfo, taskId);
+            // 2. 获取下一步执行计划
+            TaskPlan continuePlan = planningService.createInitialPlan(projectInfo, taskId);
 
-                // 3. 开始循环执行计划（会自动执行所有步骤直到完成）
-                executeStep(taskId, continuePlan);
+            // 3. 开始循环执行计划（会自动执行所有步骤直到完成）
+            executeStep(taskId, continuePlan, projectInfo);
 
-            } catch (Exception e) {
-                logger.error("模板项目生成和继续处理失败，任务ID: {}", taskId, e);
-                // 发送错误信息
-                sseService.sendTaskUpdate(taskId, createErrorTaskPlan(taskId, e.getMessage()));
+        } catch (Exception e) {
+            logger.error("模板项目生成和继续处理失败，任务ID: {}", taskId, e);
+            // 发送错误信息
+            sseService.sendTaskUpdate(taskId, createErrorTaskPlan(taskId, e.getMessage()));
+            
+            // 添加重试机制：当发生错误时，将用户请求和错误信息再次获取下一步计划
+            retryTaskExecution(userRequest, taskId, e, 1, 3); // 最多重试3次
+        }
+    }
+    
+    /**
+     * 重试任务执行
+     * @param userRequest 用户请求
+     * @param taskId 任务ID
+     * @param originalException 原始异常
+     * @param currentRetry 当前重试次数
+     * @param maxRetries 最大重试次数
+     */
+    private void retryTaskExecution(String userRequest, String taskId, Exception originalException, int currentRetry, int maxRetries) {
+        if (currentRetry > maxRetries) {
+            logger.error("已达到最大重试次数({}次)，任务执行失败，任务ID: {}", maxRetries, taskId);
+            sseService.sendTaskUpdate(taskId, createErrorTaskPlan(taskId, 
+                "已达到最大重试次数(" + maxRetries + "次)，最终错误: " + originalException.getMessage()));
+            return;
+        }
+        
+        try {
+            logger.info("尝试第{}次重试，任务ID: {}", currentRetry, taskId);
+            String errorContext = String.format(
+                "执行过程中发生错误: %s\n这是第%d次重试（最多%d次）。\n请提供一个替代方案继续执行任务。\n原始请求: %s", 
+                originalException.getMessage(), currentRetry, maxRetries, userRequest
+            );
+            
+            // 使用错误信息和原始请求重新获取执行计划
+            TaskPlan retryPlan = planningService.createInitialPlan(errorContext, taskId);
+            
+            if (retryPlan != null) {
+                logger.info("成功获取重试执行计划，任务ID: {}, 重试次数: {}", taskId, currentRetry);
+                // 发送重试计划更新
+                sseService.sendTaskUpdate(taskId, retryPlan);
+                // 执行重试计划
+                executeStep(taskId, retryPlan, errorContext);
             }
-        });
+        } catch (Exception retryEx) {
+            logger.error("第{}次重试失败，任务ID: {}", currentRetry, taskId, retryEx);
+            // 递归调用自身进行下一次重试
+            retryTaskExecution(userRequest, taskId, retryEx, currentRetry + 1, maxRetries);
+        }
     }
 
 
@@ -85,7 +131,7 @@ public class TaskCoordinator {
      * 执行单个步骤
      * @param taskPlan 任务计划
      */
-    private void executeStep(String taskId,TaskPlan taskPlan) {
+    private void executeStep(String taskId,TaskPlan taskPlan,String projectInfo) {
 
         TaskStep step = taskPlan.getStep();
 
@@ -107,7 +153,7 @@ public class TaskCoordinator {
         );
 
         TaskPlanningPromptBuilder promptBuilder = new TaskPlanningPromptBuilder();
-        String systemText = promptBuilder.buildTaskPlanningPrompt(taskPlan, step.getStepIndex(), step.getStepRequirement());
+        String systemText = promptBuilder.buildTaskPlanningPrompt(taskPlan,projectInfo);
         Message userMessage = new UserMessage(promptContent);
         SystemMessage systemMessage = new SystemMessage(systemText);
         Prompt prompt = new Prompt(List.of(systemMessage,userMessage));
@@ -116,10 +162,14 @@ public class TaskCoordinator {
         step.setStatus("executing");
         step.setStartTime(System.currentTimeMillis());
         sseService.sendTaskUpdate(taskId, taskPlan);
-
+        // 保存记忆
+        chatMemory.add(taskId,userMessage);
         // 执行计划
         ChatClient chatClient = llmService.getChatClient();
-        Flux<String> content = chatClient.prompt(prompt).stream().content();
+        Flux<String> content = chatClient
+                .prompt(prompt)
+                .advisors(MessageChatMemoryAdvisor.builder(chatMemory).build())
+                .stream().content();
 
         // 实时处理流式响应
         StringBuilder resultBuilder = new StringBuilder();
@@ -162,12 +212,13 @@ public class TaskCoordinator {
         step.setEndTime(System.currentTimeMillis());
         step.setResult(finalResult);
 
+        // 保存记忆
+        chatMemory.add(taskId,new UserMessage(finalResult));
+
         // 发送最终状态更新
         sseService.sendTaskUpdate(taskId, taskPlan);
 
         logger.info("步骤执行完成，任务ID: {}, 步骤: {}", taskId, step.getStepIndex());
-
-
     }
 
     /**
@@ -210,7 +261,7 @@ public class TaskCoordinator {
                 sseService.sendTaskUpdate(taskId, nextTaskPlan);
 
                 // 递归执行下一步
-                executeStep(taskId, nextTaskPlan);
+                executeStep(taskId, nextTaskPlan," ");
 
             } else {
                 // 没有下一步，任务完成
