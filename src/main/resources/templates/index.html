@@ -87,6 +87,14 @@
 
                 <div id="status" class="status" style="display: none;"></div>
 
+                <!-- 新增：工具配置入口 -->
+                <h3>🔧 工具配置</h3>
+                <div class="quick-actions">
+                    <div class="quick-action" onclick="openToolConfig()">
+                        ⚙️ 配置动态工具
+                    </div>
+                </div>
+
                 <div style="margin-top: 30px;">
                     <h3>💡 Tips</h3>
                     <div style="font-size: 12px; color: #666; line-height: 1.4;">
@@ -101,9 +109,95 @@
         </div>
     </div>
 
+    <!-- 工具配置模态框 -->
+    <div id="toolConfigModal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>🔧 动态工具配置</h2>
+                <span class="close" onclick="closeToolConfig()">&times;</span>
+            </div>
+
+            <div class="modal-body">
+                <!-- 标签页导航 -->
+                <div class="tab-nav">
+                    <button class="tab-btn active" onclick="switchTab('system-tools')">系统工具</button>
+                    <button class="tab-btn" onclick="switchTab('mcp-tools')">MCP工具</button>
+                    <button class="tab-btn" onclick="switchTab('add-mcp')">添加MCP服务器</button>
+                </div>
+
+                <!-- 系统工具标签页 -->
+                <div id="system-tools" class="tab-content active">
+                    <div class="tool-section">
+                        <h3>系统内置工具</h3>
+                        <div id="systemToolsList" class="tools-list">
+                            <div class="loading-tools">正在加载系统工具...</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- MCP工具标签页 -->
+                <div id="mcp-tools" class="tab-content">
+                    <div class="tool-section">
+                        <h3>MCP服务器工具</h3>
+                        <div id="mcpToolsList" class="tools-list">
+                            <div class="loading-tools">正在加载MCP工具...</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 添加MCP服务器标签页 -->
+                <div id="add-mcp" class="tab-content">
+                    <div class="tool-section">
+                        <h3>添加MCP服务器</h3>
+
+                        <!-- JSON配置方式 -->
+                        <div class="config-method">
+                            <h4>方式1: JSON配置</h4>
+                            <textarea id="mcpJsonConfig" placeholder='请输入MCP服务器配置JSON:
+{
+  "mcpServers": {
+    "mcp-server-chart": {
+      "command": "npx",
+      "args": ["-y", "@antv/mcp-server-chart"]
+    }
+  }
+}'></textarea>
+                            <button onclick="addMcpFromJson()">从JSON添加</button>
+                        </div>
+
+                        <!-- 表单配置方式 -->
+                        <div class="config-method">
+                            <h4>方式2: 表单配置</h4>
+                            <form id="mcpServerForm">
+                                <div class="form-group">
+                                    <label>服务器名称:</label>
+                                    <input type="text" id="mcpServerName" required>
+                                </div>
+                                <div class="form-group">
+                                    <label>命令:</label>
+                                    <input type="text" id="mcpCommand" placeholder="npx" required>
+                                </div>
+                                <div class="form-group">
+                                    <label>参数 (每行一个):</label>
+                                    <textarea id="mcpArgs" placeholder="-y&#10;@antv/mcp-server-chart"></textarea>
+                                </div>
+                                <div class="form-group">
+                                    <label>工作目录:</label>
+                                    <input type="text" id="mcpWorkDir" placeholder="留空使用当前目录">
+                                </div>
+                                <button type="submit">添加MCP服务器</button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- JavaScript文件引用 -->
     <script src="/js/tool-log-display.js"></script>
     <script src="/js/sse-manager.js"></script>
     <script src="/js/main.js"></script>
+    <script src="/js/tool-config.js"></script>
 </body>
 </html>

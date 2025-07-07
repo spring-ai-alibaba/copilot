@@ -7,7 +7,6 @@ import reactor.core.publisher.Mono;
 
 @RestController
 @RequestMapping("/api/task")
-@CrossOrigin(origins = "*")
 public class TaskStatusController {
 
     private final ContinuousConversationService conversationService;

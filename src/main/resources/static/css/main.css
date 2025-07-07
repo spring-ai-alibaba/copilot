@@ -589,3 +589,457 @@ body {
     font-size: 12px;
     font-style: italic;
 }
+
+/* 工具配置模态框样式 */
+.modal {
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0,0,0,0.5);
+    backdrop-filter: blur(2px);
+}
+
+.modal-content {
+    background-color: #fefefe;
+    margin: 2% auto;
+    padding: 0;
+    border: none;
+    border-radius: 12px;
+    width: 90%;
+    max-width: 1000px;
+    max-height: 90vh;
+    overflow-y: auto;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+}
+
+.modal-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 20px 30px;
+    border-radius: 12px 12px 0 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.modal-header h2 {
+    margin: 0;
+    font-size: 24px;
+}
+
+.close {
+    color: white;
+    font-size: 32px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: opacity 0.2s;
+}
+
+.close:hover {
+    opacity: 0.7;
+}
+
+.modal-body {
+    padding: 30px;
+}
+
+/* 标签页样式 */
+.tab-nav {
+    display: flex;
+    border-bottom: 2px solid #e0e0e0;
+    margin-bottom: 30px;
+}
+
+.tab-btn {
+    background: none;
+    border: none;
+    padding: 15px 25px;
+    cursor: pointer;
+    font-size: 16px;
+    font-weight: 500;
+    color: #666;
+    border-bottom: 3px solid transparent;
+    transition: all 0.3s ease;
+}
+
+.tab-btn:hover {
+    color: #333;
+    background: #f5f5f5;
+}
+
+.tab-btn.active {
+    color: #667eea;
+    border-bottom-color: #667eea;
+    background: #f8f9ff;
+}
+
+.tab-content {
+    display: none;
+}
+
+.tab-content.active {
+    display: block;
+}
+
+/* 工具区域样式 */
+.tool-section {
+    margin-bottom: 30px;
+    padding: 25px;
+    border: 1px solid #e0e0e0;
+    border-radius: 12px;
+    background: #f9f9f9;
+}
+
+.tool-section h3 {
+    margin: 0 0 20px 0;
+    color: #333;
+    font-size: 20px;
+}
+
+.tools-list {
+    display: grid;
+    gap: 15px;
+}
+
+.tool-item {
+    background: white;
+    padding: 20px;
+    border-radius: 8px;
+    border: 1px solid #ddd;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    transition: all 0.3s ease;
+}
+
+.tool-item:hover {
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    transform: translateY(-2px);
+}
+
+.tool-item.active {
+    border-color: #4CAF50;
+    background: #f0fff0;
+}
+
+.tool-info {
+    flex: 1;
+}
+
+.tool-name {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 8px;
+}
+
+.tool-icon {
+    font-size: 20px;
+}
+
+.tool-title {
+    font-weight: bold;
+    font-size: 16px;
+    color: #333;
+}
+
+.tool-badge {
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: bold;
+    text-transform: uppercase;
+}
+
+.tool-badge.system {
+    background: #e3f2fd;
+    color: #1976d2;
+}
+
+.tool-badge.mcp {
+    background: #f3e5f5;
+    color: #7b1fa2;
+}
+
+.tool-description {
+    color: #666;
+    margin-bottom: 8px;
+    line-height: 1.4;
+}
+
+.tool-source {
+    font-size: 12px;
+    color: #999;
+    margin-bottom: 5px;
+}
+
+.tool-parameters {
+    font-size: 12px;
+    color: #666;
+    font-family: monospace;
+    background: #f5f5f5;
+    padding: 5px 8px;
+    border-radius: 4px;
+}
+
+.tool-actions {
+    display: flex;
+    gap: 8px;
+    flex-direction: column;
+}
+
+.tool-actions button {
+    padding: 6px 12px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: bold;
+    transition: all 0.2s;
+    min-width: 60px;
+}
+
+.btn-test {
+    background: #2196F3;
+    color: white;
+}
+
+.btn-test:hover {
+    background: #1976D2;
+}
+
+.btn-info {
+    background: #FF9800;
+    color: white;
+}
+
+.btn-info:hover {
+    background: #F57C00;
+}
+
+.btn-edit {
+    background: #FF9800;
+    color: white;
+}
+
+.btn-edit:hover {
+    background: #F57C00;
+}
+
+.btn-delete {
+    background: #f44336;
+    color: white;
+}
+
+.btn-delete:hover {
+    background: #d32f2f;
+}
+
+.btn-toggle {
+    background: #4CAF50;
+    color: white;
+}
+
+.btn-toggle:hover {
+    background: #388E3C;
+}
+
+/* 配置方法样式 */
+.config-method {
+    margin-bottom: 30px;
+    padding: 20px;
+    background: white;
+    border-radius: 8px;
+    border: 1px solid #ddd;
+}
+
+.config-method h4 {
+    margin: 0 0 15px 0;
+    color: #333;
+}
+
+.form-group {
+    margin-bottom: 15px;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: bold;
+    color: #333;
+}
+
+.form-group input,
+.form-group select,
+.form-group textarea {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    font-size: 14px;
+    transition: border-color 0.3s;
+    box-sizing: border-box;
+}
+
+.form-group input:focus,
+.form-group select:focus,
+.form-group textarea:focus {
+    outline: none;
+    border-color: #667eea;
+    box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.2);
+}
+
+.form-group textarea {
+    height: 100px;
+    resize: vertical;
+    font-family: monospace;
+}
+
+#mcpJsonConfig {
+    height: 150px;
+    font-family: monospace;
+    font-size: 13px;
+}
+
+.config-method button,
+.form-group button {
+    background: #667eea;
+    color: white;
+    border: none;
+    padding: 12px 24px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: bold;
+    transition: background 0.3s;
+}
+
+.config-method button:hover,
+.form-group button:hover {
+    background: #5a67d8;
+}
+
+/* 加载和空状态样式 */
+.loading-tools,
+.no-tools {
+    text-align: center;
+    padding: 40px 20px;
+    color: #666;
+    font-style: italic;
+}
+
+.no-tools small {
+    display: block;
+    margin-top: 5px;
+    font-size: 12px;
+    color: #999;
+}
+
+/* 测试结果模态框 */
+.test-result-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.5);
+    z-index: 1001;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.test-result-content {
+    background: white;
+    border-radius: 8px;
+    max-width: 600px;
+    max-height: 80vh;
+    overflow: hidden;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+}
+
+.test-result-header {
+    background: #f5f5f5;
+    padding: 15px 20px;
+    border-bottom: 1px solid #ddd;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.test-result-header h3 {
+    margin: 0;
+    color: #333;
+}
+
+.test-result-header button {
+    background: none;
+    border: none;
+    font-size: 24px;
+    cursor: pointer;
+    color: #666;
+}
+
+.test-result-body {
+    padding: 20px;
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.test-result-body pre {
+    background: #f8f8f8;
+    padding: 15px;
+    border-radius: 4px;
+    overflow-x: auto;
+    font-size: 13px;
+    line-height: 1.4;
+}
+
+/* 工具配置响应式设计 */
+@media (max-width: 768px) {
+    .modal-content {
+        width: 95%;
+        margin: 1% auto;
+    }
+
+    .modal-body {
+        padding: 20px;
+    }
+
+    .tab-nav {
+        flex-wrap: wrap;
+    }
+
+    .tab-btn {
+        flex: 1;
+        min-width: 120px;
+        padding: 12px 15px;
+        font-size: 14px;
+    }
+
+    .tool-item {
+        flex-direction: column;
+        gap: 15px;
+    }
+
+    .tool-actions {
+        flex-direction: row;
+        justify-content: flex-end;
+    }
+
+    .tool-actions button {
+        min-width: 50px;
+        padding: 5px 10px;
+    }
+
+    .config-method {
+        padding: 15px;
+    }
+
+    .test-result-content {
+        max-width: 95%;
+        margin: 0 10px;
+    }
+}

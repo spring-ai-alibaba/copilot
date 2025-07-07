@@ -14,7 +14,6 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
  */
 @RestController
 @RequestMapping("/api/logs")
-@CrossOrigin(origins = "*")
 public class LogStreamController {
 
     private static final Logger logger = LoggerFactory.getLogger(LogStreamController.class);

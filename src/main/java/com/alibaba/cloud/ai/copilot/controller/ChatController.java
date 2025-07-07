@@ -24,7 +24,6 @@ import java.util.concurrent.CompletableFuture;
  */
 @RestController
 @RequestMapping("/api/chat")
-@CrossOrigin(origins = "*")
 public class ChatController {
 
     private static final Logger logger = LoggerFactory.getLogger(ChatController.class);
@@ -45,8 +44,6 @@ public class ChatController {
     /**
      * 发送消息给AI - 支持连续工具调用
      */
-    // 在现有ChatController中修改sendMessage方法
-
     @PostMapping("/message")
     public Mono<ChatResponseDto> sendMessage(@RequestBody ChatRequestDto request) {
         return Mono.fromCallable(() -> {

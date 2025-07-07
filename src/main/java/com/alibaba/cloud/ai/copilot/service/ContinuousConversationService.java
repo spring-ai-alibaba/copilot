@@ -332,7 +332,7 @@ public class ContinuousConversationService {
         try {
             logger.debug("Executing turn {} with {} messages in history", turnNumber, conversationHistory.size());
 
-            // 调用AI（这里可以添加超时控制，但Spring AI目前不直接支持）
+            // 调用AI
             ChatResponse response = chatClient.prompt()
                 .messages(conversationHistory)
                 .call()
