@@ -30,12 +30,6 @@
 - **结构生成**: 自动创建标准的项目目录结构
 - **配置文件生成**: 自动生成相应的配置文件和依赖声明
 
-### 📊 任务管理
-- **任务状态跟踪**: 实时监控任务执行进度和状态
-- **SSE流式推送**: 通过Server-Sent Events推送实时日志
-- **错误处理**: 完善的错误捕获和恢复机制
-- **历史记录**: 任务执行历史和结果查询
-
 ## 🏗️ 技术架构
 
 ### 后端技术栈
@@ -237,107 +231,6 @@ app:
     delay-seconds: 2  # 延迟打开时间
 ```
 
-## 📚 API文档
-
-### 🔄 任务管理API
-
-#### 获取任务状态
-```http
-GET /api/task/status/{taskId}
-```
-
-**响应示例:**
-```json
-{
-  "taskId": "task-123",
-  "status": "RUNNING",
-  "currentAction": "正在分析项目结构...",
-  "summary": "项目分析任务",
-  "currentTurn": 2,
-  "totalEstimatedTurns": 5,
-  "progressPercentage": 40.0,
-  "elapsedTime": 15000,
-  "errorMessage": null
-}
-```
-
-#### 获取对话结果
-```http
-GET /api/task/result/{taskId}
-```
-
-**响应示例:**
-```json
-{
-  "taskId": "task-123",
-  "status": "COMPLETED",
-  "result": "任务执行完成",
-  "totalTurns": 5,
-  "elapsedTime": 45000
-}
-```
-
-### 📡 SSE日志流API
-
-#### 建立SSE连接
-```http
-GET /api/logs/stream/{taskId}
-Accept: text/event-stream
-```
-
-**事件格式:**
-```
-event: log
-data: {"level":"INFO","message":"开始执行任务","timestamp":"2024-01-01T10:00:00Z"}
-
-event: status
-data: {"status":"RUNNING","progress":25}
-
-event: complete
-data: {"status":"COMPLETED","result":"任务完成"}
-```
-
-#### 关闭SSE连接
-```http
-POST /api/logs/close/{taskId}
-```
-
-#### 获取连接状态
-```http
-GET /api/logs/status
-```
-
-**响应示例:**
-```json
-{
-  "activeConnections": 3,
-  "status": "OK"
-}
-```
-
-## 🛠️ 工具集成详解
-
-### 📊 项目分析工具 (AnalyzeProjectTool)
-- **功能**: 分析项目类型、依赖关系、代码结构
-- **支持格式**: Maven、npm、Python、Go、Rust等
-- **输出格式**: 详细报告、JSON格式、简要摘要
-
-### 📝 文件操作工具 (FileOperationTools)
-- **readFile**: 读取文件内容，支持分页
-- **writeFile**: 创建或覆盖文件
-- **editFile**: 智能编辑，支持差异预览
-- **listDirectory**: 目录列表，支持递归
-
-### 🏗️ 项目脚手架工具 (ProjectScaffoldTool)
-- **支持类型**: Spring Boot、React、Vue、Node.js、Python等
-- **模板变量**: 项目名称、作者、版本等自动替换
-- **结构生成**: 标准目录结构和配置文件
-
-### 🧠 智能编辑工具 (SmartEditTool)
-- **自然语言**: 基于描述进行代码修改
-- **上下文感知**: 理解项目结构和代码逻辑
-- **安全编辑**: 提供编辑预览和确认机制
-
 ## 🔍 项目类型支持
 
 | 项目类型 | 检测文件 | 依赖分析 | 脚手架支持 |
@@ -353,22 +246,6 @@ GET /api/logs/status
 | Go | go.mod | ✅ | ❌ |
 | Rust | Cargo.toml | ✅ | ❌ |
 
-## 🚀 高级功能
-
-### 🔄 连续任务执行
-- 支持复杂任务的分步执行
-- 自动任务状态跟踪和进度更新
-- 错误恢复和重试机制
-
-### 📡 实时日志流
-- 基于SSE的实时日志推送
-- 多客户端连接支持
-- 结构化日志格式
-
-### 🎯 智能工具调用
-- 基于Spring AI @Tool注解
-- 自动参数验证和类型转换
-- 详细的执行日志和监控
 
 ## 🤝 贡献指南
 
