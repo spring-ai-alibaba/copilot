@@ -153,6 +153,98 @@ public class LogStreamService {
     }
 
     /**
+     * 推送文件创建事件
+     */
+    public void pushFileCreated(String taskId, String filePath, String message) {
+        FileStreamEvent event = new FileStreamEvent();
+        event.setType("FILE_CREATED");
+        event.setTaskId(taskId);
+        event.setFilePath(filePath);
+        event.setMessage(message);
+        event.setTimestamp(LocalDateTime.now().format(formatter));
+        event.setIcon("📄");
+        event.setStatus("CREATED");
+
+        sendLogEvent(taskId, event);
+    }
+
+    /**
+     * 推送文件内容块写入事件
+     */
+    public void pushFileContentChunk(String taskId, String filePath, String chunk, int chunkIndex, long totalBytes, long writtenBytes) {
+        FileStreamEvent event = new FileStreamEvent();
+        event.setType("FILE_CONTENT_CHUNK");
+        event.setTaskId(taskId);
+        event.setFilePath(filePath);
+        event.setMessage(String.format("写入内容块 %d (%d/%d bytes)", chunkIndex, writtenBytes, totalBytes));
+        event.setTimestamp(LocalDateTime.now().format(formatter));
+        event.setIcon("✏️");
+        event.setStatus("WRITING");
+        event.setChunkIndex(chunkIndex);
+        event.setTotalBytes(totalBytes);
+        event.setWrittenBytes(writtenBytes);
+        event.setContentChunk(chunk);
+
+        sendLogEvent(taskId, event);
+    }
+
+    /**
+     * 推送文件写入进度事件
+     */
+    public void pushFileWriteProgress(String taskId, String filePath, long totalBytes, long writtenBytes, double progressPercent) {
+        FileStreamEvent event = new FileStreamEvent();
+        event.setType("FILE_WRITE_PROGRESS");
+        event.setTaskId(taskId);
+        event.setFilePath(filePath);
+        event.setMessage(String.format("写入进度: %.1f%% (%d/%d bytes)", progressPercent, writtenBytes, totalBytes));
+        event.setTimestamp(LocalDateTime.now().format(formatter));
+        event.setIcon("📊");
+        event.setStatus("WRITING");
+        event.setTotalBytes(totalBytes);
+        event.setWrittenBytes(writtenBytes);
+        event.setProgressPercent(progressPercent);
+
+        sendLogEvent(taskId, event);
+    }
+
+    /**
+     * 推送文件写入完成事件
+     */
+    public void pushFileWriteComplete(String taskId, String filePath, long totalBytes, long executionTime) {
+        FileStreamEvent event = new FileStreamEvent();
+        event.setType("FILE_WRITE_COMPLETE");
+        event.setTaskId(taskId);
+        event.setFilePath(filePath);
+        event.setMessage(String.format("文件写入完成 (%d bytes, %dms)", totalBytes, executionTime));
+        event.setTimestamp(LocalDateTime.now().format(formatter));
+        event.setIcon("✅");
+        event.setStatus("COMPLETE");
+        event.setTotalBytes(totalBytes);
+        event.setWrittenBytes(totalBytes);
+        event.setProgressPercent(100.0);
+        event.setExecutionTime(executionTime);
+
+        sendLogEvent(taskId, event);
+    }
+
+    /**
+     * 推送文件写入错误事件
+     */
+    public void pushFileWriteError(String taskId, String filePath, String errorMessage, long executionTime) {
+        FileStreamEvent event = new FileStreamEvent();
+        event.setType("FILE_WRITE_ERROR");
+        event.setTaskId(taskId);
+        event.setFilePath(filePath);
+        event.setMessage("文件写入失败: " + errorMessage);
+        event.setTimestamp(LocalDateTime.now().format(formatter));
+        event.setIcon("❌");
+        event.setStatus("ERROR");
+        event.setExecutionTime(executionTime);
+
+        sendLogEvent(taskId, event);
+    }
+
+    /**
      * 发送日志事件到前端
      */
     private void sendLogEvent(String taskId, Object event) {
@@ -183,7 +275,7 @@ public class LogStreamService {
     private String getToolIcon(String toolName) {
         switch (toolName) {
             case "readFile": return "📖";
-            case "writeFile": return "✏️";
+            case "streamingWriteFile": return "🌊";
             case "editFile": return "📝";
             case "listDirectory": return "📁";
             case "analyzeProject": return "🔍";

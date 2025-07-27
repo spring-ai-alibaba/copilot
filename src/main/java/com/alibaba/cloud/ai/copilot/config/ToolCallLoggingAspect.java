@@ -1,6 +1,6 @@
 package com.alibaba.cloud.ai.copilot.config;
 
-import com.alibaba.cloud.ai.copilot.service.ToolExecutionLogger;
+
 import com.alibaba.cloud.ai.copilot.service.LogStreamService;
 import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.Around;
@@ -23,9 +23,6 @@ import java.util.regex.Pattern;
 public class ToolCallLoggingAspect {
 
     private static final Logger logger = LoggerFactory.getLogger(ToolCallLoggingAspect.class);
-
-    @Autowired
-    private ToolExecutionLogger executionLogger;
 
     @Autowired
     private LogStreamService logStreamService;
@@ -129,8 +126,8 @@ public class ToolCallLoggingAspect {
                     // readFile(String absolutePath, Integer offset, Integer limit)
                     return args.length > 0 && args[0] != null ? args[0].toString() : "未指定路径";
 
-                case "writeFile":
-                    // writeFile(String filePath, String content)
+                case "streamingWriteFile":
+                    // streamingWriteFile(String filePath, String content, Long estimatedSize)
                     return args.length > 0 && args[0] != null ? args[0].toString() : "未指定路径";
 
                 case "editFile":

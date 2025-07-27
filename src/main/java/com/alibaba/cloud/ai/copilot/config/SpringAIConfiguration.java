@@ -19,6 +19,7 @@ public class SpringAIConfiguration {
     @Bean
     public ChatClient chatClient(ChatModel chatModel,
                                 FileOperationTools fileOperationTools,
+                                StreamingWriteFileTool streamingWriteFileTool,
                                 SmartEditTool smartEditTool,
                                 AnalyzeProjectTool analyzeProjectTool,
                                 ProjectScaffoldTool projectScaffoldTool,
@@ -47,7 +48,7 @@ public class SpringAIConfiguration {
 
                 # AVAILABLE TOOLS:
                 - readFile: Read file contents (supports pagination)
-                - writeFile: Create or overwrite files
+                - streamingWriteFile: Create or overwrite files with real-time progress feedback
                 - editFile: Edit files by replacing specific text
                 - listDirectory: List directory contents (supports recursive)
                 - analyzeProject: Analyze existing projects to understand structure and dependencies
@@ -80,7 +81,7 @@ public class SpringAIConfiguration {
 
                 Remember: Your goal is to deliver COMPLETE solutions through continuous execution!
                 """)
-            .defaultTools(fileOperationTools, smartEditTool, analyzeProjectTool, projectScaffoldTool)
+            .defaultTools(fileOperationTools, streamingWriteFileTool, smartEditTool, analyzeProjectTool, projectScaffoldTool)
             .build();
     }
 
