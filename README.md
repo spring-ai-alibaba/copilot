@@ -54,13 +54,6 @@
     <img src="./docs/imgs/chat-04.png" alt="聊天界面-结果展示" width="45%" />
 </p>
 
-
-### 📹 演示视频
-
-<p align="center">
-    <img src="./docs/video/2025-07-06 13-52-54-712.gif" alt="功能演示" width="800" />
-</p>
-
 ## 📋 系统要求
 
 - **Java 17+**: 核心运行环境

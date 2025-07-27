@@ -4,10 +4,17 @@ spring:
   ai:
     openai:
       base-url: https://dashscope.aliyuncs.com/compatible-mode
-      api-key: ${DASHSCOPE_API_KEY}
+      api-key: sk-xx
       chat:
         options:
           model: qwen-plus
+  # 跨域配置
+  web:
+    cors:
+      allowed-origins: "*"
+      allowed-methods: "*"
+      allowed-headers: "*"
+      allow-credentials: false
 server:
   port: 8080
 
