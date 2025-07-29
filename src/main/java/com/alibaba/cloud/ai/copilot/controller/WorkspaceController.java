@@ -4,10 +4,19 @@ import com.alibaba.cloud.ai.copilot.dto.FileContentRequest;
 import com.alibaba.cloud.ai.copilot.dto.FileInfo;
 import com.alibaba.cloud.ai.copilot.dto.RenameRequest;
 import com.alibaba.cloud.ai.copilot.service.WorkspaceService;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.io.FileSystemResource;
+import org.springframework.core.io.Resource;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.List;
 import java.util.Map;
 
@@ -117,6 +126,83 @@ public class WorkspaceController {
         } catch (Exception e) {
             e.printStackTrace();
             return ResponseEntity.internalServerError().build();
+        }
+    }
+
+    /**
+     * 静态文件服务 - 用于预览HTML文件及其依赖的CSS/JS文件
+     */
+    @GetMapping("/static/**")
+    public ResponseEntity<Resource> serveStaticFile(HttpServletRequest request) {
+        try {
+            // 从请求URI中提取文件路径
+            String requestURI = request.getRequestURI();
+            String filePath = requestURI.substring("/api/workspace/static/".length());
+
+            // 获取工作目录的绝对路径
+            Path workspacePath = workspaceService.getWorkspaceRoot();
+            Path resolvedPath = workspacePath.resolve(filePath).normalize();
+
+            // 安全检查：确保文件在工作目录内
+            if (!resolvedPath.startsWith(workspacePath)) {
+                return ResponseEntity.badRequest().build();
+            }
+
+            // 检查文件是否存在
+            if (!Files.exists(resolvedPath) || Files.isDirectory(resolvedPath)) {
+                return ResponseEntity.notFound().build();
+            }
+
+            // 创建资源
+            Resource resource = new FileSystemResource(resolvedPath);
+
+            // 确定内容类型
+            String contentType = determineContentType(resolvedPath);
+
+            return ResponseEntity.ok()
+                    .contentType(MediaType.parseMediaType(contentType))
+                    .header(HttpHeaders.CACHE_CONTROL, "no-cache")
+                    .body(resource);
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.internalServerError().build();
+        }
+    }
+
+    /**
+     * 确定文件的内容类型
+     */
+    private String determineContentType(Path filePath) {
+        try {
+            String contentType = Files.probeContentType(filePath);
+            if (contentType != null) {
+                return contentType;
+            }
+        } catch (IOException e) {
+            // 忽略异常，使用默认逻辑
+        }
+
+        // 根据文件扩展名确定内容类型
+        String fileName = filePath.getFileName().toString().toLowerCase();
+        if (fileName.endsWith(".html")) {
+            return "text/html";
+        } else if (fileName.endsWith(".css")) {
+            return "text/css";
+        } else if (fileName.endsWith(".js")) {
+            return "application/javascript";
+        } else if (fileName.endsWith(".json")) {
+            return "application/json";
+        } else if (fileName.endsWith(".png")) {
+            return "image/png";
+        } else if (fileName.endsWith(".jpg") || fileName.endsWith(".jpeg")) {
+            return "image/jpeg";
+        } else if (fileName.endsWith(".gif")) {
+            return "image/gif";
+        } else if (fileName.endsWith(".svg")) {
+            return "image/svg+xml";
+        } else {
+            return "application/octet-stream";
         }
     }
 }

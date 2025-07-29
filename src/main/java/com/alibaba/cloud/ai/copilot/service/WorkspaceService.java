@@ -29,6 +29,13 @@ public class WorkspaceService {
     }
 
     /**
+     * 获取工作目录根路径 - 公共方法，供Controller使用
+     */
+    public Path getWorkspaceRoot() {
+        return getWorkspacePath();
+    }
+
+    /**
      * 获取工作目录下的所有文件
      */
     public List<FileInfo> getWorkspaceFiles() throws IOException {

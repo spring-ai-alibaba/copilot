@@ -180,9 +180,16 @@ public class ContinuousConversationService {
         long conversationStartTime = System.currentTimeMillis();
         logger.info("Starting continuous conversation with message: {}", initialMessage);
 
+        // 推送任务分析开始事件
+        logStreamService.pushTaskAnalysisStart(taskId, initialMessage);
+
         // 更新任务状态
-        taskStatus.setCurrentAction("开始处理对话...");
+        taskStatus.setCurrentAction("AI正在分析您的需求...");
         taskStatus.setCurrentTurn(0);
+
+        // 推送需求理解步骤
+        logStreamService.pushAnalysisStep(taskId, "需求理解",
+            "正在理解和分析用户需求的具体内容", "ANALYZING");
 
         // 创建工作副本
         List<Message> workingHistory = new ArrayList<>(conversationHistory);
@@ -197,7 +204,22 @@ public class ContinuousConversationService {
         boolean shouldContinue = true;
         String stopReason = null;
 
+        // 推送需求理解完成
+        logStreamService.pushAnalysisStep(taskId, "需求理解",
+            "已完成需求分析，开始制定执行计划", "COMPLETED");
+
+        // 推送执行计划生成
+        logStreamService.pushAnalysisStep(taskId, "执行计划",
+            "正在生成详细的执行计划和步骤", "ANALYZING");
+
         try {
+            // 模拟执行计划生成时间
+            Thread.sleep(500);
+
+            // 推送执行计划完成
+            String planSummary = "已生成执行计划：分析项目结构 → 创建必要文件 → 实现核心功能 → 测试验证";
+            logStreamService.pushExecutionPlanGenerated(taskId, planSummary);
+
             while (shouldContinue && turnCount < MAX_TURNS) {
                 turnCount++;
                 logger.debug("Executing conversation turn: {}", turnCount);
@@ -317,11 +339,11 @@ public class ContinuousConversationService {
             taskStatus.setStatus("FAILED");
             taskStatus.setErrorMessage("Fatal error: " + e.getMessage());
             taskStatus.setCurrentAction("执行失败");
-            throw e;
         } finally {
             // 清理任务上下文
             TaskContextHolder.clearCurrentTaskId();
         }
+        return null;
     }
 
     /**

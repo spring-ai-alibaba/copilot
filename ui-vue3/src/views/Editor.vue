@@ -38,26 +38,32 @@
     <!-- Main Content -->
     <div class="flex-1 flex overflow-hidden">
       <!-- AI Chat Sidebar (Left) -->
-      <div class="w-80 bg-white dark:bg-gray-800 flex-shrink-0 flex flex-col">
-        <!-- AI Chat Header -->
-<!--        <div class="p-4 border-b border-gray-200 dark:border-gray-700">-->
-<!--          <div class="flex items-center justify-between">-->
-<!--            <h3 class="text-sm font-medium text-gray-900 dark:text-white">-->
-<!--              AI编程助手-->
-<!--            </h3>-->
-<!--            <div class="flex items-center space-x-1">-->
-<!--              <div class="w-2 h-2 rounded-full bg-green-500"></div>-->
-<!--              <span class="text-xs text-gray-500">AI助手</span>-->
-<!--            </div>-->
-<!--          </div>-->
-<!--        </div>-->
-
+      <div
+        ref="chatSidebar"
+        :style="{ width: chatSidebarWidth + 'px' }"
+        class="bg-white dark:bg-gray-800 flex-shrink-0 flex flex-col border-r border-gray-200 dark:border-gray-700"
+        style="min-width: 280px; max-width: 600px;"
+      >
         <!-- AI Chat Content -->
         <div class="flex-1 overflow-hidden">
           <AiChat
             :initial-message="initialPrompt"
             :auto-send="autoSendMessage"
           />
+        </div>
+      </div>
+
+      <!-- Resizable Divider -->
+      <div
+        ref="resizeDivider"
+        class="w-1 bg-gray-200 dark:bg-gray-700 hover:bg-blue-400 dark:hover:bg-blue-500 cursor-col-resize transition-colors duration-200 relative group"
+        @mousedown="startResize"
+      >
+        <!-- Resize Handle Visual Indicator -->
+        <div class="absolute inset-y-0 left-0 w-1 bg-blue-400 dark:bg-blue-500 opacity-0 group-hover:opacity-100 transition-opacity duration-200"></div>
+        <div class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-3 h-8 bg-gray-300 dark:bg-gray-600 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center justify-center">
+          <div class="w-0.5 h-4 bg-gray-500 dark:bg-gray-400 rounded-full mx-0.5"></div>
+          <div class="w-0.5 h-4 bg-gray-500 dark:bg-gray-400 rounded-full mx-0.5"></div>
         </div>
       </div>
 
@@ -240,13 +246,23 @@
             </div>
 
             <!-- Preview Panel - 只有在showPreview为true时才显示 -->
-            <div v-if="showPreview" class="w-1/2 border-l border-gray-200 dark:border-gray-700 flex flex-col">
+            <div
+              v-if="showPreview"
+              :class="{
+                'w-1/2 border-l border-gray-200 dark:border-gray-700': !isPreviewFullscreen,
+                'fixed inset-0 z-50 bg-white dark:bg-gray-900': isPreviewFullscreen
+              }"
+              class="flex flex-col"
+            >
               <!-- 预览工具栏 -->
               <div class="bg-gray-50 dark:bg-gray-800 px-4 py-2 border-b border-gray-200 dark:border-gray-700">
                 <div class="flex items-center justify-between">
                   <span class="text-sm text-gray-600 dark:text-gray-300">预览</span>
                   <div class="flex space-x-2">
-                    <a-button size="small" @click="refreshPreview" v-if="previewContent">刷新</a-button>
+                    <a-button size="small" @click="refreshPreview" v-if="previewContent || previewUrl">刷新</a-button>
+                    <a-button size="small" @click="togglePreviewFullscreen">
+                      {{ isPreviewFullscreen ? '退出全屏' : '全屏' }}
+                    </a-button>
                     <a-button size="small" @click="closePreview">关闭</a-button>
                   </div>
                 </div>
@@ -254,12 +270,21 @@
 
               <!-- 预览内容 -->
               <div class="flex-1 bg-white">
+                <!-- 使用静态文件服务预览 -->
                 <iframe
-                  v-if="previewContent"
+                  v-if="previewUrl"
+                  :src="previewUrl"
+                  class="w-full h-full border-none"
+                  sandbox="allow-scripts allow-same-origin"
+                />
+                <!-- 使用srcdoc预览（后端未连接时的降级方案） -->
+                <iframe
+                  v-else-if="previewContent"
                   :srcdoc="previewContent"
                   class="w-full h-full border-none"
                   sandbox="allow-scripts"
                 />
+                <!-- 空状态 -->
                 <div v-else class="flex-1 flex items-center justify-center h-full">
                   <div class="text-center">
                     <svg class="w-16 h-16 mx-auto text-gray-400 mb-4" fill="currentColor" viewBox="0 0 20 20">
@@ -348,6 +373,12 @@ const openTabs = ref<string[]>([])
 const activeTab = ref<string | null>(null)
 const showFileExplorer = ref(true)
 
+// 拖拽调整相关
+const chatSidebar = ref<HTMLElement>()
+const resizeDivider = ref<HTMLElement>()
+const chatSidebarWidth = ref(320) // 默认宽度
+const isResizing = ref(false)
+
 // 路由参数处理
 const initialPrompt = ref('')
 const autoSendMessage = ref(false)
@@ -355,8 +386,10 @@ const autoSendMessage = ref(false)
 // 文件编辑相关
 const currentFileContent = ref('')
 const previewContent = ref('')
+const previewUrl = ref('')
 const showPreview = ref(false)
 const showTerminal = ref(false)
+const isPreviewFullscreen = ref(false)
 
 // 模态框相关
 const showCreateModal = ref(false)
@@ -382,6 +415,43 @@ const toggleTerminal = () => {
   showTerminal.value = !showTerminal.value
 }
 
+// 拖拽调整聊天栏宽度
+const startResize = (e: MouseEvent) => {
+  e.preventDefault()
+  isResizing.value = true
+
+  const startX = e.clientX
+  const startWidth = chatSidebarWidth.value
+
+  const handleMouseMove = (e: MouseEvent) => {
+    if (!isResizing.value) return
+
+    const deltaX = e.clientX - startX
+    const newWidth = Math.max(280, Math.min(600, startWidth + deltaX))
+    chatSidebarWidth.value = newWidth
+
+    // 添加用户选择禁用样式，防止拖拽时选中文本
+    document.body.style.userSelect = 'none'
+    document.body.style.cursor = 'col-resize'
+  }
+
+  const handleMouseUp = () => {
+    isResizing.value = false
+    document.removeEventListener('mousemove', handleMouseMove)
+    document.removeEventListener('mouseup', handleMouseUp)
+
+    // 恢复用户选择和光标样式
+    document.body.style.userSelect = ''
+    document.body.style.cursor = ''
+
+    // 保存宽度到localStorage
+    localStorage.setItem('chatSidebarWidth', chatSidebarWidth.value.toString())
+  }
+
+  document.addEventListener('mousemove', handleMouseMove)
+  document.addEventListener('mouseup', handleMouseUp)
+}
+
 // 处理来自Home页面的路由参数
 onMounted(async () => {
   const prompt = route.query.prompt as string
@@ -395,24 +465,33 @@ onMounted(async () => {
     autoSendMessage.value = true
   }
 
+  // 从localStorage恢复聊天栏宽度
+  const savedWidth = localStorage.getItem('chatSidebarWidth')
+  if (savedWidth) {
+    const width = parseInt(savedWidth)
+    if (width >= 280 && width <= 600) {
+      chatSidebarWidth.value = width
+    }
+  }
+
   // 自动加载工作目录
   await loadWorkspaceFiles()
 
   // 监听自动选中文件事件
-  window.addEventListener('auto-select-file', handleAutoSelectFile)
+  window.addEventListener('auto-select-file', handleAutoSelectFile as unknown as EventListener)
 
   // 监听编辑器内容更新事件
-  window.addEventListener('update-editor-content', handleUpdateEditorContent)
-  window.addEventListener('finalize-editor-content', handleFinalizeEditorContent)
-  window.addEventListener('file-write-progress', handleFileWriteProgress)
+  window.addEventListener('update-editor-content', handleUpdateEditorContent as unknown as EventListener)
+  window.addEventListener('finalize-editor-content', handleFinalizeEditorContent as unknown as EventListener)
+  window.addEventListener('file-write-progress', handleFileWriteProgress as unknown as EventListener)
 })
 
 onUnmounted(() => {
   // 清理事件监听器
-  window.removeEventListener('auto-select-file', handleAutoSelectFile)
-  window.removeEventListener('update-editor-content', handleUpdateEditorContent)
-  window.removeEventListener('finalize-editor-content', handleFinalizeEditorContent)
-  window.removeEventListener('file-write-progress', handleFileWriteProgress)
+  window.removeEventListener('auto-select-file', handleAutoSelectFile as unknown as EventListener)
+  window.removeEventListener('update-editor-content', handleUpdateEditorContent as unknown as EventListener)
+  window.removeEventListener('finalize-editor-content', handleFinalizeEditorContent as unknown as EventListener)
+  window.removeEventListener('file-write-progress', handleFileWriteProgress as unknown as EventListener)
 })
 
 const initWebContainer = async () => {
@@ -481,7 +560,7 @@ const handleFileSelect = async (filePath: string) => {
 
     // 如果是 HTML 文件，自动预览
     if (filePath.endsWith('.html')) {
-      previewContent.value = currentFileContent.value
+      await updatePreview(filePath)
     }
   } catch (error) {
     console.error('加载文件失败:', error)
@@ -630,21 +709,57 @@ const saveFile = async () => {
   }
 }
 
-const previewFile = () => {
-  if (activeTab.value && activeTab.value.endsWith('.html')) {
+const updatePreview = async (filePath: string) => {
+  if (!filePath.endsWith('.html')) return
+
+  try {
+    // 如果连接到后端，使用静态文件服务
+    if (fileStore.isConnectedToBackend) {
+      const { FileSystemApi } = await import('@/services/fileSystemApi')
+
+      // 先保存当前文件内容到后端
+      if (activeTab.value === filePath) {
+        await fileStore.saveFileToBackend(filePath, currentFileContent.value)
+      }
+
+      // 使用静态文件服务的URL
+      previewUrl.value = FileSystemApi.getStaticFileUrl(filePath)
+      previewContent.value = '' // 清空srcdoc内容
+    } else {
+      // 后端未连接时，使用srcdoc方式
+      previewContent.value = currentFileContent.value
+      previewUrl.value = ''
+    }
+  } catch (error) {
+    console.error('更新预览失败:', error)
+    // 降级到srcdoc方式
     previewContent.value = currentFileContent.value
+    previewUrl.value = ''
+  }
+}
+
+const previewFile = async () => {
+  if (activeTab.value && activeTab.value.endsWith('.html')) {
+    await updatePreview(activeTab.value)
     showPreview.value = true
   }
 }
 
-const refreshPreview = () => {
+const refreshPreview = async () => {
   if (activeTab.value && activeTab.value.endsWith('.html')) {
-    previewContent.value = currentFileContent.value
+    await updatePreview(activeTab.value)
   }
 }
 
 const closePreview = () => {
   showPreview.value = false
+  previewUrl.value = ''
+  previewContent.value = ''
+  isPreviewFullscreen.value = false // 关闭预览时也退出全屏
+}
+
+const togglePreviewFullscreen = () => {
+  isPreviewFullscreen.value = !isPreviewFullscreen.value
 }
 
 // 文件创建相关函数
@@ -657,7 +772,7 @@ const createFile = async () => {
     if (fileStore.isConnectedToBackend) {
       await fileStore.createFileInBackend(newFileName.value, template)
     } else {
-      fileStore.createFile(newFileName.value, template)
+      fileStore.addFile(newFileName.value, template)
     }
 
     // 打开新创建的文件

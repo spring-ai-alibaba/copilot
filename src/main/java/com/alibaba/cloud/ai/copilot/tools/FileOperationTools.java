@@ -104,7 +104,66 @@ public class FileOperationTools {
         }
     }
 
-    // writeFile工具已被删除，使用streaming_write_file代替
+    @Tool(description = "Write content to a file. Creates new file or overwrites existing file.")
+    public String writeFile(
+            @ToolParam(description = "The absolute path to the file to write. Must be within the workspace directory.")
+            String filePath,
+            @ToolParam(description = "The content to write to the file")
+            String content) {
+
+        long startTime = System.currentTimeMillis();
+        try {
+            logger.debug("Starting writeFile operation for: {}", filePath);
+            // 验证路径
+            String validationError = validatePath(filePath);
+            if (validationError != null) {
+                return "Error: " + validationError;
+            }
+
+            // 验证内容大小
+            byte[] contentBytes = content.getBytes(StandardCharsets.UTF_8);
+            if (contentBytes.length > appProperties.getWorkspace().getMaxFileSize()) {
+                return "Error: Content too large: " + contentBytes.length + " bytes. Maximum allowed: " +
+                    appProperties.getWorkspace().getMaxFileSize() + " bytes";
+            }
+
+            Path path = Paths.get(filePath);
+            boolean isNewFile = !Files.exists(path);
+
+            // 确保父目录存在
+            Files.createDirectories(path.getParent());
+
+            // 写入文件
+            Files.writeString(path, content, StandardCharsets.UTF_8,
+                StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
+
+            long lineCount = content.lines().count();
+            String absolutePath = path.toAbsolutePath().toString();
+            String relativePath = getRelativePath(path);
+
+            if (isNewFile) {
+                return String.format("Successfully created file:\n📁 Full path: %s\n📂 Relative path: %s\n📊 Stats: %d lines, %d bytes",
+                    absolutePath, relativePath, lineCount, contentBytes.length);
+            } else {
+                return String.format("Successfully wrote to file:\n📁 Full path: %s\n📂 Relative path: %s\n📊 Stats: %d lines, %d bytes",
+                    absolutePath, relativePath, lineCount, contentBytes.length);
+            }
+
+        } catch (IOException e) {
+            long duration = System.currentTimeMillis() - startTime;
+            logger.error("Error writing file: {} (duration: {}ms)", filePath, duration, e);
+            return String.format("❌ Error writing file: %s\n⏱️ Duration: %dms\n🔍 Details: %s",
+                filePath, duration, e.getMessage());
+        } catch (Exception e) {
+            long duration = System.currentTimeMillis() - startTime;
+            logger.error("Unexpected error writing file: {} (duration: {}ms)", filePath, duration, e);
+            return String.format("❌ Unexpected error writing file: %s\n⏱️ Duration: %dms\n🔍 Details: %s",
+                filePath, duration, e.getMessage());
+        } finally {
+            long duration = System.currentTimeMillis() - startTime;
+            logger.debug("Completed writeFile operation for: {} (duration: {}ms)", filePath, duration);
+        }
+    }
 
     @Tool(description = "Edit a file by replacing specific text content.")
     public String editFile(

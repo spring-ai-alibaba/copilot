@@ -39,6 +39,40 @@
         </div>
       </div>
 
+      <!-- Analysis Steps -->
+      <div
+        v-for="(step, index) in processedAnalysisSteps"
+        :key="`analysis-${index}`"
+        class="analysis-card"
+        :class="getAnalysisCardClass(step.status)"
+        :data-type="step.type"
+      >
+        <div class="analysis-header flex items-center justify-between mb-2">
+          <div class="flex items-center space-x-2">
+            <span class="text-lg">{{ step.icon || '🧠' }}</span>
+            <span class="font-medium text-gray-900 dark:text-white">{{ step.stepName }}</span>
+            <span class="analysis-status-badge" :class="getAnalysisStatusBadgeClass(step.status)">
+              {{ getAnalysisStatusText(step.status) }}
+            </span>
+          </div>
+          <div v-if="step.executionTime" class="text-xs text-gray-500 dark:text-gray-400">
+            {{ step.executionTime }}ms
+          </div>
+        </div>
+
+        <div class="analysis-description text-sm text-gray-700 dark:text-gray-300 mb-2">
+          {{ step.description }}
+        </div>
+
+        <div class="analysis-time text-xs text-gray-500 dark:text-gray-400">
+          {{ step.status === 'ANALYZING' ? '开始时间' : '完成时间' }}: {{ step.timestamp }}
+        </div>
+
+        <div v-if="step.details" class="analysis-details mt-2 p-2 bg-gray-50 dark:bg-gray-700 rounded text-sm">
+          {{ step.details }}
+        </div>
+      </div>
+
       <!-- Tool Cards -->
       <div
         v-for="(tool, index) in processedTools"
@@ -130,41 +164,59 @@ const connectionStatusClass = computed(() => {
 })
 
 const showWaitingCard = computed(() => {
-  return props.connectionStatus === 'connected' && processedTools.value.length === 0 && !isTaskComplete.value
+  return props.connectionStatus === 'connected' && processedTools.value.length === 0 && processedAnalysisSteps.value.length === 0 && !isTaskComplete.value
+})
+
+const processedAnalysisSteps = computed(() => {
+  const analysisSteps: any[] = []
+
+  props.logEvents.forEach(event => {
+    if (event.type === 'TASK_ANALYSIS_START' ||
+        event.type === 'ANALYSIS_STEP' ||
+        event.type === 'EXECUTION_PLAN' ||
+        event.type === 'TOOL_EXECUTION_SUMMARY') {
+      analysisSteps.push({
+        ...event,
+        status: event.status || 'COMPLETED'
+      })
+    }
+  })
+
+  return analysisSteps
 })
 
 const processedTools = computed(() => {
   const toolMap = new Map<string, SSEEvent & { status: string }>()
-  
+
   props.logEvents.forEach(event => {
     if (event.toolName) {
       const existing = toolMap.get(event.toolName)
-      
+
       if (event.type === 'TOOL_START') {
         toolMap.set(event.toolName, { ...event, status: 'RUNNING' })
       } else if (event.type === 'TOOL_SUCCESS') {
-        toolMap.set(event.toolName, { 
-          ...existing, 
-          ...event, 
-          status: 'SUCCESS' 
+        toolMap.set(event.toolName, {
+          ...existing,
+          ...event,
+          status: 'SUCCESS'
         })
       } else if (event.type === 'TOOL_ERROR') {
-        toolMap.set(event.toolName, { 
-          ...existing, 
-          ...event, 
-          status: 'ERROR' 
+        toolMap.set(event.toolName, {
+          ...existing,
+          ...event,
+          status: 'ERROR'
         })
       }
     }
   })
-  
+
   return Array.from(toolMap.values())
 })
 
 // Methods
 const getToolCardClass = (status: string) => {
   const baseClass = 'rounded-lg p-4 border transition-all duration-300'
-  
+
   switch (status) {
     case 'RUNNING':
       return `${baseClass} bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800`
@@ -179,7 +231,7 @@ const getToolCardClass = (status: string) => {
 
 const getStatusBadgeClass = (status: string) => {
   const baseClass = 'px-2 py-1 text-xs font-medium rounded-full'
-  
+
   switch (status) {
     case 'RUNNING':
       return `${baseClass} bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200`
@@ -205,6 +257,51 @@ const getFileName = (filePath: string) => {
   if (!filePath) return ''
   const parts = filePath.split('/')
   return parts[parts.length - 1] || filePath
+}
+
+// 分析步骤相关方法
+const getAnalysisCardClass = (status: string) => {
+  const baseClass = 'rounded-lg p-4 border transition-all duration-300'
+
+  switch (status) {
+    case 'ANALYZING':
+      return `${baseClass} bg-purple-50 dark:bg-purple-900/20 border-purple-200 dark:border-purple-800`
+    case 'PLANNING':
+      return `${baseClass} bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800`
+    case 'COMPLETED':
+      return `${baseClass} bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800`
+    case 'ERROR':
+      return `${baseClass} bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800`
+    default:
+      return `${baseClass} bg-gray-50 dark:bg-gray-700 border-gray-200 dark:border-gray-600`
+  }
+}
+
+const getAnalysisStatusBadgeClass = (status: string) => {
+  const baseClass = 'px-2 py-1 text-xs font-medium rounded-full'
+
+  switch (status) {
+    case 'ANALYZING':
+      return `${baseClass} bg-purple-100 dark:bg-purple-900 text-purple-800 dark:text-purple-200`
+    case 'PLANNING':
+      return `${baseClass} bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200`
+    case 'COMPLETED':
+      return `${baseClass} bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200`
+    case 'ERROR':
+      return `${baseClass} bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200`
+    default:
+      return `${baseClass} bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200`
+  }
+}
+
+const getAnalysisStatusText = (status: string) => {
+  switch (status) {
+    case 'ANALYZING': return '🔍 分析中'
+    case 'PLANNING': return '📋 规划中'
+    case 'COMPLETED': return '✅ 完成'
+    case 'ERROR': return '❌ 失败'
+    default: return '⏸️ 等待'
+  }
 }
 
 // Watch for task completion
@@ -234,8 +331,34 @@ watch(() => props.logEvents, (events) => {
   background: #4a5568;
 }
 
-.tool-card {
+.tool-card,
+.analysis-card {
   animation: slideInUp 0.3s ease-out;
+}
+
+.analysis-card {
+  position: relative;
+}
+
+.analysis-card::before {
+  content: '';
+  position: absolute;
+  left: -2px;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: linear-gradient(to bottom, #8b5cf6, #a855f7);
+  border-radius: 2px;
+  opacity: 0.6;
+}
+
+/* 工具执行概要的特殊样式 */
+.analysis-card[data-type="TOOL_EXECUTION_SUMMARY"]::before {
+  background: linear-gradient(to bottom, #3b82f6, #1d4ed8);
+}
+
+.analysis-card[data-type="TOOL_EXECUTION_SUMMARY"] {
+  border-left: 3px solid #3b82f6;
 }
 
 @keyframes slideInUp {

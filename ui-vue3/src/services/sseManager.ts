@@ -11,6 +11,10 @@ export interface SSEEvent {
   status?: string
   executionTime?: number
   summary?: string
+  // 分析事件相关字段
+  stepName?: string
+  description?: string
+  details?: string
 }
 
 export interface SSECallbacks {

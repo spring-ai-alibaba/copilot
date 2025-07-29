@@ -130,29 +130,44 @@ export class FileSystemApi {
    */
   static async watchFiles(callback: (files: FileInfo[]) => void, interval: number = 3000): Promise<() => void> {
     let isWatching = true
-    
+
     const poll = async () => {
       if (!isWatching) return
-      
+
       try {
         const files = await this.getWorkspaceFiles()
         callback(files)
       } catch (error) {
         console.error('文件监听错误:', error)
       }
-      
+
       if (isWatching) {
         setTimeout(poll, interval)
       }
     }
-    
+
     // 立即执行一次
     poll()
-    
+
     // 返回停止监听的函数
     return () => {
       isWatching = false
     }
+  }
+
+  /**
+   * 获取静态文件的预览URL
+   */
+  static getStaticFileUrl(filePath: string): string {
+    return `${API_BASE_URL}/workspace/static/${filePath}`
+  }
+
+  /**
+   * 检查文件是否可以通过静态服务预览
+   */
+  static canPreviewAsStatic(filePath: string): boolean {
+    const ext = filePath.toLowerCase().split('.').pop()
+    return ['html', 'htm'].includes(ext || '')
   }
 }
 

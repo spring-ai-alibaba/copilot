@@ -22,10 +22,10 @@ import java.util.concurrent.ConcurrentHashMap;
 public class FileStreamManager {
 
     private static final Logger logger = LoggerFactory.getLogger(FileStreamManager.class);
-    
+
     // 默认块大小（字符数）
     private static final int DEFAULT_CHUNK_SIZE = 1024;
-    
+
     // 进度通知间隔（字节数）
     private static final long PROGRESS_NOTIFICATION_INTERVAL = 4096;
 
@@ -57,10 +57,10 @@ public class FileStreamManager {
         activeWriteSessions.put(filePath, session);
 
         // 通知前端文件已创建
-        String message = isNewFile ? 
+        String message = isNewFile ?
             String.format("已创建新文件: %s", getRelativePath(path)) :
             String.format("已清空现有文件: %s", getRelativePath(path));
-        logStreamService.pushFileCreated(taskId, filePath, message);
+       // logStreamService.pushFileCreated(taskId, filePath, message);
 
         logger.info("✅ 文件创建成功: {}", filePath);
         return filePath; // 使用文件路径作为会话ID
@@ -78,7 +78,7 @@ public class FileStreamManager {
         logger.debug("📝 写入内容块: sessionId={}, chunkSize={}", sessionId, content.length());
 
         Path path = Paths.get(session.getFilePath());
-        
+
         // 追加内容到文件
         Files.writeString(path, content, StandardCharsets.UTF_8, StandardOpenOption.APPEND);
 
@@ -121,8 +121,8 @@ public class FileStreamManager {
         }
 
         long executionTime = System.currentTimeMillis() - session.getStartTime();
-        
-        logger.info("✅ 流式文件写入完成: sessionId={}, totalBytes={}, executionTime={}ms", 
+
+        logger.info("✅ 流式文件写入完成: sessionId={}, totalBytes={}, executionTime={}ms",
             sessionId, session.getWrittenBytes(), executionTime);
 
         // 通知前端写入完成
@@ -145,7 +145,7 @@ public class FileStreamManager {
         }
 
         long executionTime = System.currentTimeMillis() - session.getStartTime();
-        
+
         logger.error("❌ 流式文件写入失败: sessionId={}, error={}", sessionId, errorMessage);
 
         // 通知前端写入错误

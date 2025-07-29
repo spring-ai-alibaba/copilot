@@ -77,6 +77,24 @@ public class LogStreamService {
     }
 
     /**
+     * 推送工具执行概要事件
+     */
+    public void pushToolExecutionSummary(String taskId, String toolName, String filePath, String summary, String reason) {
+        AnalysisEvent event = new AnalysisEvent();
+        event.setType("TOOL_EXECUTION_SUMMARY");
+        event.setTaskId(taskId);
+        event.setStepName("工具执行概要");
+        event.setDescription(summary);
+        event.setDetails(reason);
+        event.setStatus("PLANNING");
+        event.setMessage("准备执行工具: " + toolName);
+        event.setTimestamp(LocalDateTime.now().format(formatter));
+        event.setIcon(getToolIcon(toolName));
+
+        sendLogEvent(taskId, event);
+    }
+
+    /**
      * 推送工具开始执行事件
      */
     public void pushToolStart(String taskId, String toolName, String filePath, String message) {
@@ -125,6 +143,57 @@ public class LogStreamService {
         event.setIcon("❌");
         event.setStatus("ERROR");
         event.setExecutionTime(executionTime);
+
+        sendLogEvent(taskId, event);
+    }
+
+    /**
+     * 推送AI分析过程事件
+     */
+    public void pushAnalysisStep(String taskId, String stepName, String description, String status) {
+        AnalysisEvent event = new AnalysisEvent();
+        event.setType("ANALYSIS_STEP");
+        event.setTaskId(taskId);
+        event.setStepName(stepName);
+        event.setDescription(description);
+        event.setStatus(status);
+        event.setMessage(description);
+        event.setTimestamp(LocalDateTime.now().format(formatter));
+        event.setIcon(getAnalysisIcon(stepName));
+
+        sendLogEvent(taskId, event);
+    }
+
+    /**
+     * 推送任务开始分析事件
+     */
+    public void pushTaskAnalysisStart(String taskId, String userMessage) {
+        AnalysisEvent event = new AnalysisEvent();
+        event.setType("TASK_ANALYSIS_START");
+        event.setTaskId(taskId);
+        event.setStepName("任务分析");
+        event.setDescription("开始分析用户需求: " + (userMessage.length() > 50 ? userMessage.substring(0, 50) + "..." : userMessage));
+        event.setStatus("ANALYZING");
+        event.setMessage("AI正在分析您的需求...");
+        event.setTimestamp(LocalDateTime.now().format(formatter));
+        event.setIcon("🧠");
+
+        sendLogEvent(taskId, event);
+    }
+
+    /**
+     * 推送执行计划生成事件
+     */
+    public void pushExecutionPlanGenerated(String taskId, String planSummary) {
+        AnalysisEvent event = new AnalysisEvent();
+        event.setType("EXECUTION_PLAN");
+        event.setTaskId(taskId);
+        event.setStepName("执行计划");
+        event.setDescription(planSummary);
+        event.setStatus("COMPLETED");
+        event.setMessage("执行计划已生成");
+        event.setTimestamp(LocalDateTime.now().format(formatter));
+        event.setIcon("📋");
 
         sendLogEvent(taskId, event);
     }
@@ -275,13 +344,30 @@ public class LogStreamService {
     private String getToolIcon(String toolName) {
         switch (toolName) {
             case "readFile": return "📖";
-            case "streamingWriteFile": return "🌊";
+            case "writeFile": return "✏️";
             case "editFile": return "📝";
             case "listDirectory": return "📁";
             case "analyzeProject": return "🔍";
             case "scaffoldProject": return "🏗️";
             case "smartEdit": return "🧠";
             default: return "⚙️";
+        }
+    }
+
+    /**
+     * 获取分析步骤图标
+     */
+    private String getAnalysisIcon(String stepName) {
+        switch (stepName) {
+            case "任务分析": return "🧠";
+            case "需求理解": return "💡";
+            case "执行计划": return "📋";
+            case "技术选型": return "🔧";
+            case "架构设计": return "🏗️";
+            case "文件规划": return "📁";
+            case "代码生成": return "💻";
+            case "测试验证": return "✅";
+            default: return "🔍";
         }
     }
 

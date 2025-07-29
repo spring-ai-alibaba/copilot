@@ -1,45 +1,53 @@
 <template>
   <div class="ai-chat-container h-full flex flex-col bg-gray-50 dark:bg-gray-900">
     <!-- Header -->
-    <div class="chat-header bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 p-3">
+    <div class="chat-header bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-4 py-3">
       <div class="flex items-center justify-between min-w-0">
         <div class="flex items-center space-x-3 min-w-0 flex-shrink">
-          <div class="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center flex-shrink-0">
-            <span class="text-white text-sm">🤖</span>
+          <div class="w-9 h-9 bg-gradient-to-br from-blue-500 via-blue-600 to-indigo-600 rounded-lg flex items-center justify-center flex-shrink-0 shadow-sm">
+            <span class="text-white text-base">🤖</span>
           </div>
           <div class="min-w-0">
-            <h2 class="text-lg font-semibold text-gray-900 dark:text-white truncate">AI编程助手</h2>
-            <!-- <p class="text-sm text-gray-500 dark:text-gray-400">AI助手将分析您的需求，制定执行计划，并逐步完成任务</p> -->
+            <h2 class="text-base font-semibold text-gray-900 dark:text-white truncate">AI编程助手</h2>
+            <p class="text-xs text-gray-500 dark:text-gray-400 truncate">智能代码生成与文件操作</p>
           </div>
         </div>
-        <div class="flex items-center space-x-1 flex-shrink-0">
-          <button
+        <div class="flex items-center space-x-2 flex-shrink-0">
+          <a-button
             @click="openToolConfig"
-            class="w-7 h-7 flex items-center justify-center bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-md hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+            type="text"
+            size="small"
             :disabled="isLoading"
             title="配置动态工具"
+            class="!w-8 !h-8 !p-0 flex items-center justify-center"
           >
-            ⚙️
-          </button>
-          <button
+            <template #icon>
+              <span class="text-sm">⚙️</span>
+            </template>
+          </a-button>
+          <a-button
             @click="clearHistory"
-            class="w-7 h-7 flex items-center justify-center bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-md hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+            type="text"
+            size="small"
             :disabled="isLoading"
             title="清除历史"
+            class="!w-8 !h-8 !p-0 flex items-center justify-center"
           >
-            🗑️
-          </button>
-          <div class="flex items-center space-x-1 ml-1">
+            <template #icon>
+              <span class="text-sm">🗑️</span>
+            </template>
+          </a-button>
+          <div class="flex items-center space-x-2 ml-2 px-2 py-1 bg-gray-50 dark:bg-gray-700 rounded-md">
             <div
               :class="{
                 'w-2 h-2 rounded-full': true,
                 'bg-green-500': connectionStatus === 'connected',
-                'bg-yellow-500': connectionStatus === 'connecting',
+                'bg-orange-500': connectionStatus === 'connecting',
                 'bg-red-500': connectionStatus === 'disconnected',
                 'animate-pulse': connectionStatus === 'connecting'
               }"
             ></div>
-            <span class="text-xs text-gray-500 whitespace-nowrap">
+            <span class="text-xs text-gray-600 dark:text-gray-300 whitespace-nowrap font-medium">
               {{ connectionStatusText }}
             </span>
           </div>
@@ -48,11 +56,14 @@
     </div>
 
     <!-- Messages Area -->
-    <div class="messages-area flex-1 overflow-y-auto p-4 space-y-4" ref="messagesContainer">
+    <div class="messages-area flex-1 overflow-y-auto px-4 py-3 space-y-3" ref="messagesContainer">
       <!-- Welcome Message -->
       <div v-if="messages.length === 0" class="message assistant">
-        <div class="message-content bg-white dark:bg-gray-800 rounded-lg p-4 shadow-sm border border-gray-200 dark:border-gray-700">
-          <div class="message-role text-xs font-semibold text-gray-500 dark:text-gray-400 mb-3">Assistant</div>
+        <div class="message-content bg-white dark:bg-gray-800 rounded-xl p-5 shadow-sm border border-gray-200 dark:border-gray-700">
+          <div class="message-role text-xs font-semibold text-blue-600 dark:text-blue-400 mb-3 flex items-center">
+            <span class="w-2 h-2 bg-blue-500 rounded-full mr-2"></span>
+            Assistant
+          </div>
           <div class="text-gray-700 dark:text-gray-300 leading-relaxed">
             <div class="mb-4">
               👋 Hello! I'm your AI file operations assistant. I can help you:
@@ -112,16 +123,16 @@
       />
 
       <!-- Loading Indicator -->
-      <div v-if="isLoading" class="loading-indicator flex items-center justify-center p-4">
-        <div class="flex items-center space-x-2 text-gray-500 dark:text-gray-400">
-          <div class="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500"></div>
-          <span>🤔 AI is thinking...</span>
+      <div v-if="isLoading" class="loading-indicator flex items-center justify-center py-6">
+        <div class="flex items-center space-x-3 bg-white dark:bg-gray-800 px-4 py-3 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
+          <div class="animate-spin rounded-full h-5 w-5 border-2 border-blue-500 border-t-transparent"></div>
+          <span class="text-gray-600 dark:text-gray-300 font-medium">🤔 AI正在思考中...</span>
         </div>
       </div>
     </div>
 
     <!-- Input Area -->
-    <div class="input-area bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 p-4">
+    <div class="input-area bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 px-4 py-3">
       <ChatInput
         v-model="inputMessage"
         :is-loading="isLoading"
@@ -339,7 +350,7 @@ const scrollToBottom = async () => {
 
 const startSSEConnection = async (taskId: string) => {
   sseConnectionStatus.value = 'connecting'
-  
+
   try {
     await sseManager.startLogStream(taskId, {
       onOpen: () => {

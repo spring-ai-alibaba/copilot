@@ -52,55 +52,35 @@ public class ChatController {
                 logger.info("📝 用户消息: {}", request.getMessage());
                 logger.info("🕐 请求时间: {}", java.time.LocalDateTime.now());
 
-                // 智能判断是否需要工具调用
-                boolean needsToolExecution = continuousConversationService.isLikelyToNeedTools(request.getMessage());
-                logger.info("🔍 工具需求分析: {}", needsToolExecution ? "可能需要工具" : "简单对话");
+                // 统一使用异步模式，让大模型自己决定是否需要工具调用
+                String taskId = continuousConversationService.startTask(request.getMessage());
+                logger.info("🆔 任务ID: {}", taskId);
 
-                if (needsToolExecution) {
-                    // 需要工具调用的复杂任务 - 使用异步模式
-                    String taskId = continuousConversationService.startTask(request.getMessage());
-                    logger.info("🆔 任务ID: {}", taskId);
+                // 记录任务开始
+                executionLogger.logToolStatistics(); // 显示当前统计
 
-                    // 记录任务开始
-                    executionLogger.logToolStatistics(); // 显示当前统计
+                // 异步执行连续对话
+                CompletableFuture.runAsync(() -> {
+                    try {
+                        logger.info("🚀 开始异步执行连续对话任务: {}", taskId);
+                        continuousConversationService.executeContinuousConversation(
+                            taskId, request.getMessage(), conversationHistory
+                        );
+                        logger.info("✅ 连续对话任务完成: {}", taskId);
+                    } catch (Exception e) {
+                        logger.error("❌ 异步对话执行错误: {}", e.getMessage(), e);
+                    }
+                });
 
-                    // 异步执行连续对话
-                    CompletableFuture.runAsync(() -> {
-                        try {
-                            logger.info("🚀 开始异步执行连续对话任务: {}", taskId);
-                            continuousConversationService.executeContinuousConversation(
-                                taskId, request.getMessage(), conversationHistory
-                            );
-                            logger.info("✅ 连续对话任务完成: {}", taskId);
-                        } catch (Exception e) {
-                            logger.error("❌ 异步对话执行错误: {}", e.getMessage(), e);
-                        }
-                    });
+                // 返回异步任务响应
+                ChatResponseDto responseDto = new ChatResponseDto();
+                responseDto.setTaskId(taskId);
+                responseDto.setMessage("任务已启动，正在处理中...");
+                responseDto.setSuccess(true);
+                responseDto.setAsyncTask(true);
 
-                    // 返回异步任务响应
-                    ChatResponseDto responseDto = new ChatResponseDto();
-                    responseDto.setTaskId(taskId);
-                    responseDto.setMessage("任务已启动，正在处理中...");
-                    responseDto.setSuccess(true);
-                    responseDto.setAsyncTask(true);
-
-                    logger.info("📤 返回响应: taskId={}, 异步任务已启动", taskId);
-                    return responseDto;
-                } else {
-                    // 简单对话 - 使用流式模式
-                    logger.info("🔄 执行流式对话处理");
-
-                    // 返回流式响应标识，让前端建立流式连接
-                    ChatResponseDto responseDto = new ChatResponseDto();
-                    responseDto.setMessage("开始流式对话...");
-                    responseDto.setSuccess(true);
-                    responseDto.setAsyncTask(false); // 关键：设置为false，表示不是工具任务
-                    responseDto.setStreamResponse(true); // 新增：标识为流式响应
-                    responseDto.setTotalTurns(1);
-
-                    logger.info("📤 返回流式响应标识");
-                    return responseDto;
-                }
+                logger.info("📤 返回响应: taskId={}, 异步任务已启动", taskId);
+                return responseDto;
 
             } catch (Exception e) {
                 logger.error("Error processing chat message", e);

@@ -1,6 +1,6 @@
 package com.alibaba.cloud.ai.copilot.config;
 
-
+import com.alibaba.cloud.ai.copilot.service.ToolExecutionLogger;
 import com.alibaba.cloud.ai.copilot.service.LogStreamService;
 import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.Around;
@@ -25,6 +25,9 @@ public class ToolCallLoggingAspect {
     private static final Logger logger = LoggerFactory.getLogger(ToolCallLoggingAspect.class);
 
     @Autowired
+    private ToolExecutionLogger executionLogger;
+
+    @Autowired
     private LogStreamService logStreamService;
 
     /**
@@ -45,6 +48,20 @@ public class ToolCallLoggingAspect {
 
         // 获取当前任务ID (从线程本地变量或其他方式)
         String taskId = getCurrentTaskId();
+
+        // 推送工具执行概要事件
+        if (taskId != null) {
+            String summary = generateExecutionSummary(methodName, fileInfo, args);
+            String reason = generateExecutionReason(methodName, fileInfo, args);
+            logStreamService.pushToolExecutionSummary(taskId, methodName, fileInfo, summary, reason);
+
+            // 短暂延迟，让前端有时间显示概要
+            try {
+                Thread.sleep(200);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        }
 
         // 推送工具开始执行事件
         if (taskId != null) {
@@ -126,8 +143,8 @@ public class ToolCallLoggingAspect {
                     // readFile(String absolutePath, Integer offset, Integer limit)
                     return args.length > 0 && args[0] != null ? args[0].toString() : "未指定路径";
 
-                case "streamingWriteFile":
-                    // streamingWriteFile(String filePath, String content, Long estimatedSize)
+                case "writeFile":
+                    // writeFile(String filePath, String content)
                     return args.length > 0 && args[0] != null ? args[0].toString() : "未指定路径";
 
                 case "editFile":
@@ -290,6 +307,56 @@ public class ToolCallLoggingAspect {
     private String generateErrorMessage(String toolName, String fileInfo, String errorMsg) {
         String fileName = getFileName(fileInfo);
         return String.format("工具 %s 执行失败: %s (文件: %s)", toolName, errorMsg, fileName);
+    }
+
+    /**
+     * 生成工具执行概要
+     */
+    private String generateExecutionSummary(String toolName, String fileInfo, Object[] args) {
+        String fileName = getFileName(fileInfo);
+        switch (toolName) {
+            case "readFile":
+                return String.format("即将读取文件 '%s' 的内容", fileName);
+            case "writeFile":
+                return String.format("即将创建/写入文件 '%s'", fileName);
+            case "editFile":
+                return String.format("即将编辑文件 '%s' 的内容", fileName);
+            case "listDirectory":
+                return String.format("即将列出目录 '%s' 的文件结构", fileInfo);
+            case "analyzeProject":
+                return String.format("即将分析项目 '%s' 的结构和配置", fileInfo);
+            case "scaffoldProject":
+                return String.format("即将创建项目脚手架 '%s'", fileInfo);
+            case "smartEdit":
+                return String.format("即将智能编辑项目 '%s'", fileInfo);
+            default:
+                return String.format("即将执行工具 '%s'", toolName);
+        }
+    }
+
+    /**
+     * 生成工具执行原因
+     */
+    private String generateExecutionReason(String toolName, String fileInfo, Object[] args) {
+        String fileName = getFileName(fileInfo);
+        switch (toolName) {
+            case "readFile":
+                return String.format("需要读取 '%s' 来了解当前文件内容，以便进行后续操作", fileName);
+            case "writeFile":
+                return String.format("需要创建/写入 '%s' 来实现功能需求", fileName);
+            case "editFile":
+                return String.format("需要修改 '%s' 的内容来完善功能或修复问题", fileName);
+            case "listDirectory":
+                return String.format("需要了解 '%s' 的目录结构来规划后续操作", fileInfo);
+            case "analyzeProject":
+                return String.format("需要分析 '%s' 的项目结构来制定开发计划", fileInfo);
+            case "scaffoldProject":
+                return String.format("需要创建 '%s' 的基础项目结构", fileInfo);
+            case "smartEdit":
+                return String.format("需要智能编辑 '%s' 来优化代码结构", fileInfo);
+            default:
+                return String.format("执行 '%s' 工具来完成特定任务", toolName);
+        }
     }
 
     /**

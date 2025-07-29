@@ -3,7 +3,6 @@ package com.alibaba.cloud.ai.copilot.tools;
 import com.alibaba.cloud.ai.copilot.config.AppProperties;
 import com.alibaba.cloud.ai.copilot.schema.JsonSchema;
 import com.alibaba.cloud.ai.copilot.service.ToolExecutionLogger;
-import com.alibaba.cloud.ai.copilot.service.FileStreamManager;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.github.difflib.DiffUtils;
 import com.github.difflib.UnifiedDiffUtils;
@@ -36,9 +35,6 @@ public class WriteFileTool extends BaseTool<WriteFileTool.WriteFileParams> {
 
     @Autowired
     private ToolExecutionLogger executionLogger;
-
-    @Autowired
-    private FileStreamManager fileStreamManager;
 
     public WriteFileTool(AppProperties appProperties) {
         super(
@@ -158,7 +154,53 @@ public class WriteFileTool extends BaseTool<WriteFileTool.WriteFileParams> {
         });
     }
 
-    // 原来的write_file工具已被删除，使用streaming_write_file代替
+    /**
+     * Write file tool method for Spring AI integration
+     */
+    @Tool(name = "write_file", description = "Creates a new file or overwrites an existing file with the specified content")
+    public String writeFile(String filePath, String content) {
+        long callId = executionLogger.logToolStart("write_file", "写入文件内容",
+            String.format("文件路径=%s, 内容长度=%d字符", filePath, content != null ? content.length() : 0));
+        long startTime = System.currentTimeMillis();
+
+        try {
+            WriteFileParams params = new WriteFileParams();
+            params.setFilePath(filePath);
+            params.setContent(content);
+
+            executionLogger.logToolStep(callId, "write_file", "参数验证", "验证文件路径和内容");
+
+            // Validate parameters
+            String validation = validateToolParams(params);
+            if (validation != null) {
+                long executionTime = System.currentTimeMillis() - startTime;
+                executionLogger.logToolError(callId, "write_file", "参数验证失败: " + validation, executionTime);
+                return "Error: " + validation;
+            }
+
+            executionLogger.logFileOperation(callId, "写入文件", filePath,
+                String.format("内容长度: %d字符", content != null ? content.length() : 0));
+
+            // Execute the tool
+            ToolResult result = execute(params).join();
+
+            long executionTime = System.currentTimeMillis() - startTime;
+
+            if (result.isSuccess()) {
+                executionLogger.logToolSuccess(callId, "write_file", "文件写入成功", executionTime);
+                return result.getLlmContent();
+            } else {
+                executionLogger.logToolError(callId, "write_file", result.getErrorMessage(), executionTime);
+                return "Error: " + result.getErrorMessage();
+            }
+
+        } catch (Exception e) {
+            long executionTime = System.currentTimeMillis() - startTime;
+            executionLogger.logToolError(callId, "write_file", "工具执行异常: " + e.getMessage(), executionTime);
+            logger.error("Error in write file tool", e);
+            return "Error: " + e.getMessage();
+        }
+    }
 
     @Override
     public CompletableFuture<ToolResult> execute(WriteFileParams params) {
@@ -302,62 +344,5 @@ public class WriteFileTool extends BaseTool<WriteFileTool.WriteFileParams> {
             return String.format("WriteFileParams{path='%s', contentLength=%d}",
                 filePath, content != null ? content.length() : 0);
         }
-    }
-
-    /**
-     * 开始流式文件写入
-     * 先创建空文件，返回会话ID
-     */
-    public String startStreamingWrite(String taskId, String filePath, long estimatedTotalBytes) {
-        try {
-            // 验证参数
-            WriteFileParams params = new WriteFileParams();
-            params.setFilePath(filePath);
-            params.setContent(""); // 空内容用于验证
-
-            String validation = validateToolParams(params);
-            if (validation != null) {
-                throw new IllegalArgumentException("参数验证失败: " + validation);
-            }
-
-            // 开始流式写入
-            return fileStreamManager.startStreamingWrite(taskId, filePath, estimatedTotalBytes);
-        } catch (Exception e) {
-            logger.error("开始流式文件写入失败: " + filePath, e);
-            throw new RuntimeException("开始流式文件写入失败: " + e.getMessage(), e);
-        }
-    }
-
-    /**
-     * 写入内容块
-     */
-    public void writeContentChunk(String sessionId, String content) {
-        try {
-            fileStreamManager.writeContentChunk(sessionId, content);
-        } catch (Exception e) {
-            logger.error("写入内容块失败: sessionId=" + sessionId, e);
-            fileStreamManager.handleWriteError(sessionId, e.getMessage());
-            throw new RuntimeException("写入内容块失败: " + e.getMessage(), e);
-        }
-    }
-
-    /**
-     * 完成流式写入
-     */
-    public void completeStreamingWrite(String sessionId) {
-        try {
-            fileStreamManager.completeStreamingWrite(sessionId);
-        } catch (Exception e) {
-            logger.error("完成流式写入失败: sessionId=" + sessionId, e);
-            fileStreamManager.handleWriteError(sessionId, e.getMessage());
-            throw new RuntimeException("完成流式写入失败: " + e.getMessage(), e);
-        }
-    }
-
-    /**
-     * 处理流式写入错误
-     */
-    public void handleStreamingWriteError(String sessionId, String errorMessage) {
-        fileStreamManager.handleWriteError(sessionId, errorMessage);
     }
 }
