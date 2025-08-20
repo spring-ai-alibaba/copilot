@@ -1,0 +1,41 @@
+/* VSCode 风格的 Diff 样式 */
+
+.diff-add {
+  background-color: rgba(40, 167, 69, 0.15) !important;
+}
+
+.diff-delete {
+  background-color: rgba(220, 53, 69, 0.15) !important;
+}
+
+
+.diff-marker {
+  opacity: 0.6 !important;
+  user-select: none !important;
+  cursor: default !important;
+}
+
+.diff-marker-search {
+  color: #e74c3c !important;
+  font-weight: bold !important;
+}
+
+.diff-marker-replace {
+  color: #2ecc71 !important;
+  font-weight: bold !important;
+}
+
+
+.diff-hide {
+  display: none !important;
+  height: 0 !important;
+  width: 0 !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
+.diff-separator-button {
+  z-index: 10;
+}

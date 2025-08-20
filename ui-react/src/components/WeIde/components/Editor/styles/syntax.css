@@ -1,0 +1,96 @@
+/* Syntax highlighting */
+.cm-content {
+  padding: 1rem;
+  line-height: 1.6;
+}
+
+.cm-line {
+  padding: 0 1rem;
+}
+
+/* Token colors - One Dark Pro theme */
+.token.comment,
+.token.prolog,
+.token.doctype,
+.token.cdata {
+  color: #5c6370;
+  font-style: italic;
+}
+
+.token.function {
+  color: #61afef;
+}
+
+.token.keyword,
+.token.operator {
+  color: #c678dd;
+}
+
+.token.string {
+  color: #98c379;
+}
+
+.token.number {
+  color: #d19a66;
+}
+
+.token.boolean {
+  color: #56b6c2;
+}
+
+.token.constant,
+.token.symbol {
+  color: #d19a66;
+}
+
+.token.property {
+  color: #e06c75;
+}
+
+.token.tag {
+  color: #e06c75;
+}
+
+.token.attr-name {
+  color: #d19a66;
+}
+
+.token.attr-value {
+  color: #98c379;
+}
+
+.token.punctuation {
+  color: #abb2bf;
+}
+
+.token.class-name {
+  color: #e5c07b;
+}
+
+/* JSX specific */
+.token.jsx-tag {
+  color: #e06c75;
+}
+
+.token.jsx-expression-punctuation,
+.token.jsx-attr-equals {
+  color: #56b6c2;
+}
+
+.token.jsx-attr-value {
+  color: #98c379;
+}
+
+/* Selection */
+.cm-selectionBackground {
+  background: #3e4451 !important;
+}
+
+.cm-focused .cm-selectionBackground {
+  background: #3e4451 !important;
+}
+
+/* Active line highlight */
+.cm-activeLine {
+  background: #282c34 !important;
+}

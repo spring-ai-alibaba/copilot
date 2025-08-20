@@ -1,0 +1,68 @@
+/* Search container */
+.search-container {
+  background-color: #1a1a1c;
+  height: 100%;
+}
+
+/* Search input */
+.search-input {
+  background-color: #3c3c3c;
+  border: 1px solid transparent;
+  color: #cccccc;
+}
+
+.search-input:focus {
+  border-color: #007acc;
+  outline: none;
+}
+
+.search-input::placeholder {
+  color: #888888;
+}
+
+/* Search results */
+.search-results {
+  color: #d4d4d4;
+}
+
+.search-result-file {
+  color: #969696;
+}
+
+.search-result-match {
+  position: relative;
+  background-color: transparent;
+  transition: background-color 0.1s ease;
+}
+
+.search-result-match:hover {
+  background-color: #2d2d2d;
+}
+
+/* Active match styles */
+.search-result-match.active {
+  background-color: #264f78 !important;
+  color: #ffffff;
+}
+
+.search-result-match.active .search-result-line-number {
+  color: #ffffff;
+}
+
+.search-result-line-number {
+  color: #858585;
+}
+
+/* Navigation buttons */
+.search-nav-button {
+  color: #cccccc;
+}
+
+.search-nav-button:hover {
+  background-color: #404040;
+}
+
+/* Match count */
+.search-match-count {
+  color: #cccccc;
+}

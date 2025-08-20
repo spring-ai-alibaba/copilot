@@ -1,0 +1,415 @@
+{
+  "Welcome to React": "欢迎使用React",
+  "chat": {
+    "urlInput": {
+      "title": "输入网站地址",
+      "placeholder": "请输入截图网站地址",
+      "button": "打开网站",
+      "errorInvalid": "请输入有效的URL"
+    },
+
+    "tips": {
+      "title": "欢迎使用Alibaba Copilot",
+      "description": " ",
+      "uploadSketch": "上传Sketch 或者 Figma",
+      "uploadImg": "上传图片",
+      "uploadWebsite": "上传网站",
+      "game": "生成一个贪吃蛇小游戏",
+      "hello": "生成一个好看的页面"
+    },
+    "errors": {
+      "file_size_limit": "文件 {fileName} 超过5MB限制",
+      "upload_failed": "上传失败",
+      "paste_failed": "粘贴图片失败",
+      "add_image_failed": "添加图片失败"
+    },
+    "success": {
+      "images_uploaded": "图片上传成功",
+      "images_uploaded_multiple": "{count}张图片上传成功",
+      "image_pasted": "图片粘贴成功",
+      "images_pasted_multiple": "{count}张图片粘贴成功",
+      "image_added": "图片已添加到输入框",
+      "images_added_multiple": "{count}张图片已添加到输入框"
+    },
+    "placeholders": {
+      "input": "输入消息，按Enter发送，Shift+Enter换行...",
+      "tips": "我能怎么样帮助你? (粘贴图片用Ctrl+V)"
+    },
+    "buttons": {
+      "send": "发送",
+      "upload": "上传图片",
+      "upload_tips": "点击上传或粘贴图片",
+      "upload_sketch": "上传Sketch 或者 Figma 文件",
+      "upload_sketch_tips": "点击上传Sketch 或者 Figma 文件",
+      "upload_disabled": "上传已禁用",
+      "upload_image": "上传图片",
+      "waiting": "请等待当前进程完成",
+      "not_support_image": "当前模型不支持图片上传",
+      "click_to_upload": "点击上传或粘贴图片",
+      "figma_integration": "Figma 集成",
+      "figma_settings": "Figma 设置",
+      "figma_url": "Figma 文件 URL",
+      "figma_token": "Figma 访问令牌",
+      "enter_figma_url": "请输入 Figma 文件 URL",
+      "enter_figma_token": "请输入 Figma 访问令牌",
+      "mcp_disabled": "MCP 工具已禁用",
+      "mcp_tools": "MCP 工具",
+      "not_support_mcp": "当前模型不支持 MCP 工具",
+      "click_to_use_mcp": "点击使用 MCP 工具"
+    },
+    "examples": {
+      "title": "你可以这样问我",
+      "prompts": {
+        "todo": "使用React和Tailwind构建一个待办事项应用",
+        "blog": "使用Astro构建一个简单的博客",
+        "cookie": "使用Material UI创建一个cookie同意表单",
+        "game": "制作一个太空入侵者游戏",
+        "center": "如何让一个div居中？"
+      }
+    },
+    "loading": {
+      "generating": "AI正在生成回答..."
+    },
+    "modePlaceholders": {
+      "chat": "这是聊天模式。你可以直接与AI对话，并返回你想要的结果。",
+      "builder": "这是构建模式，用于通过对话构建你的项目"
+    },
+    "optimizePrompt": {
+      "title": "优化提示词",
+      "design": "生成设计稿",
+      "placeholder": "在这里输入您的提示词，我们将帮助您优化...",
+      "processing": "处理中...",
+      "loading": "正在生成设计稿:内容是",
+      "cancel": "取消",
+      "confirm": "确定",
+      "button": "优化提示词",
+      "error": "优化提示词失败:",
+      "designPlaceholder": "在这里输入您的提示词，我们将帮助您生成设计稿..."
+    },
+    "regenerate_incomplete": "请检查上次生成了哪些文件，重建并继续上次不完整的代码文件，无需再次生成完整的代码文件"
+  },
+  "settings": {
+    "title": "设置",
+    "language": "语言",
+    "general": "常规",
+    "Quota": "次数",
+    "General": "常规",
+    "Language": "语言",
+    "keyPlaceholder": "请输入你的API Key",
+    "save": "保存",
+    "themeMode": "主题模式",
+    "themeModeLight": "明亮模式",
+    "themeModeDark": "暗黑模型",
+    "MCPServer": "MCP服务器",
+    "InvalidProxyUrl": "无效的代理URL",
+    "mcp": {
+      "actions": "操作",
+      "active": "启用",
+      "addError": "添加服务器失败",
+      "addServer": "添加服务器",
+      "addSuccess": "服务器添加成功",
+      "args": "参数 (每行一个)",
+      "argsTooltip": "每个参数占一行",
+      "baseUrlRequired": "请输入基础URL",
+      "baseUrlTooltip": "远程 URL 地址",
+      "command": "命令",
+      "commandRequired": "请输入命令",
+      "config_description": "配置模型上下文协议服务器",
+      "please_use_electron": "请打开https://we0.ai下载客户端版本使用",
+      "confirmDelete": "删除服务器",
+      "confirmDeleteMessage": "您确定要删除该服务器吗？",
+      "deleteError": "删除服务器失败",
+      "deleteSuccess": "服务器删除成功",
+      "dependenciesInstall": "安装依赖项",
+      "dependenciesInstalling": "正在安装依赖项...",
+      "description": "描述",
+      "duplicateName": "已存在同名服务器",
+      "editJson": "编辑JSON",
+      "editServer": "编辑服务器",
+      "env": "环境变量 (KEY=value, 每行一个)",
+      "envTooltip": "格式：KEY=value，每行一个",
+      "findMore": "更多 MCP 服务器",
+      "install": "安装",
+      "installError": "安装依赖项失败",
+      "installSuccess": "依赖项安装成功",
+      "jsonFormatError": "JSON 格式错误",
+      "jsonModeHint": "在此编辑 MCP 服务器配置的 JSON 格式。修改后需要点击确认保存更改。",
+      "jsonSaveError": "保存配置失败",
+      "jsonSaveSuccess": "保存配置成功",
+      "missingDependencies": "缺失，请安装它以继续",
+      "name": "名称",
+      "nameRequired": "请输入服务器名称",
+      "noServers": "未配置服务器",
+      "unavailable": "Web版本暂不支持MCP。尽情期待。",
+      "invoke_tool": "调用工具",
+      "invoke_tooling": "调用工具中",
+      "npx_list": {
+        "actions": "操作",
+        "desc": "搜索并添加 npm 包作为 MCP 服务",
+        "description": "描述",
+        "no_packages": "未找到包",
+        "npm": "NPM",
+        "package_name": "包名称",
+        "scope_placeholder": "输入 npm 作用域 (例如 @your-org)",
+        "scope_required": "请输入 npm 作用域",
+        "search": "搜索",
+        "search_error": "搜索失败",
+        "title": "NPX 包列表",
+        "usage": "用法",
+        "version": "版本"
+      },
+      "serverPlural": "服务器",
+      "serverSingular": "服务器",
+      "title": "MCP 服务器",
+      "toggleError": "切换失败",
+      "type": "类型",
+      "updateError": "更新服务器失败",
+      "updateSuccess": "服务器更新成功",
+      "url": "URL",
+      "invalidMcpFormat": "无效的 MCP 配置格式"
+    },
+    "proxy": "代理设置",
+    "noProxy": "不使用代理",
+    "systemProxy": "系统代理",
+    "customProxy": "自定义代理",
+    "customProxyPlaceholder": "输入代理配置",
+    "proxyHint": "每行一个代理配置\n格式：协议=代理地址\n示例：\nhttp=http://127.0.0.1:7890\nhttps=http://127.0.0.1:7890\nsocks5=socks5://127.0.0.1:7890",
+    "packageMirrors": "包管理镜像源",
+    "pythonMirror": "Python 镜像源",
+    "nodeMirror": "Node 镜像源",
+    "customMirror": "自定义镜像",
+    "customMirrorPlaceholder": "请输入自定义镜像地址",
+    "proxyApplied": "代理设置已成功应用",
+    "proxyError": "应用代理设置失败",
+    "unsupportedProxyProtocol": "不支持的代理协议，请使用 http、https、socks4 或 socks5",
+    "invalidProxyHost": "无效的代理主机地址",
+    "invalidProxyPort": "无效的代理端口号（应为 1-65535 之间的数字）",
+    "invalidProxyFormat": "代理地址格式无效",
+    "proxyUrlRequired": "请输入代理地址",
+    "socksPortRequired": "SOCKS 代理必须指定端口号",
+    "backend": {
+      "enable": "启用后端（测试版）",
+      "language": "后端语言",
+      "database": {
+        "type": "数据库类型",
+        "none": "无",
+        "url": "数据库地址",
+        "username": "数据库用户名",
+        "password": "数据库密码"
+      }
+    },
+    "themeSystem": "跟随系统"
+  },
+  "preview": {
+    "noserver": "暂未有服务运行",
+    "wxminiPreview": "可打开微信小程序开发者工具预览"
+  },
+  "editor": {
+    "editor": "编辑器",
+    "preview": "预览",
+    "apiTest": "API测试器",
+    "search_in_files": "在文件中搜索...",
+    "diff": "差异"
+  },
+  "header": {
+    "download": "下载代码",
+    "deploy": "部署",
+    "deploying": "部署中...",
+    "deploySuccess": "部署成功！",
+    "deployToCloud": "您的项目已成功部署到云端",
+    "accessLink": "访问链接：",
+    "copy": "复制",
+    "close": "关闭",
+    "visitSite": "访问网站",
+    "open_directory": "打开目录",
+    "error": {
+      "open_directory": "打开目录失败",
+      "deploy_failed": "部署失败，请稍后重试"
+    }
+  },
+  "explorer": {
+    "clear_all": "清除所有",
+    "explorer": "资源管理器"
+  },
+  "common": {
+    "name": "名称",
+    "description": "描述",
+    "edit": "修改",
+    "more": "更多",
+    "delete": "删除",
+    "cancel": "取消",
+    "confirm": "确认",
+    "open_directory_quota": "次数面板",
+    "login": "登录",
+    "close": "关闭",
+    "please_login": "请登录后查看您的使用次数",
+    "format": "格式化",
+    "formatting": "格式化中..."
+  },
+  "sidebar": {
+    "start_new_chat": "开始新聊天",
+    "search": "搜索",
+    "chat_history": "聊天记录",
+    "settings": "设置",
+    "contact_us": "联系我们",
+    "personal_plan": "个人计划"
+  },
+  "usage": {
+    "usage": "使用情况",
+    "monthly_usage": "次月使用",
+    "quota_used": "使用的次数",
+    "remaining": "剩余",
+    "billing_cycle": "计费周期",
+    "next_reset": "下次重置",
+    "days": "天",
+    "type": "类型",
+    "monthly_limit": "每月限额",
+    "buy_quote": "购买更多次数",
+    "personal_plan": "个人面板"
+  },
+  "login": {
+    "guest": "游客",
+    "title": "请登录",
+    "click_to_login": "点击登录",
+    "AI_powered_development_platform": "AI驱动的开发平台",
+    "email": "邮箱",
+    "password": "密码",
+    "sign_in": "登录",
+    "remember_me": "记住我",
+    "forgot_password": "忘记密码",
+    "By_signing_in_you_agree_to_our": "登录即表示您同意我们的",
+    "Invalid password": "密码错误",
+    "Failed to fetch": "获取失败",
+    "signing_in": "登录中...",
+    "terms_of_service": "服务条款",
+    "privacy_policy": "隐私政策",
+    "and": "和",
+    "need_an_account": "需要一个账户",
+    "register": "注册",
+    "weChat": "微信",
+    "basic_information": "基础资料、头像等公开信息",
+    "continue_with_wechat": "使用微信登录",
+    "connecting": "连接中...",
+    "sign_up_with_wechat": "使用微信注册",
+    "WeDev_will_access_the_following_wechat_information": "WeDev将访问以下微信信息",
+    "WeDev_will_access_the_following_GitHub_information": "WeDev将访问以下GitHub信息",
+    "basic_profile": "基本信息",
+    "public_repositories": "公共仓库",
+    "and_Gists": "和Gists",
+    "continue_with_github": "使用GitHub登录",
+    "chat_limit_reached": "聊天次数已达上限",
+    "chat_limit_reached_tips": "请登录后继续聊天",
+    "usage_limit_reached": "使用次数已达上限",
+    "usage_limit_reached_tips": "您的使用次数已达上限，请购买次数"
+  },
+  "register": {
+    "register_success": "注册成功！",
+    "register_success_account": "我们已向您的邮箱发送了一封验证邮件，请及时完成验证。",
+    "process_login": "前往登录",
+    "create_account": "创建您的账户",
+    "creating_account": "正在创建账户...",
+    "create_account_button": "创建账户",
+    "already_account": "已经有账户了？"
+  },
+
+  "sketch": {
+    "title": "Sketch编辑器",
+    "guide": {
+      "title": "Sketch 设计稿转代码引导",
+      "uploadTitle": "上传 Sketch or Figma",
+      "description": "只需上传您的 Sketch Figma 设计稿，我们将自动为您生成高质量的前端代码。",
+      "startButton": "开始体验 D2C",
+      "supportText": "支持 .sketch or .figma 文件格式，文件大小不超过 10MB",
+      "slide0": {
+        "title": "选择设计稿想要生成区域",
+        "description": "上传设计稿后->点击左边目录树文件或者点击设计稿区域选中->选中右下角即出现预览图->点击右下角按钮获取代码信息"
+      },
+      "slide1": {
+        "title": "自动生成高质量代码",
+        "description": "等待一会，我们的 AI 引擎会分析您的设计并生成精准的前端代码"
+      },
+      "slide2": {
+        "title": "立即预览",
+        "description": "生成的代码可以看见效果！！！"
+      }
+    },
+    "generating": "生成中...",
+    "generate_success": "生成成功",
+    "prompt": "1.基于图片，能封装组件就尽量封装； 2.我的图片使用blob链接 3.1:1还原这个图片，这个json数组你要参考边距和大小和字体和背景！ 生成css的color必须和json的color保持一摸一样4.用ts. 5.图片里面可能会有重复的地方，尽量用组件，在不破坏原有样式的情况下，尽量复用。6.文本类都需要使用文本溢出样式，注意识别是单行还是多行文本，溢出用'...'截断，确保文本长度变化时页面美观； 7.用<div> <span> <img> <a> <input> 等标签,不要用<h1><h2>等等这些标签 8.css名也帮我改一下，css很多css太复杂了，可以简单一点,尽可能用flex布局，有一些情况不一定要用absolute。 9.层级不一定对，所以需要你修复 10.上下左右间距参考数据尽量还原 最后强调！代码不要省略！！！！",
+    "generate_failed": "生成失败",
+    "get_code": "获取代码",
+    "select_tech": "选择技术栈",
+    "tech": {
+      "react": "React (TypeScript & Tailwind)",
+      "vue": "Vue3 (TypeScript & Tailwind)",
+      "miniprogram": "微信小程序"
+    },
+    "prompts": {
+      "base": "请根据上传的设计稿生成",
+      "react": "React 代码，使用 TypeScript，样式使用 Tailwind CSS, 项目要用启动入口，并且保证项目能跑，并确保代码符合最佳实践和性能优化。",
+      "vue": "Vue3 代码，使用 TypeScript 和组合式API，样式使用 Tailwind CSS，并确保代码符合 Vue 的最佳实践。",
+      "miniprogram": "微信小程序代码，使用原生小程序框架，样式采用 WXSS，确保符合小程序开发规范和最佳实践。用rpx单位来写这个界面，假如设计稿上面有状态栏请你去掉, 写小程序注意样式和宽度"
+    }
+  },
+  "update": {
+    "version_update": "版本更新",
+    "release_date": "发布日期"
+  },
+  "weapi": {
+    "title": "API 测试",
+    "edit": "编辑",
+    "save_changes": "保存更改",
+    "send_request": "发送请求",
+    "api_collection": "API 集合",
+    "request_failed": "请求失败",
+    "api_saved": "API 保存成功",
+    "import_success": "API 列表导入成功",
+    "delete_api_title": "确认删除 API",
+    "delete_folder_title": "确认删除文件夹",
+    "delete_api_confirm": "确定要删除 API  吗？",
+    "delete_folder_confirm": "确定要删除文件夹及其所有内容吗？",
+    "new_api": "新建 API",
+    "new_folder": "新建文件夹",
+    "add_api": "添加 API",
+    "add_folder": "添加文件夹",
+    "import": "导入",
+    "export": "导出",
+    "edit_item": "编辑 {type}",
+    "add_item": "添加新项",
+    "item_type": "类型",
+    "item_name": "名称",
+    "type_api": "API",
+    "type_folder": "文件夹",
+    "name_required": "请输入名称",
+    "url_required": "请输入 URL",
+    "url": "URL 地址",
+    "method": {
+      "GET": "获取",
+      "POST": "提交",
+      "PUT": "更新",
+      "DELETE": "删除",
+      "PATCH": "补丁",
+      "HEAD": "头部",
+      "OPTIONS": "选项"
+    }
+  },
+  "forgotPassword": {
+    "title": "重置密码",
+    "email": "邮箱地址",
+    "emailPlaceholder": "请输入邮箱",
+    "oldPassword": "旧密码",
+    "oldPasswordPlaceholder": "请输入旧密码",
+    "newPassword": "新密码",
+    "newPasswordPlaceholder": "请输入新密码",
+    "submit": "更新密码",
+    "submitting": "更新中...",
+    "backToLogin": "返回登录",
+    "success": "密码更新成功",
+    "error": {
+      "missingFields": "请填写所有字段",
+      "userNotFound": "用户不存在",
+      "invalidOldPassword": "旧密码错误",
+      "updateFailed": "密码更新失败"
+    }
+  }
+}

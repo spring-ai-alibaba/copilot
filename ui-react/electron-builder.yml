@@ -1,0 +1,24 @@
+directories:
+  output: dist
+  buildResources: build
+files:
+  - "dist/**/*"
+  - "dist-electron/**/*"
+extraResources:
+  - from: "node_modules/node-pty/build/Release/"
+    to: "build/Release/"
+    filter:
+      - "**/*"
+asarUnpack:
+  - "build/Release/pty.node"
+mac:
+  target: "dir"
+  arch: 
+    - "arm64" 
+    
+win:
+  target:
+    - nsis
+  arch:
+    - x64
+    - ia32

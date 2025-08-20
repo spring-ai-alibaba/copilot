@@ -1,0 +1,411 @@
+{
+  "Welcome to React": "Welcome to React",
+  "common": {
+    "name": "name",
+    "description": "description",
+    "edit": "edit",
+    "more": "more",
+    "delete": "delete",
+    "cancel": "Cancel",
+    "confirm": "Confirm",
+    "open_directory_quota": "quota panel",
+    "login": "Login",
+    "close": "Close",
+    "please_login": "Please sign in to view your quota",
+    "format": "Format",
+    "formatting": "Formatting..."
+  },
+  "chat": {
+    "urlInput": {
+      "title": "Enter website address",
+      "placeholder": "Please enter the screenshot website address",
+      "button": "Open website",
+      "errorInvalid": "Please enter a valid URL"
+    },
+    "tips": {
+      "title": "build you want",
+      "description": "d2c sketch feature is only available in the online version",
+      "uploadSketch": "Upload Sketch or Figma",
+      "uploadImg": "Upload Image",
+      "uploadWebsite": "Upload Website",
+      "game": "Generate a snake game",
+      "hello": "Generate a beautiful page"
+    },
+    "errors": {
+      "file_size_limit": "File {fileName} exceeds 5MB limit",
+      "upload_failed": "Upload failed",
+      "paste_failed": "Failed to paste image",
+      "add_image_failed": "Failed to add image"
+    },
+    "success": {
+      "images_uploaded": "Image uploaded successfully",
+      "images_uploaded_multiple": "{count} images uploaded successfully",
+      "image_pasted": "Image pasted successfully",
+      "images_pasted_multiple": "{count} images pasted successfully",
+      "image_added": "Image added to input",
+      "images_added_multiple": "{count} images added to input"
+    },
+    "placeholders": {
+      "input": "Enter message, press Enter to send, Shift+Enter for new line...",
+      "tips": "How can I help you? (Press Ctrl+V to paste images)"
+    },
+    "buttons": {
+      "send": "Send",
+      "upload": "Upload Image",
+      "upload_tips": "Click to upload or paste images",
+      "upload_sketch": "Upload Sketch or Figma",
+      "upload_sketch_tips": "Click to upload Sketch or Figma files",
+      "upload_disabled": "Upload disabled",
+      "upload_image": "Upload Image",
+      "waiting": "Please wait for the current process to complete",
+      "not_support_image": "The current model does not support image upload",
+      "click_to_upload": "Click to upload or paste images",
+      "figma_integration": "Figma Integration",
+      "figma_settings": "Figma Settings",
+      "figma_url": "Figma File URL",
+      "figma_token": "Figma Access Token",
+      "enter_figma_url": "Enter Figma file URL",
+      "enter_figma_token": "Enter Figma access token",
+      "mcp_disabled": "MCP Tools Disabled",
+      "mcp_tools": "MCP Tools",
+      "not_support_mcp": "The current model does not support MCP tools",
+      "click_to_use_mcp": "Click to use MCP tools"
+    },
+    "examples": {
+      "title": "You can ask me like this",
+      "prompts": {
+        "todo": "Build a todo app using React and Tailwind",
+        "blog": "Build a simple blog using Astro",
+        "cookie": "Create a cookie consent form using Material UI",
+        "game": "Make a Space Invaders game",
+        "center": "How to center a div?"
+      }
+    },
+    "loading": {
+      "generating": "AI is generating response..."
+    },
+    "modePlaceholders": {
+      "chat": "This is the chat mode. You can directly talk to the AI ​​and return the answer you want.",
+      "builder": "This is builder mode, used to build your project through dialogue"
+    },
+    "optimizePrompt": {
+      "title": "Optimize Prompt",
+      "placeholder": "Enter your prompt here, we'll help you optimize it...",
+      "processing": "Processing...",
+      "cancel": "Cancel",
+      "loading": "Generating design: content is",
+      "design": "Generate Design",
+      "confirm": "Confirm",
+      "button": "Optimize Prompt",
+      "error": "Failed to optimize prompt:",
+      "designPlaceholder": "Enter your prompt here, we'll help you generate a design..."
+    },
+    "regenerate_incomplete": "Please check which files were generated last time, rebuild and continue with the incomplete code files last time, and there is no need to generate the completed code files again"
+  },
+  "settings": {
+    "title": "Settings",
+    "language": "Language",
+    "general": "General",
+    "Quota": "quota",
+    "General": "General",
+    "Language": "Language",
+    "keyPlaceholder": "Please enter your API key",
+    "save": "Save",
+    "themeMode": "Theme Mode",
+    "themeModeLight": "Light Mode",
+    "themeModeDark": "Dark Mode",
+    "MCPServer": "MCP Server",
+    "InvalidProxyUrl": "Invalid proxy URL",
+    "mcp": {
+      "actions": "Actions",
+      "active": "Active",
+      "addError": "Failed to add server",
+      "addServer": "Add Server",
+      "addSuccess": "Server added successfully",
+      "args": "Arguments",
+      "argsTooltip": "Each argument on a new line",
+      "baseUrlTooltip": "Remote server base URL",
+      "command": "Command",
+      "commandRequired": "Please enter a command",
+      "config_description": "Configure Model Context Protocol servers",
+      "please_use_electron": "Please open https://we0.ai to download the client version",
+      "confirmDelete": "Delete Server",
+      "confirmDeleteMessage": "Are you sure you want to delete the server?",
+      "deleteError": "Failed to delete server",
+      "deleteSuccess": "Server deleted successfully",
+      "dependenciesInstall": "Install Dependencies",
+      "dependenciesInstalling": "Installing dependencies...",
+      "description": "Description",
+      "duplicateName": "A server with this name already exists",
+      "editJson": "Edit JSON",
+      "editServer": "Edit Server",
+      "env": "Environment Variables",
+      "envTooltip": "Format: KEY=value, one per line",
+      "findMore": "Find More MCP Servers",
+      "install": "Install",
+      "installError": "Failed to install dependencies",
+      "installSuccess": "Dependencies installed successfully",
+      "jsonFormatError": "JSON format error",
+      "jsonModeHint": "Edit the JSON format of MCP server configuration here. Click confirm to save changes after modification.",
+      "jsonSaveError": "Failed to save configuration",
+      "jsonSaveSuccess": "Configuration saved successfully",
+      "missingDependencies": "is Missing, please install it to continue.",
+      "name": "Name",
+      "nameRequired": "Please enter a server name",
+      "noServers": "No servers configured",
+      "unavailable": "The web version does not support MCP for now. Please stay tuned.",
+      "invoke_tool": "Invoke tool",
+      "invoke_tooling": "Invoke tooling",
+      "npx_list": {
+        "actions": "Actions",
+        "desc": "Search and add npm packages as MCP servers",
+        "description": "Description",
+        "no_packages": "No packages found",
+        "npm": "NPM",
+        "package_name": "Package Name",
+        "scope_placeholder": "Enter npm scope (e.g. @your-org)",
+        "scope_required": "Please enter npm scope",
+        "search": "Search",
+        "search_error": "Search error",
+        "title": "NPX Package List",
+        "usage": "Usage",
+        "version": "Version"
+      },
+      "serverPlural": "servers",
+      "serverSingular": "server",
+      "title": "MCP Servers",
+      "toggleError": "Toggle failed",
+      "type": "Type",
+      "updateError": "Failed to update server",
+      "updateSuccess": "Server updated successfully",
+      "url": "URL",
+      "invalidMcpFormat": "Invalid MCP configuration format"
+    },
+    "proxy": "Proxy Settings",
+    "noProxy": "No Proxy",
+    "systemProxy": "System Proxy",
+    "customProxy": "Custom Proxy",
+    "customProxyPlaceholder": "Enter proxy configuration",
+    "proxyHint": "Each proxy configuration should be on a new line.\nFormat: protocol=proxy_address\nExample:\nhttp=http://127.0.0.1:7890\nhttps=http://127.0.0.1:7890\nsocks5=socks5://127.0.0.1:7890",
+    "packageMirrors": "Package Mirrors",
+    "pythonMirror": "Python Mirror",
+    "nodeMirror": "Node Mirror",
+    "customMirror": "Custom Mirror",
+    "customMirrorPlaceholder": "Enter custom mirror URL",
+    "proxyApplied": "Proxy settings applied successfully",
+    "proxyError": "Failed to apply proxy settings",
+    "unsupportedProxyProtocol": "Unsupported proxy protocol. Please use http, https, socks4, or socks5",
+    "invalidProxyHost": "Invalid proxy host address",
+    "invalidProxyPort": "Invalid proxy port number (must be a number between 1 and 65535)",
+    "invalidProxyFormat": "Invalid proxy address format",
+    "proxyUrlRequired": "Please enter a proxy address",
+    "socksPortRequired": "A SOCKS proxy must specify a port number",
+    "themeSystem": "Follow System",
+    "backend": {
+      "enable": "Enable Backend (Beta)",
+      "language": "Backend Language",
+      "database": {
+        "type": "Database Type",
+        "none": "None",
+        "url": "Database URL",
+        "username": "Database Username",
+        "password": "Database Password"
+      }
+    }
+  },
+  "preview": {
+    "noserver": "No server running",
+    "wxminiPreview": "Open WeChat Mini Program Developer Tools for preview"
+  },
+  "editor": {
+    "editor": "Editor",
+    "preview": "Preview",
+    "apiTest": "APITest",
+    "search_in_files": "Search in files...",
+    "diff": "diff"
+  },
+  "header": {
+    "download": "Download Code",
+    "deploy": "Deploy",
+    "deploying": "Deploying...",
+    "deploySuccess": "Deployment Successful!",
+    "deployToCloud": "Your project has been successfully deployed to the cloud",
+    "accessLink": "Access Link:",
+    "copy": "Copy",
+    "close": "Close",
+    "visitSite": "Visit Site",
+    "open_directory": "Open Directory",
+    "error": {
+      "open_directory": "Failed to open directory",
+      "deploy_failed": "Deployment failed, please try again later"
+    }
+  },
+  "explorer": {
+    "clear_all": "Clear All",
+    "explorer": "Explorer"
+  },
+  "sidebar": {
+    "start_new_chat": "Start New Chat",
+    "search": "Search",
+    "chat_history": "Chat History",
+    "settings": "Settings",
+    "contact_us": "Contact Us",
+    "personal_plan": "Personal Plan"
+  },
+  "usage": {
+    "usage": "Usage",
+    "monthly_usage": "quota Monthly Usage",
+    "quota_used": "quota used",
+    "remaining": "remaining",
+    "billing_cycle": "Billing Cycle",
+    "next_reset": "Next Reset",
+    "days": "days",
+    "type": "type",
+    "buy_quote": "Buy More Quota",
+    "personal_plan": "Personal Plan"
+  },
+  "login": {
+    "guest": "Guest",
+    "title": "Please Sign In",
+    "click_to_login": "Click to login",
+    "AI_powered_development_platform": "AI-Powered Development Platform",
+    "email": "Email",
+    "password": "Password",
+    "sign_in": "Sign In",
+    "signing_in": "Signing in...",
+    "Failed to fetch": "Failed to fetch",
+    "remember_me": "Remember me",
+    "forgot_password": "Forgot password",
+    "By_signing_in_you_agree_to_our": "By signing in, you agree to our",
+    "terms_of_service": "Terms of Service",
+    "Invalid password": "Invalid password",
+    "privacy_policy": "Privacy Policy",
+    "and": "and",
+    "need_an_account": "Need an account",
+    "register": "Register",
+    "weChat": "WeChat",
+    "basic_information": "Basic information, avatar, etc.",
+    "continue_with_wechat": "Continue with WeChat",
+    "connecting": "Connecting...",
+    "sign_up_with_wechat": "Sign up with WeChat",
+    "WeDev_will_access_the_following_GitHub_information": "WeDev will access the following GitHub information",
+    "WeDev_will_access_the_following_wechat_information": "WeDev will access the following WeChat information",
+    "basic_profile": "Basic profile",
+    "public_repositories": "Public repositories",
+    "and_Gists": "and Gists",
+    "continue_with_github": "Continue with GitHub",
+    "chat_limit_reached": "Chat Limit Reached",
+    "chat_limit_reached_tips": "Please login to continue chatting",
+    "usage_limit_reached": "Usage Limit Reached",
+    "usage_limit_reached_tips": "You have reached the maximum usage limit. Please add quota to continue using."
+  },
+  "register": {
+    "register_success": "Registration Successful!",
+    "register_success_account": "We have sent a verification email to your mailbox, please verify it in time.",
+    "process_login": "Proceed to Login",
+    "create_account": "Create your We0 account",
+    "creating_account": "Creating Account...",
+    "create_account_button": "Create Account",
+    "already_account": "Already have an account?"
+  },
+  "sketch": {
+    "title": "Sketch Editor",
+    "guide": {
+      "title": "Sketch or Figma Design to Code Guide",
+      "uploadTitle": "Upload Your Sketch or Figma Design",
+      "description": "Simply upload your Sketch or Figma design, and we'll automatically generate high-quality frontend code for you.",
+      "startButton": "Start D2C Experience",
+      "supportText": "Supports .sketch or .figma file format, file size up to 10MB",
+      "slide0": {
+        "title": "Select Design Area to Generate",
+        "description": "After uploading -> Click file in left tree or click design area to select -> Preview appears in bottom right -> Click bottom right button to get code"
+      },
+      "slide1": {
+        "title": "Auto-generate High-quality Code",
+        "description": "Wait a moment while our AI engine analyzes your design and generates precise frontend code"
+      },
+      "slide2": {
+        "title": "Instant Preview",
+        "description": "See the generated code in action!!!"
+      }
+    },
+    "generating": "Generating...",
+    "generate_success": "Generated successfully",
+    "prompt": "1. Encapsulate components based on images when possible; 2. Use blob links for images; 3. Create a 1:1 replica of the image, refer to margins, sizes, fonts and backgrounds in the JSON array! 4. Use TypeScript; 5. For repeating elements in the image, use components when possible without breaking the original style; 6. Use text overflow styles, identify single/multi-line text, truncate with '...' for overflow to maintain aesthetics; 7. Use <div> <span> <img> <a> <input> tags, avoid <h1><h2> etc.; 8. Simplify CSS names, prefer flex layout over absolute positioning when possible; 9. Fix z-index issues where needed; 10. Maintain precise spacing as per reference data. Important: Don't omit any code!!!!",
+    "generate_failed": "Generation failed",
+    "get_code": "Get Code",
+    "select_tech": "Select Technology Stack",
+    "tech": {
+      "react": "React with TypeScript & Tailwind",
+      "vue": "Vue3 with TypeScript & Tailwind",
+      "miniprogram": "WeChat Mini Program"
+    },
+    "prompts": {
+      "base": "Please generate based on the uploaded design",
+      "react": "React code using TypeScript and Tailwind CSS, project must have a start entry, and ensure the project can run, and ensure the code is符合最佳实践和性能优化。",
+      "vue": "Vue3 code using TypeScript and Composition API, with Tailwind CSS styling, ensuring Vue best practices.",
+      "miniprogram": "WeChat Mini Program code using the native framework with WXSS styling, following Mini Program development standards and best practices. Use rpx units for the interface, and remove the status bar if present in the design. 写小程序注意样式和宽度"
+    }
+  },
+  "update": {
+    "version_update": "Version Update",
+    "release_date": "Release Date"
+  },
+  "weapi": {
+    "title": "API Test",
+    "edit": "Edit",
+    "save_changes": "Save Changes",
+    "send_request": "Send Request",
+    "api_collection": "API Collection",
+    "request_failed": "Request Failed",
+    "api_saved": "API saved successfully",
+    "import_success": "API list imported successfully",
+    "delete_api_title": "Confirm Delete API",
+    "delete_folder_title": "Confirm Delete Folder",
+    "delete_api_confirm": "Are you sure you want to delete API?",
+    "delete_folder_confirm": "Are you sure you want to delete folder and all its contents?",
+    "new_api": "New API",
+    "new_folder": "New Folder",
+    "add_api": "Add API",
+    "add_folder": "Add Folder",
+    "import": "Import",
+    "export": "Export",
+    "edit_item": "Edit {type}",
+    "add_item": "Add New Item",
+    "item_type": "Type",
+    "item_name": "Name",
+    "type_api": "API",
+    "type_folder": "Folder",
+    "name_required": "Please input name",
+    "url_required": "Please input URL",
+    "url": "URL",
+    "method": {
+      "GET": "GET",
+      "POST": "POST",
+      "PUT": "PUT",
+      "DELETE": "DELETE",
+      "PATCH": "PATCH",
+      "HEAD": "HEAD",
+      "OPTIONS": "OPTIONS"
+    }
+  },
+  "forgotPassword": {
+    "title": "Reset Password",
+    "email": "Email Address",
+    "emailPlaceholder": "Enter your email",
+    "oldPassword": "Old Password",
+    "oldPasswordPlaceholder": "Enter your old password",
+    "newPassword": "New Password",
+    "newPasswordPlaceholder": "Enter your new password",
+    "submit": "Update Password",
+    "submitting": "Updating...",
+    "backToLogin": "Back to Login",
+    "success": "Password updated successfully",
+    "error": {
+      "missingFields": "Please fill in all fields",
+      "userNotFound": "User not found",
+      "invalidOldPassword": "Invalid old password",
+      "updateFailed": "Failed to update password"
+    }
+  }
+}

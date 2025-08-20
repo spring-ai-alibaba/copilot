@@ -1,0 +1,29 @@
+server:
+  port: 6039
+  servlet:
+    context-path: /
+
+spring:
+  application:
+    name: spring-ai-alibaba-copilot
+  datasource:
+    url: jdbc:mysql://localhost:3306/spring_ai_copilot?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai
+    username: root
+    password: root
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  ai:
+    dashscope:
+      # 提供一个临时的API key来避免启动错误，实际使用时会从数据库获取
+      api-key: ${AI_DASHSCOPE_API_KEY:sk-temp-key-for-startup}
+    openai:
+      # 提供一个临时的API key来避免启动错误，实际使用时会从数据库获取
+      api-key: ${OPENAI_API_KEY:sk-temp-key-for-startup}
+
+# Logging Configuration
+logging:
+  level:
+    com.alibaba.cloud.ai.copilot: DEBUG
+    org.springframework.ai: DEBUG
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+

@@ -1,0 +1,36 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+/* 全局光标样式 */
+input, textarea, [contenteditable="true"] {
+  caret-color: #000000 !important;
+}
+.CodeMirror-cursor {
+   border-left: 2px solid #ff0000 !important; /* 设置光标颜色为红色，宽度为2px */
+}
+/* 暗黑模式下的光标样式 */
+@media (prefers-color-scheme: dark) {
+  input, textarea, [contenteditable="true"] {
+    caret-color: #ffffff;
+  }
+}
+
+/* 如果使用 Tailwind 的 dark 类控制暗黑模式 */
+.dark input,
+.dark textarea,
+.dark [contenteditable="true"] {
+  caret-color: #ffffff;
+} 
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --border: 240 5.9% 90%;
+    --foreground: 240 10% 3.9%;
+  }
+
+  .dark {
+    --background: 240 10% 3.9%;
+    --border: 240 3.7% 15.9%;
+    --foreground: 0 0% 98%;
+  }
+} 
