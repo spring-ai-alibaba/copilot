@@ -18,6 +18,12 @@ spring:
     openai:
       # 提供一个临时的API key来避免启动错误，实际使用时会从数据库获取
       api-key: ${OPENAI_API_KEY:sk-temp-key-for-startup}
+    chat:
+      memory:
+        repository:
+          jdbc:
+            # 自动初始化数据库表结构
+            initialize-schema: always
 
 # Logging Configuration
 logging:

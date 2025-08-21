@@ -9,6 +9,7 @@ import org.springframework.ai.chat.messages.SystemMessage;
 import org.springframework.ai.chat.messages.UserMessage;
 import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.ai.chat.model.ChatResponse;
+import org.springframework.ai.chat.model.Generation;
 import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.stereotype.Service;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
@@ -40,40 +41,57 @@ public class StreamingServiceImpl implements StreamingService {
     public void streamResponse(ChatModel chatModel, Prompt prompt, SseEmitter emitter,
                               Function<ChatResponse, Boolean> onComplete) {
         try {
-        // 使用Flux流式API
-        Flux<ChatResponse> responseStream = chatModel.stream(prompt);
-        // 订阅流并处理每个响应块
-        responseStream
-            .doOnNext(chatResponse -> {
-                try {
-                    // 获取当前块的内容
-                    String content = chatResponse.getResult().getOutput().getText();
-                    if (content != null && !content.isEmpty()) {
-                        // 发送流式数据块
-                        sendStreamingChunk(emitter, content);
+            // 用于收集完整响应内容
+            StringBuilder fullResponseBuilder = new StringBuilder();
+            ChatResponse lastResponse = null;
+
+            // 使用Flux流式API
+            Flux<ChatResponse> responseStream = chatModel.stream(prompt);
+            // 订阅流并处理每个响应块
+            responseStream
+                .doOnNext(chatResponse -> {
+                    try {
+                        // 获取当前块的内容
+                        String content = chatResponse.getResult().getOutput().getText();
+                        if (content != null && !content.isEmpty()) {
+                            // 累积完整响应内容
+                            fullResponseBuilder.append(content);
+                            // 发送流式数据块
+                            sendStreamingChunk(emitter, content);
+                        }
+                    } catch (Exception e) {
+                        log.error("Error processing streaming chunk", e);
                     }
-                } catch (Exception e) {
-                    log.error("Error processing streaming chunk", e);
-                }
-            })
-            .doOnError(error -> {
-                try {
-                    emitter.completeWithError(error);
-                } catch (Exception ex) {
-                    log.error("Error completing emitter with error", ex);
-                }
-            })
-            .doOnComplete(() -> {
-                try {
-                    // 发送结束信号
-                    sendSseEndEvent(emitter);
-                    // 完成SSE连接
-                    emitter.complete();
-                } catch (Exception e) {
-                    log.error("Error completing streaming", e);
-                }
-            })
-            .subscribe();
+                })
+                .doOnError(error -> {
+                    try {
+                        emitter.completeWithError(error);
+                    } catch (Exception ex) {
+                        log.error("Error completing emitter with error", ex);
+                    }
+                })
+                .doOnComplete(() -> {
+                    try {
+                        // 发送结束信号
+                        sendSseEndEvent(emitter);
+
+                        // 创建包含完整响应的ChatResponse用于回调
+                        if (!fullResponseBuilder.isEmpty()) {
+                            // 创建一个包含完整内容的ChatResponse
+                            ChatResponse completeResponse = createCompleteResponse(fullResponseBuilder.toString());
+                            // 调用完成回调
+                            if (onComplete != null) {
+                                onComplete.apply(completeResponse);
+                            }
+                        }
+
+                        // 完成SSE连接
+                        emitter.complete();
+                    } catch (Exception e) {
+                        log.error("Error completing streaming", e);
+                    }
+                })
+                .subscribe();
         } catch (Exception e) {
             try {
                 emitter.completeWithError(e);
@@ -89,6 +107,28 @@ public class StreamingServiceImpl implements StreamingService {
             case "assistant" -> new AssistantMessage(message.getContent());
             default -> new UserMessage(message.getContent());
         };
+    }
+
+    /**
+     * 创建包含完整响应内容的ChatResponse
+     */
+    private ChatResponse createCompleteResponse(String fullContent) {
+        try {
+            // 创建AssistantMessage
+            AssistantMessage assistantMessage = new AssistantMessage(fullContent);
+
+            // 创建Generation
+            Generation generation = new Generation(assistantMessage);
+
+            // 创建ChatResponse
+            return new ChatResponse(List.of(generation));
+        } catch (Exception e) {
+            log.error("Error creating complete response", e);
+            // 返回一个简单的响应
+            AssistantMessage assistantMessage = new AssistantMessage(fullContent);
+            Generation generation = new Generation(assistantMessage);
+            return new ChatResponse(List.of(generation));
+        }
     }
 
     /**
