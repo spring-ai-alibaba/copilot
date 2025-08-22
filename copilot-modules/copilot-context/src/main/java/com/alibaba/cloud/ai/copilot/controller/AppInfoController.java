@@ -21,13 +21,13 @@ public class AppInfoController {
     public AppInfoResponse getAppInfo(@RequestParam(value = "language", defaultValue = "en") String language) {
 
         AppInfoResponse appInfo = new AppInfoResponse();
-        appInfo.setName("We0");
+        appInfo.setName("alibaba copilot");
         appInfo.setVersion("1.0.0");
         appInfo.setLanguage(language);
         appInfo.setStatus("ready");
 
         if ("zh".equals(language)) {
-            appInfo.setDescription("We0 是一个强大的 AI 驱动的代码生成和设计转换工具");
+            appInfo.setDescription("alibaba copilot 是一个强大的 AI 驱动的代码生成和设计转换工具");
             appInfo.setFeatures(Arrays.asList(
                 "AI 代码生成",
                 "设计稿转代码",
@@ -36,7 +36,7 @@ public class AppInfoController {
                 "项目管理"
             ));
         } else {
-            appInfo.setDescription("We0 is a powerful AI-driven code generation and design conversion tool");
+            appInfo.setDescription("alibaba copilot is a powerful AI-driven code generation and design conversion tool");
             appInfo.setFeatures(Arrays.asList(
                 "AI Code Generation",
                 "Design to Code",

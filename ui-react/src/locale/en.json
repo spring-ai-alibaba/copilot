@@ -242,7 +242,20 @@
   },
   "explorer": {
     "clear_all": "Clear All",
-    "explorer": "Explorer"
+    "explorer": "Explorer",
+    "upload_file": "Upload Files",
+    "open_folder": "Open Folder",
+    "project_settings": "Project Settings",
+    "project_root_settings": "Project Root Settings",
+    "select_project_root_desc": "Select the project root directory. This will be used as the base path for all operations.",
+    "no_files_found": "No files found. Upload some files first.",
+    "current": "Current",
+    "cancel": "Cancel",
+    "save": "Save",
+    "uploading": "Uploading...",
+    "drag_drop_text": "Drag and drop files or folders here, or click to select",
+    "select_files": "Select Files",
+    "select_folder": "Select Folder"
   },
   "sidebar": {
     "start_new_chat": "Start New Chat",

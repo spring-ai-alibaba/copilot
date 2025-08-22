@@ -229,7 +229,20 @@
   },
   "explorer": {
     "clear_all": "清除所有",
-    "explorer": "资源管理器"
+    "explorer": "资源管理器",
+    "upload_file": "上传文件",
+    "open_folder": "打开文件夹",
+    "project_settings": "项目设置",
+    "project_root_settings": "项目根目录设置",
+    "select_project_root_desc": "选择项目根目录。这将用作所有操作的基础路径。",
+    "no_files_found": "未找到文件。请先上传一些文件。",
+    "current": "当前",
+    "cancel": "取消",
+    "save": "保存",
+    "uploading": "上传中...",
+    "drag_drop_text": "将文件或文件夹拖拽到此处，或点击选择",
+    "select_files": "选择文件",
+    "select_folder": "选择文件夹"
   },
   "common": {
     "name": "名称",

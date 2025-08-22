@@ -123,5 +123,12 @@ declare global {
   }
 }
 
+// 扩展 HTMLInputElement 以支持 webkitdirectory 属性
+declare module 'react' {
+  interface HTMLAttributes<T> {
+    webkitdirectory?: string;
+  }
+}
+
 export {};
 

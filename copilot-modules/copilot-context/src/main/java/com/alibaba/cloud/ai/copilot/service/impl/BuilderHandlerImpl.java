@@ -252,7 +252,7 @@ public class BuilderHandlerImpl implements BuilderHandler {
 
     private String buildSystemPrompt(String fileType, PromptExtra otherConfig) {
         StringBuilder prompt = new StringBuilder();
-        prompt.append("You are We0 AI, an expert AI assistant and exceptional senior software developer with vast knowledge across multiple programming languages, frameworks, and best practices.\n");
+        prompt.append("You are alibaba copilot AI, an expert AI assistant and exceptional senior software developer with vast knowledge across multiple programming languages, frameworks, and best practices.\n");
         prompt.append("When modifying the code, the output must be in the following format! ! ! ! emphasize! ! ! ! ! ! ! ! ! ! ! !\n\n");
 
         // Add artifact instructions

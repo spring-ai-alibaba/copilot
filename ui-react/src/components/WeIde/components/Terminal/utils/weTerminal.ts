@@ -26,17 +26,17 @@ const darkTheme = {
 
 /**
  * @description
- * 
+ *
  * This is just a class. For unified terminal management,
- * 
+ *
  * please refer to: apps\we-dev-client\src\stores\terminalSlice.ts
- * 
+ *
  * ---
- * 
+ *
  * @example
  * const terminal = new Terminal();
  * terminal.initialize(React.createRef<HTMLDivElement>().current)
- * 
+ *
  */
 class Terminal {
   private terminal: XTerm | null = null;
@@ -84,37 +84,37 @@ class Terminal {
     term.open(container);
     fitAddon.fit();
 
-    term.onSelectionChange(() => {  
+    term.onSelectionChange(() => {
       // When text is selected, it can be copied using Ctrl+C
-      if (term.hasSelection()) {  
-        const selection = term.getSelection()  
-        console.log('Selected text:', selection)  
-      }  
-    })  
+      if (term.hasSelection()) {
+        const selection = term.getSelection()
+        console.log('Selected text:', selection)
+      }
+    })
 
     // Listen for keyboard events
-    term.attachCustomKeyEventHandler((event) => {  
+    term.attachCustomKeyEventHandler((event) => {
       // Check if it's a copy operation (Ctrl for Windows/Linux, Command for Mac)
       const isCopyAction = (event.ctrlKey || event.metaKey) && event.key === 'c';
-      if (isCopyAction && term.hasSelection()) {  
+      if (isCopyAction && term.hasSelection()) {
         const selection = term.getSelection();
         navigator.clipboard.writeText(selection);
         event.preventDefault();
         event.stopPropagation();
         return false; // Prevent default behavior
-      }  
-      
+      }
+
       // Check if it's a paste operation (Ctrl for Windows/Linux, Command for Mac)
       const isPasteAction = (event.ctrlKey || event.metaKey) && event.key === 'v';
-      if (isPasteAction) {  
-        navigator.clipboard.readText().then(text => {  
+      if (isPasteAction) {
+        navigator.clipboard.readText().then(text => {
           term.paste(text);
         });
         return false; // Prevent default behavior
-      }  
-      
+      }
+
       return true; // Allow other keyboard events
-    });  
+    });
 
     term.writeln('\x1b[1;32mWelcome to Terminal\x1b[0m');
     term.writeln('Type \x1b[1;34mhelp\x1b[0m for a list of commands\n');
@@ -189,7 +189,7 @@ class Terminal {
   // Wait for command input
   private async waitCommand(addError?: (error: any) => void) {
     if (window.electron) {
-      
+
       await this.nodeWaitCommand(addError);
     } else {
       await this.webWaitCommand(addError);
@@ -226,8 +226,8 @@ class Terminal {
           if (!this.initId) {
             this.initId = data?.split('/')[1].split('[39m')[0].trim()
           }
-          this.terminal.write(data.replaceAll(this.initId, 'We0'))
-  
+          this.terminal.write(data.replaceAll(this.initId, 'alibaba copilot'))
+
         },
       }),
     );
@@ -248,10 +248,10 @@ class Terminal {
       rows: this.terminal?.rows,
       processId: this.processId
     });
-    
+
 
     eventEmitter.emit('terminal:update', processId);
-    
+
     electron.ipcRenderer.on(`terminal-output-${processId}`, (data: string) => {
       updateFileSystemNow();
       this.terminal?.write(data);
@@ -361,7 +361,7 @@ class Terminal {
       this.fitAddon.dispose(); // Release FitAddon resources
       this.fitAddon = null;
     }
-    
+
     if(window.electron){
       window.electron.ipcRenderer.invoke('terminal:dispose', this.processId);
     }
