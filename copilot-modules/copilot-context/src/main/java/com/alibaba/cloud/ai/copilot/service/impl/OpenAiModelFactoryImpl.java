@@ -25,15 +25,15 @@ public class OpenAiModelFactoryImpl implements OpenAiModelFactory {
 
     private final ModelConfigService modelConfigService;
 
-    // 默认配置常量
-    private static final int DEFAULT_MAX_TOKENS = 16000;
+    // 默认配置常量 - 增加token限制以支持完整代码生成
+    private static final int DEFAULT_MAX_TOKENS = 100000;  // 增加到32K
     private static final double DEFAULT_TEMPERATURE = 0.7;
 
     @Override
     public ChatModel createChatModel(String modelName, String userId) {
         try {
             ModelConfigEntity modelEntity = modelConfigService.getModelEntityByName(modelName);
-            
+
             if (modelEntity == null) {
                 throw new IllegalArgumentException("Model configuration not found for: " + modelName);
             }

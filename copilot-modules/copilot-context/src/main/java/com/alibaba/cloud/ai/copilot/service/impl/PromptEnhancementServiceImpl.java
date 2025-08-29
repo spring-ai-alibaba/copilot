@@ -5,6 +5,7 @@ import com.alibaba.cloud.ai.copilot.service.DynamicModelService;
 import com.alibaba.cloud.ai.copilot.service.ModelConfigService;
 import com.alibaba.cloud.ai.copilot.service.OpenAiModelFactory;
 import com.alibaba.cloud.ai.copilot.service.PromptEnhancementService;
+import com.alibaba.cloud.ai.copilot.service.PromptTemplateService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.model.ChatModel;
@@ -12,6 +13,7 @@ import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.ai.chat.prompt.PromptTemplate;
 import org.springframework.ai.openai.OpenAiChatOptions;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -30,29 +32,10 @@ public class PromptEnhancementServiceImpl implements PromptEnhancementService {
     private final OpenAiModelFactory openAiModelFactory;
     private final ModelConfigService modelConfigService;
 
-    // System prompt for enhancing user prompts
-    private static final String ENHANCEMENT_SYSTEM_PROMPT = """
-            You are an expert prompt engineer specializing in software development and programming assistance.
-            Your task is to enhance user prompts to make them more effective for AI coding assistants.
+    @Qualifier("promptTemplateServiceImpl")
+    private final PromptTemplateService promptTemplateService;
 
-            Guidelines for enhancement:
-            1. Make the prompt more specific and clear about the technical requirements
-            2. Add relevant context about the technology stack, programming language, or framework
-            3. Structure the request with clear objectives and expected deliverables
-            4. Include relevant constraints (performance, security, compatibility)
-            5. Specify desired output format (code, explanation, step-by-step guide)
-            6. Add context about the project or use case when helpful
-            7. Maintain the original intent while improving technical clarity
-            8. For coding requests, specify language, framework, and any dependencies
-            9. For debugging, include error details and environment information
-            10. For architecture questions, specify scale and requirements
 
-            Original prompt: {originalPrompt}
-
-            Please provide an enhanced version of this prompt that will yield better, more actionable results from AI coding assistants.
-            Focus on making the request more specific and technically precise.
-            Return only the enhanced prompt without any explanations or meta-commentary.
-            """;
 
     @Override
     public String enhancePrompt(String originalPrompt) {
@@ -70,15 +53,16 @@ public class PromptEnhancementServiceImpl implements PromptEnhancementService {
             // 使用动态模型服务获取ChatModel
             ChatModel chatModel = dynamicModelService.getChatModel(modelName);
 
-            // Create prompt template
-            PromptTemplate promptTemplate = new PromptTemplate(ENHANCEMENT_SYSTEM_PROMPT);
-            Prompt prompt = promptTemplate.create(Map.of("originalPrompt", originalPrompt));
+            // Create prompt template using template service
+            String enhancementPromptContent = promptTemplateService.buildPromptEnhancementTemplate(originalPrompt);
+            PromptTemplate promptTemplate = new PromptTemplate(enhancementPromptContent);
+            Prompt prompt = promptTemplate.create();
 
             // 使用OpenAiModelFactory创建自定义配置的ChatOptions
             OpenAiChatOptions chatOptions = openAiModelFactory.createChatOptions(
                     modelName,
-                    5000,  // maxTokens - 较小的值用于prompt增强
-                    0.3    // temperature - 较低的温度确保一致性
+                    32000,  // maxTokens - 增加到32K支持完整提示词增强
+                    0.3     // temperature - 较低的温度确保一致性
             );
 
             // Create prompt with options

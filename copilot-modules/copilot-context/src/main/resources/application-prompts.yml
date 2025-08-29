@@ -1,0 +1,50 @@
+# 提示词模板配置
+prompts:
+  # 模板文件路径配置
+  templates:
+    system-message: "classpath:/prompts/system-message.st"
+    file-type-specific: "classpath:/prompts/file-type-specific.st"
+    max-system-prompt: "classpath:/prompts/max-system-prompt.st"
+    prompt-enhancement: "classpath:/prompts/prompt-enhancement.st"
+    
+  # 提示词默认配置
+  defaults:
+    # 是否启用提示词缓存
+    cache-enabled: true
+    # 缓存过期时间（分钟）
+    cache-ttl: 60
+    # 模板渲染超时时间（秒）
+    render-timeout: 30
+    
+  # 文件类型映射配置
+  file-types:
+    javascript: "node"
+    typescript: "node"
+    jsx: "react"
+    tsx: "react"
+    vue: "vue"
+    py: "python"
+    java: "java"
+    kt: "kotlin"
+    go: "go"
+    rs: "rust"
+    php: "php"
+    rb: "ruby"
+    cs: "csharp"
+    cpp: "cpp"
+    c: "c"
+    
+  # 特定场景的提示词配置
+  scenarios:
+    code-generation:
+      temperature: 0.3
+      max-tokens: 32000  # 增加到32K以支持完整代码生成
+    code-review:
+      temperature: 0.1
+      max-tokens: 16000  # 增加到16K
+    debugging:
+      temperature: 0.2
+      max-tokens: 16000  # 增加到16K
+    documentation:
+      temperature: 0.4
+      max-tokens: 16000  # 增加到16K

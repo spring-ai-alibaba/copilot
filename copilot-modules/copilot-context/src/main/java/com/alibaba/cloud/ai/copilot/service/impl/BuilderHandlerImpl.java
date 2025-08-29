@@ -37,6 +37,7 @@ public class BuilderHandlerImpl implements BuilderHandler {
     private final OpenAiModelFactory openAiModelFactory;
     private final ConversationService conversationService;
     private final ChatMemory chatMemory;
+    private final PromptTemplateService promptTemplateService;
 
     public BuilderHandlerImpl(
             TokenService tokenService,
@@ -44,13 +45,15 @@ public class BuilderHandlerImpl implements BuilderHandler {
             DynamicModelService dynamicModelService,
             OpenAiModelFactory openAiModelFactory,
             @Qualifier("chatMemoryConversationService") ConversationService conversationService,
-            ChatMemory chatMemory) {
+            ChatMemory chatMemory,
+            @Qualifier("promptTemplateServiceImpl") PromptTemplateService promptTemplateService) {
         this.tokenService = tokenService;
         this.fileProcessorService = fileProcessorService;
         this.dynamicModelService = dynamicModelService;
         this.openAiModelFactory = openAiModelFactory;
         this.conversationService = conversationService;
         this.chatMemory = chatMemory;
+        this.promptTemplateService = promptTemplateService;
     }
 
     private final ObjectMapper objectMapper = new ObjectMapper();
@@ -100,23 +103,22 @@ public class BuilderHandlerImpl implements BuilderHandler {
 
             // 构建系统提示词（但不合并到用户消息中，留给记忆管理处理）
             String systemPrompt;
+            boolean backEnd = otherConfig != null && otherConfig.isBackEnd();
+
             if (estimatedTokens > 128000) {
                 // Handle token limit by processing files differently
                 FileProcessorService.ProcessedFiles limitedFiles =
                     fileProcessorService.processFiles(messages, true);
                 files = limitedFiles.getFiles();
-                systemPrompt = buildMaxSystemPrompt(files, fileType, otherConfig);
+                systemPrompt = promptTemplateService.buildMaxSystemPrompt(files, fileType, backEnd);
             } else {
                 // Build regular system prompt
                 if (fileType != null && !fileType.isEmpty()) {
-                    systemPrompt = buildSystemPromptWithFileType(fileType, otherConfig);
+                    systemPrompt = promptTemplateService.buildSystemPromptWithFileType(fileType, backEnd);
                 } else {
-                    systemPrompt = buildSystemPrompt(fileType, otherConfig);
+                    systemPrompt = promptTemplateService.buildSystemPrompt(fileType, backEnd);
                 }
             }
-
-            // 添加输出格式要求到系统提示词
-            systemPrompt += "\nNote the requirements above, when writing code, do not give me markdown, output must be XML!! Emphasis!";
 
             // 使用动态模型服务获取对应的ChatModel
             ChatModel chatModel = dynamicModelService.getChatModel(model, userId);
@@ -134,7 +136,7 @@ public class BuilderHandlerImpl implements BuilderHandler {
                     // 使用已经构建好的系统提示词（避免重复构建）
                     SystemMessage systemMessage = new SystemMessage(systemPrompt);
                     chatMemory.add(conversationId, systemMessage);
-                    finalMessages.add(systemMessage);
+                   // finalMessages.add(systemMessage);
 
                     log.debug("Added system prompt to memory for conversation {} (length: {})",
                              conversationId, systemPrompt.length());
@@ -250,177 +252,11 @@ public class BuilderHandlerImpl implements BuilderHandler {
         return "other";
     }
 
-    private String buildSystemPrompt(String fileType, PromptExtra otherConfig) {
-        StringBuilder prompt = new StringBuilder();
-        prompt.append("You are alibaba copilot AI, an expert AI assistant and exceptional senior software developer with vast knowledge across multiple programming languages, frameworks, and best practices.\n");
-        prompt.append("When modifying the code, the output must be in the following format! ! ! ! emphasize! ! ! ! ! ! ! ! ! ! ! !\n\n");
 
-        // Add artifact instructions
-        prompt.append("IMPORTANT: Wrap the content in opening and closing `<boltArtifact>` tags. These tags contain more specific `<boltAction>` elements.\n");
-        prompt.append("IMPORTANT: Add a title for the artifact to the `title` attribute of the opening `<boltArtifact>`.\n");
-        prompt.append("IMPORTANT: Add a unique identifier to the `id` attribute of the opening `<boltArtifact>`. Use kebab-case (e.g., \"example-code-snippet\").\n");
-        prompt.append("IMPORTANT: Use `<boltAction>` tags to define specific actions to perform.\n");
-        prompt.append("IMPORTANT: For each `<boltAction>`, add a type to the `type` attribute:\n");
-        prompt.append("  - file: For writing new files or updating existing files. Add a `filePath` attribute to specify the file path.\n");
-        prompt.append("  - shell: For running shell commands.\n");
-        prompt.append("  - start: For starting development server.\n\n");
 
-        prompt.append("IMPORTANT: All code must be complete code, do not generate code snippets, and do not use Markdown\n");
-        prompt.append("IMPORTANT: 强调：你必须每次都要按照下面格式输出<boltArtifact></boltArtifact> 例如这样的格式\n\n");
 
-        // Add example
-        prompt.append("CRITICAL EXAMPLE FORMAT - YOU MUST FOLLOW THIS EXACTLY:\n");
-        prompt.append("<boltArtifact id=\"project-name\" title=\"Project Title\">\n");
-        prompt.append("  <boltAction type=\"file\" filePath=\"index.html\">\n");
-        prompt.append("<!DOCTYPE html>\n");
-        prompt.append("<html>\n");
-        prompt.append("  <head><title>Example</title></head>\n");
-        prompt.append("  <body><h1>Hello World</h1></body>\n");
-        prompt.append("</html>\n");
-        prompt.append("  </boltAction>\n");
-        prompt.append("  <boltAction type=\"file\" filePath=\"script.js\">\n");
-        prompt.append("console.log('Hello World');\n");
-        prompt.append("  </boltAction>\n");
-        prompt.append("</boltArtifact>\n\n");
-        prompt.append("IMPORTANT: Always include type=\"file\" in boltAction tags!\n");
-        prompt.append("IMPORTANT: Always include proper filePath attribute!\n");
-        prompt.append("IMPORTANT: File content should be complete and valid!\n\n");
 
-        if ("miniProgram".equals(fileType)) {
-            prompt.append("IMPORTANT: For any place that uses images, implement using weui's icon library\n");
-        }
 
-        if (otherConfig != null && otherConfig.isBackEnd()) {
-            prompt.append("IMPORTANT: You must generate backend code, do not only generate frontend code\n");
-            prompt.append("IMPORTANT: Backend must handle CORS for all domains\n");
-        }
-
-        return prompt.toString();
-    }
-
-    /**
-     * 构建带有特定文件类型指令的系统提示词
-     * 根据不同的文件类型添加相应的技术栈和最佳实践指导
-     */
-    private String buildSystemPromptWithFileType(String fileType, PromptExtra otherConfig) {
-        StringBuilder prompt = new StringBuilder();
-
-        // 添加基础系统提示词
-        prompt.append(buildSystemPrompt(fileType, otherConfig));
-
-        // 根据文件类型添加特定指令
-        switch (fileType.toLowerCase()) {
-            case "react":
-                prompt.append("\nREACT SPECIFIC INSTRUCTIONS:\n");
-                prompt.append("- Use functional components with hooks (useState, useEffect, etc.)\n");
-                prompt.append("- Follow React best practices and patterns\n");
-                prompt.append("- Use proper JSX syntax and component structure\n");
-                prompt.append("- Implement proper state management\n");
-                prompt.append("- Use TypeScript if applicable\n");
-                prompt.append("- Include proper prop types and error handling\n\n");
-                break;
-
-            case "vue":
-                prompt.append("\nVUE SPECIFIC INSTRUCTIONS:\n");
-                prompt.append("- Use Vue 3 Composition API when possible\n");
-                prompt.append("- Follow Vue.js best practices and conventions\n");
-                prompt.append("- Use proper template syntax and directives\n");
-                prompt.append("- Implement reactive data and computed properties\n");
-                prompt.append("- Use proper component lifecycle hooks\n");
-                prompt.append("- Include proper TypeScript support if needed\n\n");
-                break;
-
-            case "angular":
-                prompt.append("\nANGULAR SPECIFIC INSTRUCTIONS:\n");
-                prompt.append("- Use Angular latest version conventions\n");
-                prompt.append("- Follow Angular style guide and best practices\n");
-                prompt.append("- Use proper component, service, and module structure\n");
-                prompt.append("- Implement dependency injection correctly\n");
-                prompt.append("- Use TypeScript with proper typing\n");
-                prompt.append("- Include proper RxJS usage for async operations\n\n");
-                break;
-
-            case "miniprogram":
-                prompt.append("\nMINI PROGRAM SPECIFIC INSTRUCTIONS:\n");
-                prompt.append("- Follow WeChat Mini Program development standards\n");
-                prompt.append("- Use proper WXML, WXSS, and JavaScript structure\n");
-                prompt.append("- Implement proper page lifecycle methods\n");
-                prompt.append("- Use WeUI components and design patterns\n");
-                prompt.append("- Handle proper data binding and event handling\n");
-                prompt.append("- Include proper API usage and error handling\n\n");
-                break;
-
-            case "nodejs":
-            case "node":
-                prompt.append("\nNODE.JS SPECIFIC INSTRUCTIONS:\n");
-                prompt.append("- Use modern Node.js features and ES6+ syntax\n");
-                prompt.append("- Follow Node.js best practices and patterns\n");
-                prompt.append("- Implement proper error handling and logging\n");
-                prompt.append("- Use appropriate npm packages and dependencies\n");
-                prompt.append("- Include proper async/await usage\n");
-                prompt.append("- Implement proper security practices\n\n");
-                break;
-
-            case "python":
-                prompt.append("\nPYTHON SPECIFIC INSTRUCTIONS:\n");
-                prompt.append("- Follow PEP 8 style guidelines\n");
-                prompt.append("- Use proper Python idioms and patterns\n");
-                prompt.append("- Implement proper exception handling\n");
-                prompt.append("- Use type hints when appropriate\n");
-                prompt.append("- Follow Python best practices for imports and structure\n");
-                prompt.append("- Include proper documentation and comments\n\n");
-                break;
-
-            case "java":
-                prompt.append("\nJAVA SPECIFIC INSTRUCTIONS:\n");
-                prompt.append("- Follow Java coding conventions and best practices\n");
-                prompt.append("- Use proper OOP principles and design patterns\n");
-                prompt.append("- Implement proper exception handling\n");
-                prompt.append("- Use appropriate Java 8+ features (streams, lambdas, etc.)\n");
-                prompt.append("- Include proper package structure and imports\n");
-                prompt.append("- Use proper annotations and documentation\n\n");
-                break;
-
-            case "spring":
-            case "springboot":
-                prompt.append("\nSPRING BOOT SPECIFIC INSTRUCTIONS:\n");
-                prompt.append("- Follow Spring Boot conventions and best practices\n");
-                prompt.append("- Use proper dependency injection and annotations\n");
-                prompt.append("- Implement proper REST API design\n");
-                prompt.append("- Use appropriate Spring Boot starters\n");
-                prompt.append("- Include proper configuration and properties\n");
-                prompt.append("- Implement proper error handling and validation\n\n");
-                break;
-
-            default:
-                prompt.append("\nGENERAL DEVELOPMENT INSTRUCTIONS:\n");
-                prompt.append("- Follow language-specific best practices\n");
-                prompt.append("- Use proper code structure and organization\n");
-                prompt.append("- Implement proper error handling\n");
-                prompt.append("- Include appropriate comments and documentation\n");
-                prompt.append("- Use modern language features when applicable\n\n");
-                break;
-        }
-
-        return prompt.toString();
-    }
-
-    private String buildMaxSystemPrompt(Map<String, String> files, String fileType, PromptExtra otherConfig) {
-        StringBuilder prompt = new StringBuilder();
-        prompt.append(buildSystemPrompt(fileType, otherConfig));
-        prompt.append("\nCurrent project files:\n");
-
-        for (Map.Entry<String, String> entry : files.entrySet()) {
-            prompt.append("File: ").append(entry.getKey()).append("\n");
-            prompt.append(entry.getValue()).append("\n\n");
-        }
-
-        prompt.append("\nIMPORTANT: You can only modify the contents within the directory tree above.\n");
-        prompt.append("IMPORTANT: When updating existing files, make sure to include the complete file content.\n");
-        prompt.append("IMPORTANT: Remember to use the <boltArtifact> and <boltAction> format as shown in the example above.\n");
-
-        return prompt.toString();
-    }
 
     /**
      * 发送流式数据块
