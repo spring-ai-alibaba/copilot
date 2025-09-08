@@ -27,11 +27,7 @@ public class PromptConfig {
     @Value("classpath:/prompts/file-type-specific.st")
     private Resource fileTypeSpecificTemplate;
 
-    /**
-     * 最大系统提示词模板
-     */
-    @Value("classpath:/prompts/max-system-prompt.st")
-    private Resource maxSystemPromptTemplate;
+
 
     /**
      * 提示词增强模板
@@ -58,7 +54,6 @@ public class PromptConfig {
         return switch (templateName) {
             case "system-message" -> systemMessageTemplate;
             case "file-type-specific" -> fileTypeSpecificTemplate;
-            case "max-system-prompt" -> maxSystemPromptTemplate;
             case "prompt-enhancement" -> promptEnhancementTemplate;
             default -> throw new IllegalArgumentException("Unknown template: " + templateName);
         };

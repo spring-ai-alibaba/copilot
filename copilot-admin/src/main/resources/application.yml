@@ -81,3 +81,32 @@ app:
     shell:
       enabled: true
       timeout-seconds: 30
+
+  # RAG配置
+  rag:
+    file-upload:
+      storage-root: ./data/rag/files
+      max-file-size: 10485760  # 10MB
+      supported-types:
+        - pdf
+        - docx
+        - doc
+        - txt
+        - md
+        - html
+        - rtf
+      enable-deduplication: true
+    document-processing:
+      default-chunk-size: 500
+      default-chunk-overlap: 50
+      enable-async-processing: true
+      processing-timeout-seconds: 300
+    vectorization:
+      default-embedding-model: text-embedding-v3
+      embedding-dimension: 1536
+      batch-size: 100
+    retrieval:
+      default-top-k: 5
+      max-top-k: 20
+      similarity-threshold: 0.7
+      enable-reranking: false

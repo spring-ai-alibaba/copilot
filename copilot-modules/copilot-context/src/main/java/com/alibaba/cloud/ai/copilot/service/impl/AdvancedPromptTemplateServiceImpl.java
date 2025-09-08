@@ -27,7 +27,7 @@ public class AdvancedPromptTemplateServiceImpl implements PromptTemplateService 
 
     private final PromptProperties promptProperties;
     private final ResourceLoader resourceLoader;
-    
+
     // 模板内容缓存
     private final Map<String, String> templateCache = new ConcurrentHashMap<>();
 
@@ -48,7 +48,7 @@ public class AdvancedPromptTemplateServiceImpl implements PromptTemplateService 
         Map<String, Object> variables = new HashMap<>();
         variables.put("fileType", fileType);
         variables.put("backEnd", backEnd);
-        
+
         return renderTemplate("system-message", variables);
     }
 
@@ -57,13 +57,13 @@ public class AdvancedPromptTemplateServiceImpl implements PromptTemplateService 
         Map<String, Object> variables = new HashMap<>();
         variables.put("fileType", fileType);
         variables.put("backEnd", backEnd);
-        
+
         // 先渲染基础系统提示词
         String basePrompt = buildSystemPrompt(fileType, backEnd);
-        
+
         // 然后渲染文件类型特定的指令
         String fileTypeInstructions = renderTemplate("file-type-specific", variables);
-        
+
         // 合并两部分
         return basePrompt + "\n\n" + fileTypeInstructions;
     }
@@ -74,15 +74,16 @@ public class AdvancedPromptTemplateServiceImpl implements PromptTemplateService 
         variables.put("fileType", fileType);
         variables.put("backEnd", backEnd);
         variables.put("files", files);
-        
-        return renderTemplate("max-system-prompt", variables);
+
+        // 使用合并后的 system-message 模板
+        return renderTemplate("system-message", variables);
     }
 
     @Override
     public String buildPromptEnhancementTemplate(String originalPrompt) {
         Map<String, Object> variables = new HashMap<>();
         variables.put("originalPrompt", originalPrompt);
-        
+
         return renderTemplate("prompt-enhancement", variables);
     }
 
@@ -99,18 +100,18 @@ public class AdvancedPromptTemplateServiceImpl implements PromptTemplateService 
 
             String templatePath = getTemplatePath(templateName);
             var resource = resourceLoader.getResource(templatePath);
-            
+
             if (!resource.exists()) {
                 throw new IllegalArgumentException("Template not found: " + templatePath);
             }
-            
+
             String content = resource.getContentAsString(StandardCharsets.UTF_8);
-            
+
             // 缓存模板内容
             if (promptProperties.getDefaults().isCacheEnabled()) {
                 templateCache.put(templateName, content);
             }
-            
+
             return content;
         } catch (Exception e) {
             log.error("Error loading template: {}", templateName, e);
@@ -123,7 +124,7 @@ public class AdvancedPromptTemplateServiceImpl implements PromptTemplateService 
      */
     private String getTemplatePath(String templateName) {
         PromptProperties.Templates templates = promptProperties.getTemplates();
-        
+
         return switch (templateName) {
             case "system-message" -> templates.getSystemMessage();
             case "file-type-specific" -> templates.getFileTypeSpecific();
@@ -156,7 +157,7 @@ public class AdvancedPromptTemplateServiceImpl implements PromptTemplateService 
         if (fileName == null || !fileName.contains(".")) {
             return "other";
         }
-        
+
         String extension = fileName.substring(fileName.lastIndexOf(".") + 1);
         return promptProperties.getFileTypeByExtension(extension);
     }

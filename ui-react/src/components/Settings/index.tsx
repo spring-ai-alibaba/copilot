@@ -7,14 +7,20 @@ import styled from "styled-components";
 import { ThemeMode } from "antd-style";
 import { Divider } from "antd";
 import MCPSettings from "@/components/Settings/MCPSettings";
+import KnowledgeSettings from "@/components/Settings/KnowledgeSettings";
+import ModelSettings from "@/components/Settings/ModelSettings";
+import PromptSettings from "@/components/Settings/PromptSettings";
 
-export type SettingsTab = "General" | "Quota" | "MCPServer";
+export type SettingsTab = "General" | "Quota" | "MCPServer" | "Knowledge" | "Models" | "Prompts";
 
 const isElectron = typeof window !== "undefined" && !!window.electron;
 export const TAB_KEYS = {
   GENERAL: "General" as const,
   Quota: "Quota" as const,
   MCPServer: "MCPServer" as const,
+  Knowledge: "Knowledge" as const,
+  Models: "Models" as const,
+  Prompts: "Prompts" as const,
 } as const;
 
 interface SettingsProps {
@@ -129,6 +135,66 @@ export function Settings({
     ),
   });
 
+  tabs.push({
+    id: TAB_KEYS.Knowledge,
+    label: t("settings.Knowledge"),
+    icon: (
+      <svg
+        className="w-5 h-5"
+        fill="none"
+        stroke="currentColor"
+        viewBox="0 0 24 24"
+      >
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth={2}
+          d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"
+        />
+      </svg>
+    ),
+  });
+
+  tabs.push({
+    id: TAB_KEYS.Models,
+    label: t("settings.Models"),
+    icon: (
+      <svg
+        className="w-5 h-5"
+        fill="none"
+        stroke="currentColor"
+        viewBox="0 0 24 24"
+      >
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth={2}
+          d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
+        />
+      </svg>
+    ),
+  });
+
+  tabs.push({
+    id: TAB_KEYS.Prompts,
+    label: t("settings.Prompts"),
+    icon: (
+      <svg
+        className="w-5 h-5"
+        fill="none"
+        stroke="currentColor"
+        viewBox="0 0 24 24"
+      >
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth={2}
+          d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+        />
+      </svg>
+    ),
+  });
+
   return createPortal(
     <div
       className={`
@@ -186,6 +252,9 @@ export function Settings({
           {activeTab === TAB_KEYS.GENERAL && <GeneralSettings />}
           {activeTab === TAB_KEYS.Quota && <QuotaSettings />}
           {activeTab === TAB_KEYS.MCPServer && <MCPSettings />}
+          {activeTab === TAB_KEYS.Knowledge && <KnowledgeSettings />}
+          {activeTab === TAB_KEYS.Models && <ModelSettings />}
+          {activeTab === TAB_KEYS.Prompts && <PromptSettings />}
         </div>
 
         {/* Close Button */}

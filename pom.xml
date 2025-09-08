@@ -36,6 +36,9 @@
         <json-schema-validator.version>1.0.87</json-schema-validator.version>
         <java-diff-utils.version>4.12</java-diff-utils.version>
         <commons-lang3.version>3.12.0</commons-lang3.version>
+        <langchain4j.version>1.2.0</langchain4j.version>
+        <tmp-langchain4j.version>1.2.0-beta8</tmp-langchain4j.version>
+        <milvus.version>2.4.8</milvus.version>
     </properties>
 
 
@@ -56,6 +59,15 @@
                 <groupId>org.springframework.ai</groupId>
                 <artifactId>spring-ai-bom</artifactId>
                 <version>${spring-ai.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+
+            <!-- LangChain4j BOM -->
+            <dependency>
+                <groupId>dev.langchain4j</groupId>
+                <artifactId>langchain4j-bom</artifactId>
+                <version>${langchain4j.version}</version>
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
@@ -147,6 +159,13 @@
                 <groupId>org.apache.commons</groupId>
                 <artifactId>commons-lang3</artifactId>
                 <version>${commons-lang3.version}</version>
+            </dependency>
+
+            <!-- Milvus Vector Database -->
+            <dependency>
+                <groupId>io.milvus</groupId>
+                <artifactId>milvus-sdk-java</artifactId>
+                <version>${milvus.version}</version>
             </dependency>
         </dependencies>
     </dependencyManagement>

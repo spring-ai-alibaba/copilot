@@ -1,0 +1,424 @@
+/* 提示词管理样式 */
+.prompt-settings {
+  padding: 16px;
+  height: 100%;
+}
+
+/* 分类列表样式 */
+.categories {
+  background: #fafafa;
+  border-radius: 8px;
+  padding: 16px;
+}
+
+.dark .categories {
+  background: #1f1f1f;
+}
+
+.category-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.category-item:hover {
+  background-color: #e6f7ff;
+}
+
+.dark .category-item:hover {
+  background-color: rgba(24, 144, 255, 0.1);
+}
+
+.category-item.active {
+  background-color: #1890ff;
+  color: white;
+}
+
+.category-item.active .ant-badge-count {
+  background-color: white;
+  color: #1890ff;
+}
+
+/* 提示词网格布局 */
+.prompt-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+  gap: 16px;
+  padding: 8px 0;
+}
+
+@media (max-width: 768px) {
+  .prompt-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* 提示词卡片样式 */
+.prompt-card {
+  border-radius: 8px;
+  transition: all 0.2s ease;
+  height: fit-content;
+}
+
+.prompt-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.dark .prompt-card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.prompt-card .ant-card-body {
+  padding: 16px;
+}
+
+.prompt-card .ant-card-actions {
+  border-top: 1px solid #f0f0f0;
+}
+
+.dark .prompt-card .ant-card-actions {
+  border-top-color: #333333;
+}
+
+.prompt-card .ant-card-actions > li {
+  margin: 8px 0;
+}
+
+/* 提示词卡片内容 */
+.prompt-header {
+  margin-bottom: 12px;
+}
+
+.prompt-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #262626;
+  margin-bottom: 4px;
+  display: flex;
+  align-items: center;
+}
+
+.dark .prompt-title {
+  color: #ffffff;
+}
+
+.prompt-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.usage-count {
+  font-size: 12px;
+  color: #8c8c8c;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.dark .usage-count {
+  color: #666666;
+}
+
+.prompt-description {
+  color: #595959;
+  font-size: 13px;
+  line-height: 1.5;
+  margin-bottom: 12px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.dark .prompt-description {
+  color: #cccccc;
+}
+
+.prompt-tags {
+  margin-bottom: 12px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.prompt-tags .ant-tag {
+  margin: 0;
+  border-radius: 10px;
+  font-size: 11px;
+}
+
+.prompt-footer {
+  border-top: 1px solid #f0f0f0;
+  padding-top: 8px;
+  margin-top: 8px;
+}
+
+.dark .prompt-footer {
+  border-top-color: #333333;
+}
+
+/* 空状态样式 */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 300px;
+  color: #9ca3af;
+}
+
+.empty-state .anticon {
+  margin-bottom: 16px;
+}
+
+/* 变量配置样式 */
+.variables-section {
+  margin-top: 24px;
+}
+
+.variables-section .ant-card {
+  border: 1px dashed #d9d9d9;
+}
+
+.variables-section .ant-card-body {
+  padding: 12px;
+}
+
+/* 表单样式优化 */
+.prompt-settings .ant-form-item {
+  margin-bottom: 16px;
+}
+
+.prompt-settings .ant-form-item-label > label {
+  font-weight: 500;
+}
+
+.prompt-settings .ant-input,
+.prompt-settings .ant-select-selector,
+.prompt-settings .ant-input-number {
+  border-radius: 6px;
+}
+
+.prompt-settings .font-mono {
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+/* 网格布局 */
+.prompt-settings .grid {
+  display: grid;
+}
+
+.prompt-settings .grid-cols-2 {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.prompt-settings .grid-cols-3 {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.prompt-settings .gap-3 {
+  gap: 12px;
+}
+
+.prompt-settings .gap-4 {
+  gap: 16px;
+}
+
+.prompt-settings .gap-6 {
+  gap: 24px;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .prompt-settings {
+    padding: 12px;
+  }
+
+  .prompt-settings .flex {
+    flex-direction: column;
+  }
+
+  .prompt-settings .w-1/4 {
+    width: 100%;
+    border-right: none;
+    border-bottom: 1px solid #e5e7eb;
+    padding-right: 0;
+    padding-bottom: 16px;
+    margin-bottom: 16px;
+  }
+
+  .prompt-settings .grid-cols-2,
+  .prompt-settings .grid-cols-3 {
+    grid-template-columns: 1fr;
+  }
+
+  .categories {
+    padding: 12px;
+  }
+
+  .prompt-card .ant-card-body {
+    padding: 12px;
+  }
+}
+
+/* 预览模态框样式 */
+.rendered-content {
+  background: #f8f9fa;
+  border-radius: 6px;
+  padding: 12px;
+}
+
+.dark .rendered-content {
+  background: #2d2d2d;
+}
+
+.rendered-content .ant-input {
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  padding: 0;
+}
+
+.rendered-content .ant-input:focus {
+  box-shadow: none;
+}
+
+/* 标签样式优化 */
+.prompt-settings .ant-tag {
+  border-radius: 12px;
+  font-size: 11px;
+  padding: 2px 8px;
+  margin: 2px;
+}
+
+/* 按钮样式 */
+.prompt-settings .ant-btn {
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+}
+
+.prompt-settings .ant-btn-text {
+  padding: 4px 8px;
+  height: auto;
+}
+
+/* 搜索框样式 */
+.prompt-settings .ant-input-search {
+  border-radius: 6px;
+}
+
+.prompt-settings .ant-input-search .ant-input {
+  border-radius: 6px 0 0 6px;
+}
+
+.prompt-settings .ant-input-search .ant-input-search-button {
+  border-radius: 0 6px 6px 0;
+}
+
+/* 选择器样式 */
+.prompt-settings .ant-select {
+  border-radius: 6px;
+}
+
+.prompt-settings .ant-select-selector {
+  border-radius: 6px !important;
+}
+
+/* 开关样式 */
+.prompt-settings .ant-switch {
+  border-radius: 12px;
+}
+
+/* 分割线样式 */
+.prompt-settings .ant-divider {
+  margin: 16px 0;
+}
+
+/* 卡片标题样式 */
+.prompt-settings .ant-card-head-title {
+  font-weight: 600;
+  font-size: 14px;
+}
+
+/* 徽章样式 */
+.prompt-settings .ant-badge-count {
+  font-size: 11px;
+  min-width: 18px;
+  height: 18px;
+  line-height: 18px;
+  border-radius: 9px;
+}
+
+/* 间距工具类 */
+.prompt-settings .space-y-2 > * + * {
+  margin-top: 8px;
+}
+
+.prompt-settings .space-y-3 > * + * {
+  margin-top: 12px;
+}
+
+.prompt-settings .mb-3 {
+  margin-bottom: 12px;
+}
+
+.prompt-settings .mb-4 {
+  margin-bottom: 16px;
+}
+
+.prompt-settings .mb-6 {
+  margin-bottom: 24px;
+}
+
+.prompt-settings .mt-4 {
+  margin-top: 16px;
+}
+
+.prompt-settings .ml-2 {
+  margin-left: 8px;
+}
+
+/* 文本样式 */
+.prompt-settings .text-xs {
+  font-size: 12px;
+}
+
+.prompt-settings .text-sm {
+  font-size: 13px;
+}
+
+.prompt-settings .font-medium {
+  font-weight: 500;
+}
+
+.prompt-settings .font-semibold {
+  font-weight: 600;
+}
+
+/* 颜色样式 */
+.prompt-settings .text-gray-500 {
+  color: #8c8c8c;
+}
+
+.dark .prompt-settings .text-gray-500 {
+  color: #666666;
+}
+
+.prompt-settings .text-gray-600 {
+  color: #595959;
+}
+
+.dark .prompt-settings .text-gray-600 {
+  color: #cccccc;
+}

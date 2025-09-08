@@ -1,0 +1,347 @@
+/* 模型管理样式 */
+.model-settings {
+  padding: 16px;
+}
+
+.model-settings .ant-card {
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.model-settings .ant-card-body {
+  padding: 24px;
+}
+
+/* 表格样式 */
+.model-settings .ant-table {
+  border-radius: 8px;
+}
+
+.model-settings .ant-table-thead > tr > th {
+  background-color: #fafafa;
+  font-weight: 600;
+  border-bottom: 2px solid #f0f0f0;
+}
+
+.dark .model-settings .ant-table-thead > tr > th {
+  background-color: #1f1f1f;
+  border-bottom-color: #333333;
+}
+
+.model-settings .ant-table-tbody > tr:hover > td {
+  background-color: #f8fafc;
+}
+
+.dark .model-settings .ant-table-tbody > tr:hover > td {
+  background-color: #2a2a2a;
+}
+
+/* 状态开关样式 */
+.model-settings .ant-switch {
+  margin: 0;
+}
+
+.model-settings .ant-switch-checked {
+  background-color: #52c41a;
+}
+
+.model-settings .ant-switch-checked:hover:not(.ant-switch-disabled) {
+  background-color: #73d13d;
+}
+
+/* 标签样式 */
+.model-settings .ant-tag {
+  border-radius: 12px;
+  font-size: 11px;
+  padding: 2px 8px;
+  margin: 0;
+}
+
+/* 操作按钮样式 */
+.model-settings .ant-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+}
+
+.model-settings .ant-btn-text {
+  padding: 4px 8px;
+  height: auto;
+}
+
+.model-settings .ant-btn-text:hover {
+  background-color: #f0f0f0;
+}
+
+.dark .model-settings .ant-btn-text:hover {
+  background-color: #333333;
+}
+
+/* 模态框样式 */
+.model-settings .ant-modal {
+  border-radius: 8px;
+}
+
+.model-settings .ant-modal-header {
+  border-radius: 8px 8px 0 0;
+  padding: 20px 24px;
+}
+
+.model-settings .ant-modal-body {
+  padding: 24px;
+}
+
+.model-settings .ant-modal-footer {
+  padding: 16px 24px;
+  border-radius: 0 0 8px 8px;
+}
+
+/* 表单样式 */
+.model-settings .ant-form-item {
+  margin-bottom: 20px;
+}
+
+.model-settings .ant-form-item-label > label {
+  font-weight: 500;
+}
+
+.model-settings .ant-input,
+.model-settings .ant-select-selector,
+.model-settings .ant-input-affix-wrapper {
+  border-radius: 6px;
+  padding: 8px 12px;
+}
+
+.model-settings .ant-input:focus,
+.model-settings .ant-input-focused,
+.model-settings .ant-select-focused .ant-select-selector {
+  border-color: #1890ff;
+  box-shadow: 0 0 0 2px rgba(24, 144, 255, 0.2);
+}
+
+/* 网格布局 */
+.model-settings .grid {
+  display: grid;
+}
+
+.model-settings .grid-cols-2 {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.model-settings .gap-4 {
+  gap: 16px;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .model-settings {
+    padding: 12px;
+  }
+
+  .model-settings .ant-card-body {
+    padding: 16px;
+  }
+
+  .model-settings .grid-cols-2 {
+    grid-template-columns: 1fr;
+  }
+
+  .model-settings .ant-table {
+    font-size: 12px;
+  }
+
+  .model-settings .ant-modal {
+    margin: 0;
+    max-width: 100vw;
+    width: 100vw !important;
+    height: 100vh;
+    border-radius: 0;
+  }
+
+  .model-settings .ant-modal-content {
+    height: 100vh;
+    border-radius: 0;
+  }
+
+  .model-settings .ant-modal-body {
+    padding: 16px;
+    overflow-y: auto;
+    max-height: calc(100vh - 120px);
+  }
+}
+
+/* 加载状态 */
+.model-settings .ant-spin-container {
+  min-height: 200px;
+}
+
+/* 空状态 */
+.model-settings .ant-empty {
+  padding: 40px 0;
+}
+
+/* 分页器样式 */
+.model-settings .ant-pagination {
+  margin-top: 24px;
+  text-align: right;
+}
+
+.model-settings .ant-pagination-item {
+  border-radius: 6px;
+}
+
+.model-settings .ant-pagination-item-active {
+  border-color: #1890ff;
+}
+
+.model-settings .ant-pagination-item-active a {
+  color: #1890ff;
+}
+
+/* 工具提示样式 */
+.model-settings .ant-tooltip-inner {
+  border-radius: 6px;
+  font-size: 12px;
+}
+
+/* 确认弹窗样式 */
+.model-settings .ant-popconfirm {
+  border-radius: 8px;
+}
+
+.model-settings .ant-popconfirm-inner {
+  border-radius: 8px;
+}
+
+/* 开关标签样式 */
+.model-settings .ant-switch + span {
+  font-size: 14px;
+  color: #666;
+}
+
+.dark .model-settings .ant-switch + span {
+  color: #ccc;
+}
+
+/* 表格行样式优化 */
+.model-settings .ant-table-tbody > tr > td {
+  padding: 16px;
+  vertical-align: middle;
+}
+
+.model-settings .ant-table-tbody > tr > td:first-child {
+  padding-left: 24px;
+}
+
+.model-settings .ant-table-tbody > tr > td:last-child {
+  padding-right: 24px;
+}
+
+/* 模型名称显示样式 */
+.model-settings .model-name {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.model-settings .model-title {
+  font-weight: 500;
+  color: #262626;
+}
+
+.dark .model-settings .model-title {
+  color: #ffffff;
+}
+
+.model-settings .model-identifier {
+  font-size: 12px;
+  color: #8c8c8c;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+}
+
+.dark .model-settings .model-identifier {
+  color: #666666;
+}
+
+/* 操作按钮组样式 */
+.model-settings .action-buttons {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.model-settings .action-buttons .ant-btn {
+  min-width: 32px;
+  height: 32px;
+}
+
+/* 测试按钮特殊样式 */
+.model-settings .test-button {
+  color: #1890ff;
+}
+
+.model-settings .test-button:hover {
+  color: #40a9ff;
+  background-color: #f0f8ff;
+}
+
+.dark .model-settings .test-button:hover {
+  background-color: rgba(24, 144, 255, 0.1);
+}
+
+/* 编辑按钮样式 */
+.model-settings .edit-button {
+  color: #52c41a;
+}
+
+.model-settings .edit-button:hover {
+  color: #73d13d;
+  background-color: #f6ffed;
+}
+
+.dark .model-settings .edit-button:hover {
+  background-color: rgba(82, 196, 26, 0.1);
+}
+
+/* 删除按钮样式 */
+.model-settings .delete-button {
+  color: #ff4d4f;
+}
+
+.model-settings .delete-button:hover {
+  color: #ff7875;
+  background-color: #fff2f0;
+}
+
+.dark .model-settings .delete-button:hover {
+  background-color: rgba(255, 77, 79, 0.1);
+}
+
+/* 表单验证样式 */
+.model-settings .ant-form-item-has-error .ant-input,
+.model-settings .ant-form-item-has-error .ant-select-selector {
+  border-color: #ff4d4f;
+}
+
+.model-settings .ant-form-item-has-error .ant-input:focus,
+.model-settings .ant-form-item-has-error .ant-select-focused .ant-select-selector {
+  border-color: #ff4d4f;
+  box-shadow: 0 0 0 2px rgba(255, 77, 79, 0.2);
+}
+
+/* JSON 编辑器样式 */
+.model-settings .json-editor {
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.model-settings .json-editor::placeholder {
+  font-family: inherit;
+  color: #bfbfbf;
+}
+
+.dark .model-settings .json-editor::placeholder {
+  color: #595959;
+}

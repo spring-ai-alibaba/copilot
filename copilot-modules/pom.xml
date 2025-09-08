@@ -16,12 +16,13 @@
     <name>Copilot Business Modules</name>
     <description>业务模块组，包含核心业务功能模块</description>
 
-    <!-- 子模块定义 - 4个核心业务模块 -->
+    <!-- 子模块定义 - 5个核心业务模块 -->
     <modules>
         <module>copilot-conversation</module>
         <module>copilot-context</module>
         <module>copilot-prompt</module>
         <module>copilot-error</module>
+        <module>copilot-rag</module>
     </modules>
 
 </project>

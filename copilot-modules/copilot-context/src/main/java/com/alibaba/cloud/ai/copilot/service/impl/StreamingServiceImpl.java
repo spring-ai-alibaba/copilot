@@ -41,6 +41,7 @@ public class StreamingServiceImpl implements StreamingService {
     public void streamResponse(ChatModel chatModel, Prompt prompt, SseEmitter emitter,
                               Function<ChatResponse, Boolean> onComplete) {
         try {
+
             // 用于收集完整响应内容
             StringBuilder fullResponseBuilder = new StringBuilder();
             ChatResponse lastResponse = null;

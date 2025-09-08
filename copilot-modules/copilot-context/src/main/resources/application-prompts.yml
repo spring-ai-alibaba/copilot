@@ -4,7 +4,6 @@ prompts:
   templates:
     system-message: "classpath:/prompts/system-message.st"
     file-type-specific: "classpath:/prompts/file-type-specific.st"
-    max-system-prompt: "classpath:/prompts/max-system-prompt.st"
     prompt-enhancement: "classpath:/prompts/prompt-enhancement.st"
     
   # 提示词默认配置
