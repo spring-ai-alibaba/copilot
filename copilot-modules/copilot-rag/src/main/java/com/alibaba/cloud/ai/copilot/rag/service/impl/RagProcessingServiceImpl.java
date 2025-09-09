@@ -2,7 +2,6 @@ package com.alibaba.cloud.ai.copilot.rag.service.impl;
 
 import com.alibaba.cloud.ai.copilot.rag.config.RagProperties;
 import com.alibaba.cloud.ai.copilot.rag.config.VectorStoreConfiguration;
-import com.alibaba.cloud.ai.copilot.rag.entity.KnowledgeBaseEntity;
 import com.alibaba.cloud.ai.copilot.rag.service.*;
 import dev.langchain4j.data.document.Document;
 import dev.langchain4j.data.embedding.Embedding;
@@ -30,10 +29,9 @@ import java.util.concurrent.ConcurrentHashMap;
 @Service
 @RequiredArgsConstructor
 public class RagProcessingServiceImpl implements RagProcessingService {
-    
+
     private final DocumentParserService documentParserService;
     private final DocumentSplitterService documentSplitterService;
-    private final KnowledgeBaseService knowledgeBaseService;
     private final VectorStoreConfiguration vectorStoreConfiguration;
     private final RagProperties ragProperties;
 
@@ -42,24 +40,18 @@ public class RagProcessingServiceImpl implements RagProcessingService {
 
     // 缓存EmbeddingStore实例
     private final Map<String, EmbeddingStore<TextSegment>> embeddingStoreCache = new ConcurrentHashMap<>();
-    
+
     // 异步任务状态缓存
     private final Map<String, ProcessingTaskStatus> taskStatusCache = new ConcurrentHashMap<>();
-    
+
     @Override
     public ProcessingResult processFile(String kbKey, MultipartFile file, String uploadedBy) {
         long startTime = System.currentTimeMillis();
         String fileName = file.getOriginalFilename();
-        
+
         try {
             log.info("开始处理文件: {} - {}", kbKey, fileName);
-            
-            // 1. 验证知识库是否存在
-            KnowledgeBaseEntity knowledgeBase = knowledgeBaseService.getKnowledgeBaseByKey(kbKey);
-            if (knowledgeBase == null) {
-                return ProcessingResult.failure(fileName, "知识库不存在: " + kbKey);
-            }
-            
+
             // 2. 解析文档
             Document document = documentParserService.parseDocument(file);
             if (document == null || document.text().trim().isEmpty()) {
@@ -83,25 +75,25 @@ public class RagProcessingServiceImpl implements RagProcessingService {
                 Embedding embedding = embeddingModel.embed(segment).content();
                 embeddingStore.add(embedding, segment);
             }
-            
+
             long processingTime = System.currentTimeMillis() - startTime;
             log.info("文件处理完成: {} - {} 个片段，耗时: {}ms", fileName, segments.size(), processingTime);
 
             return ProcessingResult.success(fileName, segments.size(), processingTime);
-            
+
         } catch (Exception e) {
             long processingTime = System.currentTimeMillis() - startTime;
             log.error("文件处理失败: {} - {}", fileName, e.getMessage(), e);
             return ProcessingResult.failure(fileName, e.getMessage());
         }
     }
-    
+
     @Override
     public BatchProcessingResult processFiles(String kbKey, List<MultipartFile> files, String uploadedBy) {
         log.info("开始批量处理文件: {} - {} 个文件", kbKey, files.size());
-        
+
         List<ProcessingResult> results = new ArrayList<>();
-        
+
         for (MultipartFile file : files) {
             try {
                 ProcessingResult result = processFile(kbKey, file, uploadedBy);
@@ -112,23 +104,17 @@ public class RagProcessingServiceImpl implements RagProcessingService {
                 results.add(ProcessingResult.failure(fileName, e.getMessage()));
             }
         }
-        
+
         return new BatchProcessingResult(files.size(), results);
     }
-    
+
     @Override
     public ProcessingResult processTextContent(String kbKey, String content, String title, String createdBy) {
         long startTime = System.currentTimeMillis();
-        
+
         try {
             log.info("开始处理文本内容: {} - {}", kbKey, title);
-            
-            // 1. 验证知识库是否存在
-            KnowledgeBaseEntity knowledgeBase = knowledgeBaseService.getKnowledgeBaseByKey(kbKey);
-            if (knowledgeBase == null) {
-                return ProcessingResult.failure(title, "知识库不存在: " + kbKey);
-            }
-            
+
             // 2. 创建文档
             Document document = Document.from(content);
             if (document.metadata() != null) {
@@ -153,30 +139,30 @@ public class RagProcessingServiceImpl implements RagProcessingService {
                 Embedding embedding = embeddingModel.embed(segment).content();
                 embeddingStore.add(embedding, segment);
             }
-            
+
             long processingTime = System.currentTimeMillis() - startTime;
             log.info("文本内容处理完成: {} - {} 个片段，耗时: {}ms", title, segments.size(), processingTime);
 
             return ProcessingResult.success(title, segments.size(), processingTime);
-            
+
         } catch (Exception e) {
             long processingTime = System.currentTimeMillis() - startTime;
             log.error("文本内容处理失败: {} - {}", title, e.getMessage(), e);
             return ProcessingResult.failure(title, e.getMessage());
         }
     }
-    
+
     @Override
     @Async
     public String processFileAsync(String kbKey, MultipartFile file, String uploadedBy) {
         String taskId = generateTaskId();
         taskStatusCache.put(taskId, ProcessingTaskStatus.PENDING);
-        
+
         CompletableFuture.runAsync(() -> {
             try {
                 taskStatusCache.put(taskId, ProcessingTaskStatus.PROCESSING);
                 ProcessingResult result = processFile(kbKey, file, uploadedBy);
-                
+
                 if (result.isSuccess()) {
                     taskStatusCache.put(taskId, ProcessingTaskStatus.COMPLETED);
                 } else {
@@ -187,15 +173,15 @@ public class RagProcessingServiceImpl implements RagProcessingService {
                 taskStatusCache.put(taskId, ProcessingTaskStatus.FAILED);
             }
         });
-        
+
         return taskId;
     }
-    
+
     @Override
     public ProcessingTaskStatus getTaskStatus(String taskId) {
         return taskStatusCache.getOrDefault(taskId, ProcessingTaskStatus.PENDING);
     }
-    
+
     /**
      * 获取或创建向量存储
      */
@@ -224,7 +210,7 @@ public class RagProcessingServiceImpl implements RagProcessingService {
             }
         }
     }
-    
+
     /**
      * 生成任务ID
      */

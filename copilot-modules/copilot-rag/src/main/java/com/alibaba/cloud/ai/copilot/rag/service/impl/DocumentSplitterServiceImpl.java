@@ -6,8 +6,6 @@ import dev.langchain4j.data.document.Document;
 import dev.langchain4j.data.document.DocumentSplitter;
 import dev.langchain4j.data.document.splitter.DocumentSplitters;
 import dev.langchain4j.data.segment.TextSegment;
-import dev.langchain4j.model.Tokenizer;
-import dev.langchain4j.model.openai.OpenAiTokenizer;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -23,12 +21,9 @@ import java.util.List;
 @Service
 @RequiredArgsConstructor
 public class DocumentSplitterServiceImpl implements DocumentSplitterService {
-    
+
     private final RagProperties ragProperties;
-    
-    // 默认的Tokenizer
-    private final Tokenizer tokenizer = new OpenAiTokenizer();
-    
+
     @Override
     public List<TextSegment> splitDocument(Document document, int chunkSize, int chunkOverlap) {
         if (document == null || document.text() == null || document.text().trim().isEmpty()) {
@@ -38,31 +33,27 @@ public class DocumentSplitterServiceImpl implements DocumentSplitterService {
 
         try {
             // 创建LangChain4j的Document
-            dev.langchain4j.data.document.Document langchainDoc = Document.from(document.text());
-            
+            Document langchainDoc = Document.from(document.text());
             // 创建文档切割器
             DocumentSplitter splitter = DocumentSplitters.recursive(chunkSize, chunkOverlap);
-            
             // 执行切割
             List<TextSegment> segments = splitter.split(langchainDoc);
-
             // 为每个片段添加原始文档的元数据
-            if (document.metadata() != null && !document.metadata().isEmpty()) {
+            if (document.metadata() != null) {
                 for (TextSegment segment : segments) {
                     if (segment.metadata() != null) {
-                        segment.metadata().putAll(document.metadata());
+                        segment.metadata().putAll(document.metadata().toMap());
                     }
                 }
             }
-
             return segments;
-            
+
         } catch (Exception e) {
             log.error("文档切割失败", e);
             throw new RuntimeException("文档切割失败: " + e.getMessage(), e);
         }
     }
-    
+
     @Override
     public List<TextSegment> splitDocument(Document document) {
         RagProperties.DocumentProcessing processing = ragProperties.getDocumentProcessing();
@@ -81,8 +72,7 @@ public class DocumentSplitterServiceImpl implements DocumentSplitterService {
                 List<TextSegment> chunks = splitDocument(document, chunkSize, chunkOverlap);
                 allChunks.addAll(chunks);
             } catch (Exception e) {
-                log.error("切割文档失败，跳过该文档: {}",
-                    document.metadata() != null ? document.metadata().get("fileName") : "unknown", e);
+                log.error("切割文档失败，跳过该文档:", e);
             }
         }
 
@@ -94,7 +84,7 @@ public class DocumentSplitterServiceImpl implements DocumentSplitterService {
         RagProperties.DocumentProcessing processing = ragProperties.getDocumentProcessing();
         return splitDocuments(documents, processing.getChunkSize(), processing.getChunkOverlap());
     }
-    
+
     @Override
     public List<TextSegment> splitDocumentByTokens(Document document, int maxTokens, int overlapTokens) {
         if (document == null || document.text() == null || document.text().trim().isEmpty()) {
@@ -103,8 +93,8 @@ public class DocumentSplitterServiceImpl implements DocumentSplitterService {
         }
 
         try {
-            // 创建基于Token的文档切割器
-            DocumentSplitter splitter = DocumentSplitters.recursive(maxTokens, overlapTokens, tokenizer);
+            // 创建文档切割器
+            DocumentSplitter splitter = DocumentSplitters.recursive(maxTokens, overlapTokens);
 
             // 执行切割
             List<TextSegment> segments = splitter.split(document);
@@ -117,24 +107,14 @@ public class DocumentSplitterServiceImpl implements DocumentSplitterService {
         }
     }
 
-    
-    /**
-     * 估算文本的Token数量
-     */
-    public int estimateTokenCount(String text) {
-        if (text == null || text.trim().isEmpty()) {
-            return 0;
-        }
-        return tokenizer.estimateTokenCountInText(text);
-    }
-    
+
     /**
      * 获取推荐的切块大小（基于Token数量）
      */
     public int getRecommendedChunkSizeInTokens() {
         return ragProperties.getDocumentProcessing().getMaxTokensPerChunk();
     }
-    
+
     /**
      * 获取推荐的重叠大小（基于Token数量）
      */

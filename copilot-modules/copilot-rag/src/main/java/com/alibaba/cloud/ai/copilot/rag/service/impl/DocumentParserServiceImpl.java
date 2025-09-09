@@ -54,7 +54,11 @@ public class DocumentParserServiceImpl implements DocumentParserService {
             throw new IllegalArgumentException("不支持的文件类型: " + FilenameUtils.getExtension(fileName));
         }
 
-        return parseDocument(file.getInputStream(), fileName);
+        try {
+            return parseDocument(file.getInputStream(), fileName);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     @Override

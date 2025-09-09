@@ -44,7 +44,7 @@ public class VectorStoreConfiguration {
     /**
      * 配置PgVector向量存储
      */
-    @Bean("pgVectorEmbeddingStore")
+    //@Bean("pgVectorEmbeddingStore")
     @Primary
     @ConditionalOnProperty(name = "copilot.rag.vector-store.provider", havingValue = "pgvector", matchIfMissing = true)
     public EmbeddingStore<TextSegment> pgVectorEmbeddingStore(@Qualifier("langchain4jEmbeddingModel") EmbeddingModel embeddingModel) {
