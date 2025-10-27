@@ -73,3 +73,6 @@ coverage/
 application-local.properties
 application-dev.properties
 application-prod.properties
+
+# AI文件
+CLAUDE.md

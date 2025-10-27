@@ -7,10 +7,11 @@ spring:
   application:
     name: spring-ai-alibaba-copilot
   datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
     url: jdbc:mysql://localhost:3306/spring_ai_copilot?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai
     username: root
     password: root
-    driver-class-name: com.mysql.cj.jdbc.Driver
+
   ai:
     dashscope:
       # 提供一个临时的API key来避免启动错误，实际使用时会从数据库获取
@@ -25,13 +26,14 @@ spring:
             # 自动初始化数据库表结构
             initialize-schema: always
 
-# Logging Configuration
+# 日志配置
 logging:
   level:
-    com.alibaba.cloud.ai.copilot: DEBUG
     org.springframework.ai: DEBUG
-  pattern:
-    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+    com.alibaba.cloud.ai.copilot: @logging.level@
+    org.springframework: WARN
+    org.mybatis.spring.mapper: ERROR
+  config: classpath:logback-plus.xml
 
 app:
   # 工作目录配置
