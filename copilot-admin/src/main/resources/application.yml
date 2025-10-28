@@ -10,7 +10,7 @@ spring:
     driver-class-name: com.mysql.cj.jdbc.Driver
     url: jdbc:mysql://localhost:3306/spring_ai_copilot?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai
     username: root
-    password: root
+    password: qxyg1010
 
   ai:
     dashscope:
@@ -112,3 +112,36 @@ app:
       max-top-k: 20
       similarity-threshold: 0.7
       enable-reranking: false
+
+  # 文件系统配置（默认禁用，可通过spring.profiles.active=file-system启用）
+  file-system:
+    security:
+      enable-path-validation: true  # 启用路径验证
+      allowed-extensions:  # 允许的文件扩展名
+        - .js
+        - .html
+        - .css
+        - .json
+        - .md
+        - .ts
+        - .tsx
+        - .jsx
+      forbidden-paths:  # 禁止的路径
+        - ../
+        - /etc/
+        - /root/
+        - /usr/
+        - /var/
+
+---
+# 文件系统功能profile配置
+spring:
+  config:
+    activate:
+      on-profile: file-system
+
+
+app:
+  chat:
+    file-system:
+      enabled: true  # 在file-system profile中启用文件系统功能

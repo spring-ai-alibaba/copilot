@@ -24,6 +24,8 @@ import {checkExecList, checkFinish} from "../utils/checkFinish";
 import {useUrlData} from "@/hooks/useUrlData";
 import {MCPTool} from "@/types/mcp";
 import useMCPTools from "@/hooks/useMCPTools";
+import { FileSystemStatus } from "./components/FileSystemStatus";
+import { handleFileSystemEvent, isFileSystemEvent } from "../utils/fileSystemEventHandler";
 
 type WeMessages = (Message & {
     experimental_attachments?: Array<{
@@ -558,7 +560,11 @@ export const BaseChat = ({uuid: propUuid}: { uuid?: string }) => {
                     ...needParseMessages.map((m) => m.id),
                 ];
 
-                if (message && message.content) {
+                // 检查是否为文件系统事件
+                if (isFileSystemEvent(message)) {
+                    handleFileSystemEvent(message, updateContent);
+                } else if (message && message.content) {
+                    // 原有的XML解析逻辑作为后备方案
                     const parseResult = parseMessage(message.content);
                     const {files: messagefiles} = parseResult;
 
@@ -1038,7 +1044,10 @@ export const BaseChat = ({uuid: propUuid}: { uuid?: string }) => {
         >
             {showJsx}
 
-
+            {/* 文件系统状态指示器 */}
+            <div className="fixed top-20 right-4 z-50">
+                <FileSystemStatus />
+            </div>
 
             <ChatInput
                 input={input}

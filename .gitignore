@@ -25,7 +25,7 @@ logs/
 *.tmp
 *.temp
 .cache/
-
+.claude
 # 环境配置
 .env
 .env.local
@@ -76,3 +76,5 @@ application-prod.properties
 
 # AI文件
 CLAUDE.md
+/workspace/
+/.claude/

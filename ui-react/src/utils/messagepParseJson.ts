@@ -24,7 +24,7 @@ export function parseMessage(content: string): ParsedMessage {
     let searchContent = content;
 
     // 首先尝试提取 boltArtifact 内容
-    const artifactMatches = [...content.matchAll(BOLT_ARTIFACT_REGEX)];
+    const artifactMatches = Array.from(content.matchAll(BOLT_ARTIFACT_REGEX));
     if (artifactMatches.length > 0) {
       // 合并所有 artifact 内容
       searchContent = artifactMatches.map(match => match[1]).join('\n');
