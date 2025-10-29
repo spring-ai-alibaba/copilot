@@ -25,10 +25,6 @@
             <groupId>com.alibaba.cloud.ai</groupId>
             <artifactId>copilot-common-web</artifactId>
         </dependency>
-        <dependency>
-            <groupId>com.alibaba.cloud.ai</groupId>
-            <artifactId>copilot-common-ai</artifactId>
-        </dependency>
 
         <!-- Spring Boot Starters -->
         <dependency>

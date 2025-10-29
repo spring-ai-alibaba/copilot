@@ -596,6 +596,8 @@ export const MessageItem: React.FC<MessageItemProps> = ({
                 title={getArtifactTitle(message.content)}
                 message={message}
                 isComplete={!isLoading}
+                conversationId={message.id?.split('-')[0]} // 从消息ID提取会话ID
+                userId={localStorage.getItem('user') ? JSON.parse(localStorage.getItem('user') || '{}').id || 'default-user' : 'default-user'} // 从本地存储获取用户ID
               />
             ) : (
               <div className="flex flex-col gap-1">

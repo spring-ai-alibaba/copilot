@@ -229,6 +229,25 @@
                 </plugin>
             </plugins>
         </pluginManagement>
+
+        <resources>
+            <resource>
+                <directory>src/main/resources</directory>
+                <!-- 关闭过滤 -->
+                <filtering>false</filtering>
+            </resource>
+            <resource>
+                <directory>src/main/resources</directory>
+                <!-- 引入所有 匹配文件进行过滤 -->
+                <includes>
+                    <include>application*</include>
+                    <include>bootstrap*</include>
+                    <include>banner*</include>
+                </includes>
+                <!-- 启用过滤 即该资源中的变量将会被过滤器中的值替换 -->
+                <filtering>true</filtering>
+            </resource>
+        </resources>
     </build>
 
     <!-- 仓库配置 -->
@@ -280,6 +299,7 @@
             </activation>
             <properties>
                 <spring.profiles.active>dev</spring.profiles.active>
+                <logging.level>INFO</logging.level>
             </properties>
         </profile>
 
@@ -287,6 +307,7 @@
             <id>prod</id>
             <properties>
                 <spring.profiles.active>prod</spring.profiles.active>
+                <logging.level>WARN</logging.level>
             </properties>
         </profile>
 
@@ -294,7 +315,9 @@
             <id>test</id>
             <properties>
                 <spring.profiles.active>test</spring.profiles.active>
+                <logging.level>DEBUG</logging.level>
             </properties>
         </profile>
     </profiles>
+
 </project>

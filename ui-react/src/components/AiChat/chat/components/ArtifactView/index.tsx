@@ -15,6 +15,7 @@ import {
 } from "../MessageItem";
 import { parseFileFromContext } from "../../../utils/index";
 import { Message } from "ai";
+import { getWorkspaceFiles, readWorkspaceFile, isFileSystemEnabled } from "@/api/filesystem";
 
 interface Task {
   status: "done" | "parsing";
@@ -30,6 +31,8 @@ interface ArtifactViewProps {
   title: string;
   message: Message;
   isComplete?: boolean;
+  conversationId?: string;
+  userId?: string;
 }
 
 export const ArtifactView: React.FC<ArtifactViewProps> = ({
@@ -37,6 +40,8 @@ export const ArtifactView: React.FC<ArtifactViewProps> = ({
   title,
   isComplete,
   message,
+  conversationId,
+  userId,
 }) => {
   const content = message.content;
   const { setFiles, updateContent } = useFileStore();
@@ -50,6 +55,8 @@ export const ArtifactView: React.FC<ArtifactViewProps> = ({
   >({});
 
   const {getTerminal} = useTerminalStore();
+  const [fileSystemEnabled, setFileSystemEnabled] = useState(false);
+  const [isLoadingFromFileSystem, setIsLoadingFromFileSystem] = useState(false);
 
   // 处理 pre/post artifact 内容，应用 think 标签处理
   const preArtifactContent = useMemo(() => {
@@ -91,6 +98,13 @@ export const ArtifactView: React.FC<ArtifactViewProps> = ({
     }
   }, [content]);
 
+  // 当文件系统启用且有会话ID时，从文件系统加载文件
+  useEffect(() => {
+    if (fileSystemEnabled && conversationId && userId && isComplete) {
+      loadFilesFromFileSystem();
+    }
+  }, [fileSystemEnabled, conversationId, userId, isComplete]);
+
   // 初始化文件状态
   useEffect(() => {
     const newFileStates = new Map();
@@ -125,6 +139,39 @@ export const ArtifactView: React.FC<ArtifactViewProps> = ({
       });
     }
   }, [isComplete, filePaths]);
+
+  // 检查文件系统是否启用
+  useEffect(() => {
+    const checkFileSystem = async () => {
+      const enabled = await isFileSystemEnabled();
+      setFileSystemEnabled(enabled);
+    };
+    checkFileSystem();
+  }, []);
+
+  // 从文件系统加载文件
+  const loadFilesFromFileSystem = async () => {
+    if (!fileSystemEnabled || !conversationId || !userId) return;
+
+    setIsLoadingFromFileSystem(true);
+    try {
+      const workspacePath = `${userId}/${conversationId}`;
+      const response = await getWorkspaceFiles(workspacePath);
+
+      if (response.success && response.files) {
+        // 将服务器文件同步到前端文件存储
+        const files = response.files;
+        for (const [filePath, fileContent] of Object.entries(files)) {
+          updateContent(filePath, fileContent as string);
+        }
+        console.log(`Loaded ${response.fileCount} files from file system`);
+      }
+    } catch (error) {
+      console.error('Failed to load files from file system:', error);
+    } finally {
+      setIsLoadingFromFileSystem(false);
+    }
+  };
 
   // 构建任务列表
   const tasks = useMemo(() => {
@@ -179,10 +226,35 @@ export const ArtifactView: React.FC<ArtifactViewProps> = ({
 
   // 修改恢复单个文件的处理函数
   const handleRestoreFile = (filePath: string): void => {
-    const fileContent = parseFileFromContext(filePath, content);
-    if (fileContent) {
-      updateContent(filePath, fileContent);
-      openFile(filePath);
+    // 如果文件系统启用，优先从服务器加载文件
+    if (fileSystemEnabled && conversationId && userId) {
+      const loadSingleFile = async () => {
+        try {
+          const workspacePath = `${userId}/${conversationId}`;
+          const response = await readWorkspaceFile(workspacePath, filePath);
+          if (response.success && response.content) {
+            updateContent(filePath, response.content);
+            openFile(filePath);
+            return;
+          }
+        } catch (error) {
+          console.error('Failed to load file from file system:', error);
+        }
+        // 如果文件系统加载失败，回退到XML解析
+        const fileContent = parseFileFromContext(filePath, content);
+        if (fileContent) {
+          updateContent(filePath, fileContent);
+          openFile(filePath);
+        }
+      };
+      loadSingleFile();
+    } else {
+      // 使用XML解析作为后备方案
+      const fileContent = parseFileFromContext(filePath, content);
+      if (fileContent) {
+        updateContent(filePath, fileContent);
+        openFile(filePath);
+      }
     }
   };
 
@@ -382,17 +454,27 @@ export const ArtifactView: React.FC<ArtifactViewProps> = ({
                   tasks.forEach((task) => handleRestoreFile(task.text));
                 }}
                 className="invisible group-hover:visible text-xs px-1.5 py-0.5 rounded bg-gray-100 hover:bg-gray-200 dark:bg-[#333] dark:hover:bg-[#444] text-gray-700 dark:text-gray-300 transition-all flex items-center gap-1 flex-shrink-0"
+                disabled={isLoadingFromFileSystem}
               >
-                <svg
-                  className="w-3 h-3"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                >
-                  <path d="M3 12h1m8-9v1m8 8h1M5.6 5.6l.7.7m12.1-.7l-.7.7M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
-                </svg>
-                <span>Restore All</span>
+                {isLoadingFromFileSystem ? (
+                  <div className="flex items-center gap-1">
+                    <div className="w-3 h-3 border-2 border-blue-500 dark:border-blue-400 border-t-transparent rounded-full animate-spin" />
+                    <span>Loading...</span>
+                  </div>
+                ) : (
+                  <>
+                    <svg
+                      className="w-3 h-3"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                    >
+                      <path d="M3 12h1m8-9v1m8 8h1M5.6 5.6l.7.7m12.1-.7l-.7.7M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+                    </svg>
+                    <span>Restore All</span>
+                  </>
+                )}
               </button>
             )}
           </div>
@@ -417,14 +499,39 @@ export const ArtifactView: React.FC<ArtifactViewProps> = ({
                   )}
                   {task.status === "parsing" && (
                     <div className="w-4 h-4">
-                      <div className="w-4 h-4 border-2 border-blue-500 dark:border-blue-400 border-t-transparent rounded-full animate-spin" />
+                      {isLoadingFromFileSystem ? (
+                        <div className="w-4 h-4 border-2 border-green-500 dark:border-green-400 border-t-transparent rounded-full animate-spin" />
+                      ) : (
+                        <div className="w-4 h-4 border-2 border-blue-500 dark:border-blue-400 border-t-transparent rounded-full animate-spin" />
+                      )}
                     </div>
                   )}
                 </div>
                 <div className="flex-1 flex items-center justify-between min-w-0">
                   <span
                     onClick={() => {
-                      openFile(task.text);
+                      if (fileSystemEnabled && conversationId && userId) {
+                        // 如果文件系统启用，优先从服务器加载文件
+                        const loadFile = async () => {
+                          try {
+                            const workspacePath = `${userId}/${conversationId}`;
+                            const response = await readWorkspaceFile(workspacePath, task.text);
+                            if (response.success && response.content) {
+                              updateContent(task.text, response.content);
+                              openFile(task.text);
+                              return;
+                            }
+                          } catch (error) {
+                            console.error('Failed to load file from file system:', error);
+                          }
+                          // 如果文件系统加载失败，回退到直接打开
+                          openFile(task.text);
+                        };
+                        loadFile();
+                      } else {
+                        // 使用传统方式打开文件
+                        openFile(task.text);
+                      }
                     }}
                     className={`text-sm ${
                       task.status === "done"
