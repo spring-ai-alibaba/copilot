@@ -12,6 +12,7 @@ import org.springframework.ai.chat.messages.UserMessage;
 import org.springframework.ai.chat.messages.SystemMessage;
 import org.springframework.ai.chat.messages.AssistantMessage;
 import org.springframework.ai.chat.model.ChatResponse;
+import org.springframework.context.annotation.Primary;
 import reactor.core.publisher.Flux;
 import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.ai.chat.prompt.Prompt;
@@ -26,6 +27,7 @@ import java.util.concurrent.CompletableFuture;
 
 /**
  * Builder handler implementation
+ * 构建处理器实现
  */
 @Slf4j
 @Service
@@ -38,6 +40,7 @@ public class BuilderHandlerImpl implements BuilderHandler {
     private final ConversationService conversationService;
     private final ChatMemory chatMemory;
     private final PromptTemplateService promptTemplateService;
+    private final FileSystemService fileSystemService;
 
     public BuilderHandlerImpl(
             TokenService tokenService,
@@ -46,7 +49,8 @@ public class BuilderHandlerImpl implements BuilderHandler {
             OpenAiModelFactory openAiModelFactory,
             @Qualifier("chatMemoryConversationService") ConversationService conversationService,
             ChatMemory chatMemory,
-            @Qualifier("promptTemplateServiceImpl") PromptTemplateService promptTemplateService) {
+            @Qualifier("promptTemplateServiceImpl") PromptTemplateService promptTemplateService,
+            FileSystemService fileSystemService) {
         this.tokenService = tokenService;
         this.fileProcessorService = fileProcessorService;
         this.dynamicModelService = dynamicModelService;
@@ -54,6 +58,7 @@ public class BuilderHandlerImpl implements BuilderHandler {
         this.conversationService = conversationService;
         this.chatMemory = chatMemory;
         this.promptTemplateService = promptTemplateService;
+        this.fileSystemService = fileSystemService;
     }
 
     private final ObjectMapper objectMapper = new ObjectMapper();
@@ -81,6 +86,10 @@ public class BuilderHandlerImpl implements BuilderHandler {
             // Get or create conversation ID for this user session
             String conversationId = conversationService.getOrCreateConversationId(userId);
             log.info("Processing conversation {} for user {}", conversationId, userId);
+
+            // 创建工作空间
+            String workspacePath = fileSystemService.createSessionWorkspace(conversationId, userId);
+            log.info("Created workspace for conversation {} at: {}", conversationId, workspacePath);
 
             // Process files from messages
             FileProcessorService.ProcessedFiles processedFiles =
@@ -182,13 +191,29 @@ public class BuilderHandlerImpl implements BuilderHandler {
                     })
                     .doOnComplete(() -> {
                         try {
-                            // 将AI的完整响应添加到记忆中
-                            if (!responseBuilder.isEmpty()) {
-                                AssistantMessage assistantMessage = new AssistantMessage(responseBuilder.toString());
+                            // 解析AI响应中的文件并保存到工作空间
+                            String fullResponse = responseBuilder.toString();
+                            if (!fullResponse.isEmpty()) {
+                                // 解析boltArtifact中的文件
+                                FileProcessorService.ParsedMessage parsedMessage =
+                                    fileProcessorService.parseMessage(fullResponse);
+
+                                if (parsedMessage.getFiles() != null && !parsedMessage.getFiles().isEmpty()) {
+                                    // 保存生成的文件到工作空间
+                                    fileSystemService.saveFiles(workspacePath, parsedMessage.getFiles());
+                                    log.info("Saved {} generated files to workspace: {}",
+                                            parsedMessage.getFiles().size(), workspacePath);
+
+                                    // 发送文件信息到前端
+                                    sendFileInfoToFrontend(emitter, workspacePath, parsedMessage.getFiles());
+                                }
+
+                                // 将AI的完整响应添加到记忆中
+                                AssistantMessage assistantMessage = new AssistantMessage(fullResponse);
                                 chatMemory.add(conversationId, assistantMessage);
                                 log.debug("Added assistant response to memory for conversation {}: {}",
-                                         conversationId, responseBuilder.length() > 100 ?
-                                         responseBuilder.substring(0, 100) + "..." : responseBuilder.toString());
+                                         conversationId, fullResponse.length() > 100 ?
+                                         fullResponse.substring(0, 100) + "..." : fullResponse.toString());
                             }
                             // 发送结束信号
                             sendSseEndEvent(emitter);
@@ -252,11 +277,27 @@ public class BuilderHandlerImpl implements BuilderHandler {
         return "other";
     }
 
+    /**
+     * 发送文件信息到前端
+     */
+    private void sendFileInfoToFrontend(SseEmitter emitter, String workspacePath, Map<String, String> files) {
+        try {
+            Map<String, Object> fileInfo = new java.util.HashMap<>();
+            fileInfo.put("type", "file_info");
+            fileInfo.put("workspacePath", workspacePath);
+            fileInfo.put("files", files.keySet());
+            fileInfo.put("fileCount", files.size());
 
+            String fileInfoJson = objectMapper.writeValueAsString(fileInfo);
+            SseEmitter.SseEventBuilder event = SseEmitter.event()
+                .data(fileInfoJson);
+            emitter.send(event);
 
-
-
-
+            log.debug("Sent file info to frontend: {} files in workspace {}", files.size(), workspacePath);
+        } catch (Exception e) {
+            log.error("Error sending file info to frontend", e);
+        }
+    }
 
     /**
      * 发送流式数据块
