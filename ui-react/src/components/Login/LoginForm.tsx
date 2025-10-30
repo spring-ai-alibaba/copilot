@@ -22,7 +22,7 @@ const LoginForm = ({ onSuccess, onTabChange }: LoginFormProps) => {
   const [loading, setLoading] = useState(false)
   const [oauthLoading, setOauthLoading] = useState(false)
   const [error, setError] = useState("")
-  const { setUser, setToken, setRememberMe } = useUserStore()
+  const { setUser, setToken, setRememberMe, fetchUser } = useUserStore()
   const [rememberMe, setRememberMeState] = useState(true)
   const { t } = useTranslation()
 
@@ -32,10 +32,16 @@ const LoginForm = ({ onSuccess, onTabChange }: LoginFormProps) => {
 
       if (token) {
         setToken(token)
-        const user = await authService.getUserInfo(token)
-        setUser(user)
+        // 统一在登录成功后拉取一次用户完整信息（含配额等）
+        try {
+          await fetchUser()
+        } catch {}
         toast.success("success login")
         onSuccess?.()
+        // 简化方案：登录成功后整页刷新，确保所有组件按新 token 重新初始化
+        setTimeout(() => {
+          try { window.location.reload() } catch {}
+        }, 150)
       } else {
       }
     }
@@ -80,11 +86,20 @@ const LoginForm = ({ onSuccess, onTabChange }: LoginFormProps) => {
         setUser(userInfo)
       }
 
+      // 登录后主动刷新一次用户信息，保证配额等字段及时可用
+      try {
+        await fetchUser()
+      } catch {}
+
       // 记住我
       setRememberMe(rememberMe)
 
       toast.success("Login successful!")
       onSuccess?.()
+      // 简化方案：登录成功后整页刷新，确保所有组件按新 token 重新初始化
+      setTimeout(() => {
+        try { window.location.reload() } catch {}
+      }, 150)
     } catch (err) {
       const message = err instanceof Error ? err.message : "Login failed"
       setError(t(`login.${message}`) || message)

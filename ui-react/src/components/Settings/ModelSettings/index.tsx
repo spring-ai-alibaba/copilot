@@ -28,6 +28,7 @@ import {
 import type {ColumnsType} from 'antd/es/table';
 import {AIModel, createModel, deleteModel, getModels, ModelCreateRequest, testModel, updateModel} from '@/api/models';
 import './ModelSettings.css';
+ 
 
 const { Option } = Select;
 const { TextArea } = Input;
@@ -251,6 +252,8 @@ export default function ModelSettings() {
   useEffect(() => {
     loadModels();
   }, []);
+
+  
 
   return (
     <div className="model-settings">

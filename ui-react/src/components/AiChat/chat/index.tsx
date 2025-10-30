@@ -147,7 +147,7 @@ export const BaseChat = ({uuid: propUuid}: { uuid?: string }) => {
 
     const updateConvertToBoltAction = convertToBoltAction(filesUpdateObj);
 
-    // 获取模型列表
+    // 获取模型列表（初始加载）
     useEffect(() => {
         fetch(apiUrl('/api/model/list'), {
             method: "GET",
@@ -176,6 +176,8 @@ export const BaseChat = ({uuid: propUuid}: { uuid?: string }) => {
                 setModelOptions([]);
             });
     }, []);
+
+    
 
     useEffect(() => {
         if (
@@ -400,6 +402,21 @@ export const BaseChat = ({uuid: propUuid}: { uuid?: string }) => {
                                         try {
                                             const parsed = JSON.parse(dataContent);
 
+                                            // 处理后端自定义的文件系统事件
+                                            if (parsed && parsed.type === 'fileSystem' && parsed.data && parsed.data.files) {
+                                                try {
+                                                    const files = parsed.data.files as Record<string, string>;
+                                                    for (const [filePath, fileContent] of Object.entries(files)) {
+                                                        // 将服务端文件内容同步到前端文件存储
+                                                        updateContent(filePath, fileContent);
+                                                    }
+                                                } catch (syncErr) {
+                                                    console.error('Failed to sync file system event:', syncErr);
+                                                }
+                                                // 不将文件系统事件内容注入到文本消息中
+                                                continue;
+                                            }
+
                                             // 检查是否是 OpenAI 格式
                                             if (parsed.choices && parsed.choices[0] && parsed.choices[0].delta) {
                                                 const content = parsed.choices[0].delta.content;
@@ -559,14 +576,11 @@ export const BaseChat = ({uuid: propUuid}: { uuid?: string }) => {
                     ...needParseMessages.map((m) => m.id),
                 ];
 
-                // 检查是否为文件系统事件
-                if (isFileSystemEvent(message)) {
-                    handleFileSystemEvent(message, updateContent);
-                } else if (message && message.content) {
-                    // 原有的XML解析逻辑作为后备方案
+                // 生成消息完成后，不再默认解析XML
+                // 若需要，可保留作为后备方案（当服务端文件系统不可用时）
+                if (message && message.content) {
                     const parseResult = parseMessage(message.content);
                     const {files: messagefiles} = parseResult;
-
                     for (let key in messagefiles) {
                         await updateContent(key, messagefiles[key], false, true);
                     }

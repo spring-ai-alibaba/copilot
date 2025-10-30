@@ -1,6 +1,7 @@
-import {useEffect, useState} from "react";
+import {useCallback, useEffect, useState} from "react";
 import {authService} from "../api/appInfo";
 import {useTranslation} from "react-i18next";
+import useUserStore from "@/stores/userSlice";
 
 interface VersionInfo {
   version: string;
@@ -12,32 +13,41 @@ export const UpdateTip: React.FC = () => {
   const [isVisible, setIsVisible] = useState(false);
   const [versionInfo, setVersionInfo] = useState<VersionInfo | null>(null);
   const { t } = useTranslation();
+  const token = useUserStore((s) => s.token);
 
-  useEffect(() => {
-    const fetchAppInfo = async () => {
-      try {
-        const data = await authService.appInfo();
-        // Check if data and versionInfo exist before accessing properties
-        if (data && data.versionInfo && data.versionInfo.version) {
-          const verison = data.versionInfo.version;
-          const localVersion = localStorage.getItem("version");
-          if (!localVersion) {
-            localStorage.setItem("version", verison);
-          } else if (verison !== localVersion) {
-            localStorage.setItem("version", verison);
-            setVersionInfo(data.versionInfo);
-            setIsVisible(true);
-          }
-        } else {
-          console.warn("Version info not available in API response");
+  const fetchAppInfo = useCallback(async () => {
+    try {
+      const data = await authService.appInfo();
+      // Check if data and versionInfo exist before accessing properties
+      if (data && data.versionInfo && data.versionInfo.version) {
+        const verison = data.versionInfo.version;
+        const localVersion = localStorage.getItem("version");
+        if (!localVersion) {
+          localStorage.setItem("version", verison);
+        } else if (verison !== localVersion) {
+          localStorage.setItem("version", verison);
+          setVersionInfo(data.versionInfo);
+          setIsVisible(true);
         }
-      } catch (error) {
-        console.error("get error:", error);
+      } else {
+        console.warn("Version info not available in API response");
       }
-    };
-
-    fetchAppInfo();
+    } catch (error) {
+      console.error("get error:", error);
+    }
   }, []);
+
+  // 首次加载（无论是否登录）请求一次，用于公共信息
+  useEffect(() => {
+    fetchAppInfo();
+  }, [fetchAppInfo]);
+
+  // 登录成功（token 可用）后，自动重新请求一次，确保返回用户相关的配置信息
+  useEffect(() => {
+    if (token) {
+      fetchAppInfo();
+    }
+  }, [token, fetchAppInfo]);
 
   if (!isVisible || !versionInfo) return null;
 

@@ -57,6 +57,11 @@ public class FileProcessorServiceImpl implements FileProcessorService {
         return new ProcessedFiles(files, allContent.toString());
     }
 
+    /**
+     * Parse message content and extract file contents
+     * @param content message content
+     * @return parsed message content and file contents
+     */
     @Override
     public ParsedMessage parseMessage(String content) {
         // Pattern to match boltArtifact tags
