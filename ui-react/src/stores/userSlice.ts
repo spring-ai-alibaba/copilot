@@ -96,12 +96,21 @@ const useUserStore = create<UserState>()(
           const token = localStorage.getItem("token")
           if (token) {
             const user = await authService.getUserInfo(token)
-            if (user.error) {
+            if (!user) {
               localStorage.removeItem("user")
               localStorage.removeItem("token")
               localStorage.removeItem("rememberMe")
               localStorage.removeItem("user-storage")
-              fetch("/api/logout");
+              try {
+                await fetch(`${process.env.APP_BASE_URL}/auth/logout`, {
+                  method: "POST",
+                  headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${token}`,
+                    satoken: token,
+                  },
+                })
+              } catch {}
               document.cookie =
               "token=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/; secure=true;";
               set(() => ({
@@ -135,10 +144,7 @@ const useUserStore = create<UserState>()(
       },
 
       logout: () => {
-        localStorage.removeItem("user")
-        localStorage.removeItem("token")
-        localStorage.removeItem("rememberMe")
-        localStorage.removeItem("user-storage")
+        const token = localStorage.getItem("token")
         if (!window.electron) {
           document.cookie =
             "token=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/;"
@@ -146,8 +152,21 @@ const useUserStore = create<UserState>()(
             document.cookie =
               "token=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/; secure=true;"
           }
-          fetch('/api/logout')
+          if (token) {
+            fetch(`${process.env.APP_BASE_URL}/auth/logout`, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${token}`,
+                satoken: token,
+              },
+            })
+          }
         }
+        localStorage.removeItem("user")
+        localStorage.removeItem("token")
+        localStorage.removeItem("rememberMe")
+        localStorage.removeItem("user-storage")
         set(() => ({
           user: null,
           token: null,

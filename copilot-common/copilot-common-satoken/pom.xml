@@ -14,8 +14,6 @@
     <description> 登录权限模块 </description>
 
     <dependencies>
-
-
         <!-- Sa-Token 权限认证, 在线文档：http://sa-token.dev33.cn/ -->
         <dependency>
             <groupId>cn.dev33</groupId>

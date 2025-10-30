@@ -23,6 +23,7 @@
         <module>copilot-common-mybatis</module>
         <module>copilot-common-satoken</module>
         <module>copilot-common-redis</module>
+        <module>copilot-common-security</module>
     </modules>
 
 </project>

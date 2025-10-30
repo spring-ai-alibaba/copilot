@@ -45,10 +45,11 @@ const RegisterForm = ({ onSuccess, onTabChange }: RegisterFormProps) => {
         setIsRegistered(true)
         toast.success("Registration successful!")
       } else {
-        setError(result.message)
+        setError(result.msg || result.message || "Registration failed")
       }
     } catch (err) {
-      setError(err.error || "Registration failed")
+      const anyErr = err as any
+      setError(anyErr?.msg || anyErr?.message || anyErr?.error || "Registration failed")
     } finally {
       setLoading(false)
     }

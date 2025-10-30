@@ -22,7 +22,7 @@ const LoginForm = ({ onSuccess, onTabChange }: LoginFormProps) => {
   const [loading, setLoading] = useState(false)
   const [oauthLoading, setOauthLoading] = useState(false)
   const [error, setError] = useState("")
-  const { setUser, setToken, setRememberMe, fetchUser } = useUserStore()
+  const { setUser, setToken, setRememberMe } = useUserStore()
   const [rememberMe, setRememberMeState] = useState(true)
   const { t } = useTranslation()
 
@@ -62,46 +62,32 @@ const LoginForm = ({ onSuccess, onTabChange }: LoginFormProps) => {
     setError("")
     setLoading(true)
     try {
-      const response = await fetch(
-        `${process.env.APP_BASE_URL}/api/auth/login`,
-        {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ email, password, language: localStorage.getItem('language')  }),
-        }
-      )
-
-      const data = await response.json()
-       if(data.code !== 200){
-        throw new Error(data.message || "Login failed")
-      }
-      if(data.status && data.status !== 200){
-        throw new Error(data.message || "Login failed")
+      const wrapper = await authService.login(email, password)
+      if (typeof wrapper?.code === 'number' && wrapper.code !== 200) {
+        throw new Error(wrapper?.msg || "Login failed")
       }
 
-      setToken(data.token)
+      const payload = wrapper?.data ?? wrapper
+      const token = payload?.token
+      const userInfo = payload?.userInfo
 
-      // TODO 这里最好加一个loading
-      // 拿到了 token 之后，再去fetchUser
-      const user = await fetchUser()
+      if (!token) throw new Error("Missing token")
 
-      if (!response.ok) {
-        throw new Error(data.error || "Login failed")
+      setToken(token)
+      // 持久化用户信息，便于 getUserInfo 回退读取
+      if (userInfo) {
+        try { localStorage.setItem('user', JSON.stringify(userInfo)) } catch {}
+        setUser(userInfo)
       }
 
-      // Set remember me state
+      // 记住我
       setRememberMe(rememberMe)
-
-      // After successful login, use login action to set user info and token at once
-      setUser(user)
 
       toast.success("Login successful!")
       onSuccess?.()
     } catch (err) {
-      
-      setError(t(`login.${err.message}`) || "Login failed")
+      const message = err instanceof Error ? err.message : "Login failed"
+      setError(t(`login.${message}`) || message)
     } finally {
       setLoading(false)
     }
