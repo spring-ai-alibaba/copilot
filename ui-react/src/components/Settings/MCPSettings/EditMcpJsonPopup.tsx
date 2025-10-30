@@ -1,19 +1,14 @@
-import React, {
-  useEffect,
-  useState,
-  useImperativeHandle,
-  forwardRef,
-} from "react";
-import { useTranslation } from "react-i18next";
+import React, {forwardRef, useEffect, useImperativeHandle, useState,} from "react";
+import {useTranslation} from "react-i18next";
 import useMCPStore from "@/stores/useMCPSlice";
-import { MCPServer } from "@/types/mcp";
-import { TopView } from "@/components/TopView";
+import {MCPServer} from "@/types/mcp";
+import {TopView} from "@/components/TopView";
 import classNames from "classnames";
-import { EditorState } from "@codemirror/state";
-import { EditorView } from "@codemirror/view";
-import { json } from "@codemirror/lang-json";
-import { syntaxHighlighting, HighlightStyle } from "@codemirror/language";
-import { tags as t } from "@lezer/highlight";
+import {EditorState} from "@codemirror/state";
+import {EditorView} from "@codemirror/view";
+import {json} from "@codemirror/lang-json";
+import {HighlightStyle, syntaxHighlighting} from "@codemirror/language";
+import {tags as t} from "@lezer/highlight";
 
 interface Props {
   resolve: (data: any) => void;

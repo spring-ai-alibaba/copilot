@@ -1,25 +1,14 @@
-import { useState } from "react";
-import {
-  ChevronRight,
-  ChevronDown,
-  FileCode,
-  FileText,
-  Folder,
-} from "lucide-react";
-import { FileContextMenu } from "./FileContextMenu";
-import { FolderContextMenu } from "./FolderContextMenu";
-import { InlineEdit } from "./InlineEdit";
-import { CreateDialog } from "./CreateDialog";
+import {useState} from "react";
+import {ChevronDown, ChevronRight,} from "lucide-react";
+import {FileContextMenu} from "./FileContextMenu";
+import {FolderContextMenu} from "./FolderContextMenu";
+import {InlineEdit} from "./InlineEdit";
+import {CreateDialog} from "./CreateDialog";
 
-import { FileItem } from "../types";
-import {
-  createFile,
-  createFolder,
-  renameFile,
-  deleteFile,
-} from "../utils/fileSystem";
+import {FileItem} from "../types";
+import {createFile, createFolder, deleteFile, renameFile,} from "../utils/fileSystem";
 import FileIcon from "./fileIcon";
-import { cn } from "@/utils/cn";
+import {cn} from "@/utils/cn";
 
 interface FileTreeItemProps {
   item: FileItem;

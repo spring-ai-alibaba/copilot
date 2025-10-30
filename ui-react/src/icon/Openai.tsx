@@ -1,5 +1,6 @@
+import type {SVGProps} from "react";
 import * as React from "react";
-import type { SVGProps } from "react";
+
 const OpenAI = (props: SVGProps<SVGSVGElement>) =>   <svg
       fill="currentColor"
       fillRule="evenodd"

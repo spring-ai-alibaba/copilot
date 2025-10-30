@@ -1,7 +1,7 @@
-import React, { useState } from "react";
-import { AlertTriangle } from "lucide-react";
+import React, {useState} from "react";
+import {AlertTriangle} from "lucide-react";
 import classNames from "classnames";
-import type { ErrorDisplayProps } from "./types";
+import type {ErrorDisplayProps} from "./types";
 
 export const ErrorDisplay: React.FC<ErrorDisplayProps> = ({
   errors,

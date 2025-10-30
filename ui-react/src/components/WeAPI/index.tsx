@@ -1,13 +1,13 @@
-import React, { useState, useRef, useEffect } from "react";
-import { useFileStore } from "../WeIde/stores/fileStore";
-import { Layout, Button, message, ConfigProvider, theme } from "antd";
+import React, {useEffect, useRef, useState} from "react";
+import {useFileStore} from "../WeIde/stores/fileStore";
+import {Button, ConfigProvider, Layout, message, theme} from "antd";
 import ApiList from "./components/ApiList";
 import RequestEditor from "./components/RequestEditor";
 import ResponseViewer from "./components/ResponseViewer";
-import { EditOutlined } from "@ant-design/icons";
-import { ApiItem, ApiCollection, ApiResponse, FolderItem } from "./types";
+import {EditOutlined} from "@ant-design/icons";
+import {ApiCollection, ApiItem, ApiResponse, FolderItem} from "./types";
 import useThemeStore from "@/stores/themeSlice";
-import { useTranslation } from "react-i18next";
+import {useTranslation} from "react-i18next";
 
 
 const { Sider, Content } = Layout;

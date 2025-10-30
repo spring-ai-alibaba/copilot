@@ -1,5 +1,5 @@
-import { HighlightStyle, syntaxHighlighting } from '@codemirror/language';
-import { tags as t } from '@lezer/highlight';
+import {HighlightStyle, syntaxHighlighting} from '@codemirror/language';
+import {tags as t} from '@lezer/highlight';
 
 export const customHighlightStyle = HighlightStyle.define([
   { tag: t.keyword, color: '#c678dd' },

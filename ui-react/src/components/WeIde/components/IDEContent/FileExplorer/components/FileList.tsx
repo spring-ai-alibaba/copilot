@@ -1,5 +1,5 @@
-import { FileTree } from './FileTree';
-import { buildFileTree } from '../utils/fileTree';
+import {FileTree} from './FileTree';
+import {buildFileTree} from '../utils/fileTree';
 
 interface FileListProps {
   files: any;

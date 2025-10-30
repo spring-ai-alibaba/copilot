@@ -1,5 +1,5 @@
 const ipcRenderer = window.electron?.ipcRenderer;
-import { getNodeContainerInstance } from './instance';
+import {getNodeContainerInstance} from './instance';
 
 export async function startDevServer(): Promise<{ output: ReadableStream<any>; exit: Promise<number>; }> {
   const nodeContainer = await getNodeContainerInstance();

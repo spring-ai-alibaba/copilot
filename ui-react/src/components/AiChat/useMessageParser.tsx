@@ -1,9 +1,9 @@
-import { FileAction, StreamingMessageParser } from "./messae";
+import {FileAction, StreamingMessageParser} from "./messae";
 
 
-import { createFileWithContent } from "../WeIde/components/IDEContent/FileExplorer/utils/fileSystem";
+import {createFileWithContent} from "../WeIde/components/IDEContent/FileExplorer/utils/fileSystem";
 import useTerminalStore from "@/stores/terminalSlice";
-import { Message } from "ai/react";
+import {Message} from "ai/react";
 
 class Queue {
   private queue: string[] = [];

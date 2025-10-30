@@ -1,5 +1,4 @@
-import { createFileWithContent } from "@/components/WeIde/components/IDEContent/FileExplorer/utils/fileSystem"
-
+import {createFileWithContent} from "@/components/WeIde/components/IDEContent/FileExplorer/utils/fileSystem"
 
 
 const needInFile = {

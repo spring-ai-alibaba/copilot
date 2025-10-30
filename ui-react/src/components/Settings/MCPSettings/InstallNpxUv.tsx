@@ -1,6 +1,6 @@
-import React, { FC, useEffect, useState } from 'react'
-import { useTranslation } from 'react-i18next'
-import { SettingRow, SettingSubtitle } from '..'
+import React, {FC, useEffect, useState} from 'react'
+import {useTranslation} from 'react-i18next'
+import {SettingSubtitle} from '..'
 import classNames from 'classnames'
 
 const InstallNpxUv: FC = () => {

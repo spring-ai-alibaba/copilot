@@ -1,5 +1,3 @@
-import { ITheme } from 'xterm';
-
 export function getTerminalTheme(): any {
   return {
     background: '#18181a',

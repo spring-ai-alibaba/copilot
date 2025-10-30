@@ -1,4 +1,3 @@
-
 import {useEffect, useMemo, useRef, useState} from "react";
 import {Message, useChat} from "ai/react";
 import {toast} from "react-toastify";
@@ -24,8 +23,8 @@ import {checkExecList, checkFinish} from "../utils/checkFinish";
 import {useUrlData} from "@/hooks/useUrlData";
 import {MCPTool} from "@/types/mcp";
 import useMCPTools from "@/hooks/useMCPTools";
-import { FileSystemStatus } from "./components/FileSystemStatus";
-import { handleFileSystemEvent, isFileSystemEvent } from "../utils/fileSystemEventHandler";
+import {FileSystemStatus} from "./components/FileSystemStatus";
+import {handleFileSystemEvent, isFileSystemEvent} from "../utils/fileSystemEventHandler";
 
 type WeMessages = (Message & {
     experimental_attachments?: Array<{

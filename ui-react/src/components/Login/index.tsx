@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import {useState} from "react";
+import {AnimatePresence, motion} from "framer-motion";
 import LoginForm from "./LoginForm";
 import RegisterForm from "./RegisterForm";
 import useUserStore from "../../stores/userSlice";

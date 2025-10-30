@@ -1,13 +1,12 @@
-import React, { FC, useState } from 'react'
-import { useTranslation } from 'react-i18next'
-import { SettingContainer, SettingDivider, SettingGroup, SettingTitle } from '..'
+import React, {FC, useState} from 'react'
+import {useTranslation} from 'react-i18next'
+import {SettingContainer, SettingDivider, SettingGroup, SettingTitle} from '..'
 import AddMcpServerPopup from './AddMcpServerPopup'
 import EditMcpJsonPopup from './EditMcpJsonPopup'
 import InstallNpxUv from './InstallNpxUv'
 import NpxSearch from './NpxSearch'
-import { MCPServer } from "@/types/mcp"
 import useThemeStore from "@/stores/themeSlice"
-import { HStack } from "@/components/Layout"
+import {HStack} from "@/components/Layout"
 import useMCPStore from "@/stores/useMCPSlice"
 import classNames from 'classnames'
 

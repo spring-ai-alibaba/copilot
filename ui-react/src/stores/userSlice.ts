@@ -1,6 +1,6 @@
-import { authService } from "@/api/auth"
-import { create } from "zustand"
-import { persist } from "zustand/middleware"
+import {authService} from "@/api/auth"
+import {create} from "zustand"
+import {persist} from "zustand/middleware"
 
 export enum TierType {
   FREE = "free",

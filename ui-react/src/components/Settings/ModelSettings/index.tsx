@@ -1,41 +1,32 @@
-import React, { useState, useEffect } from 'react';
-import { useTranslation } from 'react-i18next';
-import { 
-  Button, 
-  Table, 
-  Modal, 
-  Form, 
-  Input, 
-  Select, 
-  Switch, 
-  message, 
-  Popconfirm, 
-  Tag, 
-  Tooltip,
-  Space,
-  Card,
-  Divider
+import React, {useEffect, useState} from 'react';
+import {useTranslation} from 'react-i18next';
+import {
+    Button,
+    Card,
+    Divider,
+    Form,
+    Input,
+    message,
+    Modal,
+    Popconfirm,
+    Select,
+    Space,
+    Switch,
+    Table,
+    Tag,
+    Tooltip
 } from 'antd';
-import { 
-  PlusOutlined, 
-  EditOutlined, 
-  DeleteOutlined, 
-  ApiOutlined,
-  CheckCircleOutlined,
-  CloseCircleOutlined,
-  ExperimentOutlined
+import {
+    ApiOutlined,
+    CheckCircleOutlined,
+    CloseCircleOutlined,
+    DeleteOutlined,
+    EditOutlined,
+    ExperimentOutlined,
+    PlusOutlined
 } from '@ant-design/icons';
-import type { ColumnsType } from 'antd/es/table';
-import { 
-  AIModel, 
-  ModelCreateRequest, 
-  ModelUpdateRequest,
-  getModels, 
-  createModel, 
-  updateModel, 
-  deleteModel,
-  testModel
-} from '@/api/models';
+import type {ColumnsType} from 'antd/es/table';
+import {AIModel, createModel, deleteModel, getModels, ModelCreateRequest, testModel, updateModel} from '@/api/models';
 import './ModelSettings.css';
 
 const { Option } = Select;

@@ -1,11 +1,11 @@
 // 知识库管理API接口
 import {
-  mockKnowledgeBases,
-  mockDocuments,
-  mockChunks,
-  mockSearchResults,
-  isDevelopmentMode,
-  mockDelay
+    isDevelopmentMode,
+    mockChunks,
+    mockDelay,
+    mockDocuments,
+    mockKnowledgeBases,
+    mockSearchResults
 } from './mockKnowledgeData';
 
 export interface KnowledgeBase {

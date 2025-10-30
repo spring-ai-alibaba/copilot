@@ -1,6 +1,6 @@
-import { create } from 'zustand'
-import { persist } from 'zustand/middleware'
-import { MCPServer } from '@/types/mcp'
+import {create} from 'zustand'
+import {persist} from 'zustand/middleware'
+import {MCPServer} from '@/types/mcp'
 
 interface EnabledMCPsState {
     enabledMCPs: MCPServer[]

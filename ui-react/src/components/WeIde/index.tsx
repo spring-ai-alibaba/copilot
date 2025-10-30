@@ -1,13 +1,12 @@
-import { useState, useEffect, useRef } from "react";
-import { ActivityBar } from "./components/ActivityBar";
-import { Terminal } from "./components/Terminal"
-import { Editor } from "./components/Editor"
-import { EditorTabs } from "./components/EditorTabs"
-import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels"
-import { useEditorStore } from "./stores/editorStore"
-import { FileExplorer } from "./components/IDEContent/FileExplorer"
-import { Search } from "./components/IDEContent/Search"
-import { TeamExample } from "../Role"
+import {useEffect, useState} from "react";
+import {ActivityBar} from "./components/ActivityBar";
+import {Terminal} from "./components/Terminal"
+import {Editor} from "./components/Editor"
+import {EditorTabs} from "./components/EditorTabs"
+import {Panel, PanelGroup, PanelResizeHandle} from "react-resizable-panels"
+import {useEditorStore} from "./stores/editorStore"
+import {FileExplorer} from "./components/IDEContent/FileExplorer"
+import {Search} from "./components/IDEContent/Search"
 
 export default function WeIde() {
   const [activeTab, setActiveTab] = useState("");

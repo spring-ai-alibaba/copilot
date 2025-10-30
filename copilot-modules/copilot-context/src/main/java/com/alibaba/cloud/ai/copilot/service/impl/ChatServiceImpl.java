@@ -1,13 +1,10 @@
 package com.alibaba.cloud.ai.copilot.service.impl;
 
 import com.alibaba.cloud.ai.copilot.dto.ChatRequest;
-import com.alibaba.cloud.ai.copilot.service.ChatService;
-import com.alibaba.cloud.ai.copilot.service.ChatHandler;
 import com.alibaba.cloud.ai.copilot.service.BuilderHandler;
-import lombok.RequiredArgsConstructor;
+import com.alibaba.cloud.ai.copilot.service.ChatHandler;
+import com.alibaba.cloud.ai.copilot.service.ChatService;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.context.annotation.Primary;
 import org.springframework.stereotype.Service;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 

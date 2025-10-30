@@ -1,13 +1,13 @@
-import { useFileStore } from "../WeIde/stores/fileStore";
+import {useFileStore} from "../WeIde/stores/fileStore";
 import JSZip from "jszip";
-import { OpenDirectoryButton } from "../OpenDirectoryButton";
-import { useTranslation } from "react-i18next";
+import {OpenDirectoryButton} from "../OpenDirectoryButton";
+import {useTranslation} from "react-i18next";
 import useChatModeStore from "@/stores/chatModeSlice";
-import { ChatMode } from "@/types/chat";
+import {ChatMode} from "@/types/chat";
 import useTerminalStore from "@/stores/terminalSlice";
-import { getWebContainerInstance } from "../WeIde/services/webcontainer";
-import { useState } from "react";
-import { toast } from "react-toastify";
+import {getWebContainerInstance} from "../WeIde/services/webcontainer";
+import {useState} from "react";
+import {toast} from "react-toastify";
 
 
 // 添加一个递归获取文件的辅助函数

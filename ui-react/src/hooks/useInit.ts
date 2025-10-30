@@ -1,9 +1,9 @@
-import {authService} from "@/api/auth";
 import useThemeStore from "@/stores/themeSlice";
 import useUserStore from "@/stores/userSlice";
 import i18n from "@/utils/i18";
 import {useEffect} from "react"
 import useMCPStore from "@/stores/useMCPSlice";
+
 const electron = window.electron;
 const useInit = (): { isDarkMode: boolean } => {
     const {isDarkMode, setTheme} = useThemeStore()

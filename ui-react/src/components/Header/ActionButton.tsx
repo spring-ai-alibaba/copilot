@@ -1,8 +1,8 @@
 import React from "react";
-import { IconDownload } from "./icons/IconDownload";
-import { IconDeploy } from "./icons/IconDeploy";
-import { FolderOpen } from 'lucide-react';
-import { cn } from "@/utils/cn";
+import {IconDownload} from "./icons/IconDownload";
+import {IconDeploy} from "./icons/IconDeploy";
+import {FolderOpen} from 'lucide-react';
+import {cn} from "@/utils/cn";
 
 
 const icons = {

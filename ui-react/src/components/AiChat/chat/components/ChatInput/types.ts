@@ -1,7 +1,7 @@
-import type { FilePreview } from "@/stores/chatSlice";
-import type { ErrorMessage } from "../../../../WeIde/stores/fileStore";
-import { IModelOption } from "../..";
-import { ChatRequestOptions, CreateMessage, Message } from "ai";
+import type {FilePreview} from "@/stores/chatSlice";
+import type {ErrorMessage} from "../../../../WeIde/stores/fileStore";
+import {IModelOption} from "../..";
+import {ChatRequestOptions, CreateMessage, Message} from "ai";
 
 export interface ChatInputProps {
   input: string;

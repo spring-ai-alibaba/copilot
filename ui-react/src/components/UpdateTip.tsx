@@ -1,6 +1,6 @@
-import { useEffect, useState } from "react";
-import { authService } from "../api/appInfo";
-import { useTranslation } from "react-i18next";
+import {useEffect, useState} from "react";
+import {authService} from "../api/appInfo";
+import {useTranslation} from "react-i18next";
 
 interface VersionInfo {
   version: string;

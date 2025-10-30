@@ -23,6 +23,16 @@
         <module>copilot-prompt</module>
         <module>copilot-error</module>
         <module>copilot-rag</module>
+        <module>copilot-system</module>
     </modules>
+
+    <dependencies>
+        <!-- mybaits基础模块 -->
+        <dependency>
+            <groupId>com.alibaba.cloud.ai</groupId>
+            <artifactId>copilot-common-mybatis</artifactId>
+        </dependency>
+
+    </dependencies>
 
 </project>

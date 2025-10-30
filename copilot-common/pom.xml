@@ -21,6 +21,8 @@
         <module>copilot-common-core</module>
         <module>copilot-common-web</module>
         <module>copilot-common-mybatis</module>
+        <module>copilot-common-satoken</module>
+        <module>copilot-common-redis</module>
     </modules>
 
 </project>

@@ -1,9 +1,9 @@
-import React, { FC, useState } from 'react'
-import { useTranslation } from 'react-i18next'
-import { npxFinder } from 'npx-scope-finder'
-import { SettingDivider, SettingGroup, SettingTitle } from '..'
+import React, {FC, useState} from 'react'
+import {useTranslation} from 'react-i18next'
+import {npxFinder} from 'npx-scope-finder'
+import {SettingDivider, SettingGroup, SettingTitle} from '..'
 import AddMcpServerPopup from './AddMcpServerPopup'
-import { MCPServer } from "@/types/mcp"
+import {MCPServer} from "@/types/mcp"
 import useThemeStore from "@/stores/themeSlice"
 import classNames from 'classnames'
 

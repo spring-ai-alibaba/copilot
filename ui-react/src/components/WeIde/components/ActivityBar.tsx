@@ -1,7 +1,7 @@
-import { Files, Settings, Search, Terminal, Github } from "lucide-react";
+import {Files, Search, Terminal} from "lucide-react";
 
-import { Tooltip } from "./Tooltip";
-import { cn } from "@/utils/cn";
+import {Tooltip} from "./Tooltip";
+import {cn} from "@/utils/cn";
 
 interface ActivityBarProps {
   activeView: "files" | "search";

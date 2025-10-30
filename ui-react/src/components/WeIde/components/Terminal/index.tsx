@@ -1,16 +1,14 @@
-import React, { useEffect, useRef, useState } from "react";
-import { Terminal as TerminalIcon, X, SquarePlus } from "lucide-react";
+import React, {useEffect, useState} from "react";
+import {SquarePlus, Terminal as TerminalIcon, X} from "lucide-react";
 import weTerminal from "./utils/weTerminal"; // 导入 Terminal 类
 import useTerminalStore from "../../../../stores/terminalSlice";
 import "xterm/css/xterm.css";
 import "./styles.css";
-import { cn } from "@/utils/cn";
-import { eventEmitter } from "@/components/AiChat/utils/EventEmitter";
-import { use } from "i18next";
-import useChatModeStore from "@/stores/chatModeSlice";
+import {cn} from "@/utils/cn";
+import {eventEmitter} from "@/components/AiChat/utils/EventEmitter";
 import useThemeStore from "@/stores/themeSlice";
-import useChatStore from "@/stores/chatSlice";
-import { useFileStore } from "../../stores/fileStore";
+import {useFileStore} from "../../stores/fileStore";
+
 interface TerminalItem {
   processId: string; // 自增 id
   containerRef: React.RefObject<HTMLDivElement>; // 终端的容器

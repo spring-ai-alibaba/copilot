@@ -1,5 +1,5 @@
 import React from "react";
-import { Folder, FileCode } from "lucide-react";
+import {Folder} from "lucide-react";
 import MarkdownIcon from "../assets/md.svg";
 
 interface FileIconProps {

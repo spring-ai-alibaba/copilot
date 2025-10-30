@@ -1,6 +1,6 @@
 import React from 'react';
-import { create } from 'zustand';
-import { cn } from '@/lib/utils';
+import {create} from 'zustand';
+import {cn} from '@/lib/utils';
 
 interface LoadingStore {
   isLoading: boolean;

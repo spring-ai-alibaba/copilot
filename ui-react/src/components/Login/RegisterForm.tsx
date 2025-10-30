@@ -1,10 +1,10 @@
-import { motion } from "framer-motion"
-import { FaUser, FaEnvelope, FaLock } from "react-icons/fa6"
-import { authService } from "../../api/auth"
-import { Dispatch, SetStateAction, useState } from "react"
-import { toast } from "react-hot-toast"
-import { useTranslation } from "react-i18next"
-import { TabType } from "."
+import {motion} from "framer-motion"
+import {FaEnvelope, FaLock, FaUser} from "react-icons/fa6"
+import {authService} from "../../api/auth"
+import {Dispatch, SetStateAction, useState} from "react"
+import {toast} from "react-hot-toast"
+import {useTranslation} from "react-i18next"
+import {TabType} from "."
 
 
 type RegisterFormProps = {

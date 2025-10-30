@@ -1,5 +1,5 @@
 import React from 'react';
-import { Role, RoleProps } from './Role';
+import {Role, RoleProps} from './Role';
 
 interface TeamProps {
   members: RoleProps[];

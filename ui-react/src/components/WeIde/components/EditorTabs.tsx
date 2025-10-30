@@ -1,7 +1,7 @@
-import { FileCode, FileText, X } from "lucide-react";
-import { useEditorStore } from "../stores/editorStore";
-import { useUnsavedChanges } from "../hooks/useUnsavedChanges";
-import { cn } from "@/utils/cn";
+import {X} from "lucide-react";
+import {useEditorStore} from "../stores/editorStore";
+import {useUnsavedChanges} from "../hooks/useUnsavedChanges";
+import {cn} from "@/utils/cn";
 import FileIcon from "./IDEContent/FileExplorer/components/fileIcon";
 
 interface EditorTabsProps {

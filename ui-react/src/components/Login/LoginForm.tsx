@@ -1,18 +1,11 @@
-import { useState, useEffect, Dispatch, SetStateAction } from "react"
-import { motion } from "framer-motion"
-import {
-  FaWeixin,
-  FaEnvelope,
-  FaLock,
-  FaGithub,
-  FaCode,
-  FaSpinner,
-} from "react-icons/fa6"
-import { authService } from "../../api/auth"
-import { toast } from "react-hot-toast"
+import {Dispatch, SetStateAction, useEffect, useState} from "react"
+import {motion} from "framer-motion"
+import {FaCode, FaEnvelope, FaLock,} from "react-icons/fa6"
+import {authService} from "../../api/auth"
+import {toast} from "react-hot-toast"
 import useUserStore from "../../stores/userSlice"
-import { useTranslation } from "react-i18next"
-import { TabType } from "."
+import {useTranslation} from "react-i18next"
+import {TabType} from "."
 
 
 type LoginFormProps = {
