@@ -36,7 +36,7 @@ spring:
           driverClassName: com.mysql.cj.jdbc.Driver
           url: jdbc:mysql://localhost:3306/spring_ai_copilot?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai
           username: root
-          password: qxyg1010
+          password: root
 
       # HikariCP 连接池配置
       hikari:
@@ -161,6 +161,10 @@ security:
   excludes:
     # 重置密码
     - /auth/reset/password
+    # 登录与注册
+    - /auth/login
+    - /auth/register
+    - /auth/visitorLogin
     # 静态资源
     - /*.html
     - /**/*.html

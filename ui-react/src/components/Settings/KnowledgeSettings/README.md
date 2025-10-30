@@ -61,7 +61,9 @@ KnowledgeSettings/
 ## 配置说明
 
 ### 环境变量
-- `REACT_APP_API_BASE_URL`: 后端API地址，默认为 `http://localhost:8080`
+- `APP_BASE_URL`: 后端 API 基址
+  - 开发环境不设置该变量，前端请求将走 `vite` 代理（`/api` -> `http://localhost:6039`）
+  - 生产/直连模式设置为后端地址（如 `http://localhost:6039` 或你的域名），前端将直连后端，不再经过代理
 
 ### 文件限制
 - 支持的文件格式：PDF、TXT、DOC、DOCX、MD

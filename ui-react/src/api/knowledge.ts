@@ -7,6 +7,7 @@ import {
     mockKnowledgeBases,
     mockSearchResults
 } from './mockKnowledgeData';
+import { apiUrl } from './base'
 
 export interface KnowledgeBase {
   id: string;
@@ -47,10 +48,9 @@ export interface UploadResponse {
   documentId?: string;
 }
 
-// API基础URL - 这里需要根据实际后端地址调整
-const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:8080';
+// 统一使用 apiUrl 构造请求路径（开发走 /api 代理，生产直连 APP_BASE_URL）
 
-// 获取知识库列表
+// 获取知识库列表（生产直连 APP_BASE_URL；开发使用 /api 代理）
 export const getKnowledgeBases = async (): Promise<KnowledgeBase[]> => {
   // 开发模式使用模拟数据
   if (isDevelopmentMode) {
@@ -58,7 +58,7 @@ export const getKnowledgeBases = async (): Promise<KnowledgeBase[]> => {
     return mockKnowledgeBases;
   }
 
-  const response = await fetch(`${API_BASE_URL}/api/rag/knowledge-bases`, {
+  const response = await fetch(apiUrl('/api/rag/knowledge-bases'), {
     method: 'GET',
     headers: {
       'Content-Type': 'application/json',
@@ -96,7 +96,7 @@ export const createKnowledgeBase = async (data: {
     return newKB;
   }
 
-  const response = await fetch(`${API_BASE_URL}/api/rag/knowledge-bases`, {
+  const response = await fetch(apiUrl('/api/rag/knowledge-bases'), {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -113,7 +113,7 @@ export const createKnowledgeBase = async (data: {
 
 // 删除知识库
 export const deleteKnowledgeBase = async (kbKey: string): Promise<void> => {
-  const response = await fetch(`${API_BASE_URL}/api/rag/knowledge-bases/${kbKey}`, {
+  const response = await fetch(apiUrl(`/api/rag/knowledge-bases/${kbKey}`), {
     method: 'DELETE',
   });
 
@@ -130,7 +130,7 @@ export const getKnowledgeDocuments = async (kbKey: string): Promise<KnowledgeDoc
     return mockDocuments[kbKey] || [];
   }
 
-  const response = await fetch(`${API_BASE_URL}/api/rag/knowledge-bases/${kbKey}/documents`, {
+  const response = await fetch(apiUrl(`/api/rag/knowledge-bases/${kbKey}/documents`), {
     method: 'GET',
     headers: {
       'Content-Type': 'application/json',
@@ -149,7 +149,7 @@ export const uploadDocument = async (kbKey: string, file: File): Promise<UploadR
   const formData = new FormData();
   formData.append('file', file);
 
-  const response = await fetch(`${API_BASE_URL}/api/rag/knowledge-bases/${kbKey}/upload`, {
+  const response = await fetch(apiUrl(`/api/rag/knowledge-bases/${kbKey}/upload`), {
     method: 'POST',
     body: formData,
   });
@@ -163,7 +163,7 @@ export const uploadDocument = async (kbKey: string, file: File): Promise<UploadR
 
 // 删除文档
 export const deleteDocument = async (kbKey: string, documentId: string): Promise<void> => {
-  const response = await fetch(`${API_BASE_URL}/api/rag/knowledge-bases/${kbKey}/documents/${documentId}`, {
+  const response = await fetch(apiUrl(`/api/rag/knowledge-bases/${kbKey}/documents/${documentId}`), {
     method: 'DELETE',
   });
 
@@ -180,7 +180,7 @@ export const getDocumentChunks = async (kbKey: string, documentId: string): Prom
     return mockChunks[documentId] || [];
   }
 
-  const response = await fetch(`${API_BASE_URL}/api/rag/knowledge-bases/${kbKey}/documents/${documentId}/chunks`, {
+  const response = await fetch(apiUrl(`/api/rag/knowledge-bases/${kbKey}/documents/${documentId}/chunks`), {
     method: 'GET',
     headers: {
       'Content-Type': 'application/json',
@@ -204,7 +204,7 @@ export const searchKnowledge = async (kbKey: string, query: string, topK: number
     return results.slice(0, topK);
   }
 
-  const response = await fetch(`${API_BASE_URL}/api/rag/knowledge-bases/${kbKey}/search`, {
+  const response = await fetch(apiUrl(`/api/rag/knowledge-bases/${kbKey}/search`), {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -221,7 +221,7 @@ export const searchKnowledge = async (kbKey: string, query: string, topK: number
 
 // 重新处理文档
 export const reprocessDocument = async (kbKey: string, documentId: string): Promise<UploadResponse> => {
-  const response = await fetch(`${API_BASE_URL}/api/rag/knowledge-bases/${kbKey}/documents/${documentId}/reprocess`, {
+  const response = await fetch(apiUrl(`/api/rag/knowledge-bases/${kbKey}/documents/${documentId}/reprocess`), {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',

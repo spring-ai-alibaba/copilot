@@ -17,6 +17,7 @@ import {updateFileSystemNow} from "../../WeIde/services";
 import {parseMessages} from "../useMessageParser";
 import {createMpIcon} from "@/utils/createWtrite";
 import {useTranslation} from "react-i18next";
+import { apiUrl } from "@/api/base";
 import useChatModeStore from "../../../stores/chatModeSlice";
 import useTerminalStore from "@/stores/terminalSlice";
 import {checkExecList, checkFinish} from "../utils/checkFinish";
@@ -61,7 +62,7 @@ export const excludeFiles = [
     "/miniprogram/components/weicon/index.css",
 ];
 
-const API_BASE = process.env.APP_BASE_URL;
+// 统一通过 apiUrl 构造请求地址，避免 APP_BASE_URL 未配置导致的 undefined 前缀
 
 enum ModelTypes {
     Claude37sonnet = "claude-3-7-sonnet-20250219",
@@ -148,7 +149,7 @@ export const BaseChat = ({uuid: propUuid}: { uuid?: string }) => {
 
     // 获取模型列表
     useEffect(() => {
-        fetch(`${API_BASE}/api/model/list`, {
+        fetch(apiUrl('/api/model/list'), {
             method: "GET",
             headers: {
                 "Content-Type": "application/json",
@@ -338,7 +339,6 @@ export const BaseChat = ({uuid: propUuid}: { uuid?: string }) => {
 
     const [messages, setMessagesa] = useState<WeMessages>([]);
     const {enabledMCPs} = useMCPTools()
-    const baseChatUrl = `${API_BASE}`;
 
     const [mcpTools, setMcpTools] = useState<MCPTool[]>([])
     useEffect(() => {
@@ -458,7 +458,7 @@ export const BaseChat = ({uuid: propUuid}: { uuid?: string }) => {
         stop,
         reload,
     } = useChat({
-        api: `${baseChatUrl}/api/chat`,
+        api: apiUrl('/api/chat'),
         fetch: customFetch,
         streamProtocol: 'text',  // 使用文本流模式
         headers: {

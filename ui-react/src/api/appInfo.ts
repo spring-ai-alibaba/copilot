@@ -1,3 +1,5 @@
+import { apiUrl } from "./base"
+
 export const authService = {
     async appInfo() {
         let language = 'en'
@@ -17,7 +19,7 @@ export const authService = {
             console.log(error)
         }
 
-        const res = await fetch(`${process.env.APP_BASE_URL}/api/appInfo?language=${language}`, {
+        const res = await fetch(apiUrl(`/api/appInfo?language=${language}`), {
             method: "GET",
             headers: { "Content-Type": "application/json" },
         })

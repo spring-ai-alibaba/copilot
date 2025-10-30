@@ -3,12 +3,12 @@ import useUserStore from "@/stores/userSlice";
 import i18n from "@/utils/i18";
 import {useEffect} from "react"
 import useMCPStore from "@/stores/useMCPSlice";
+import { isTokenExpired } from "@/utils/auth";
 
 const electron = window.electron;
 const useInit = (): { isDarkMode: boolean } => {
     const {isDarkMode, setTheme} = useThemeStore()
-    const {setUser,fetchUser} = useUserStore()
-    const {closeLoginModal} = useUserStore();
+    const { setUser, fetchUser, logout, openLoginModal, closeLoginModal } = useUserStore()
     const servers = useMCPStore(state => state.servers)
     useEffect(() => {
         if (electron) {
@@ -27,8 +27,20 @@ const useInit = (): { isDarkMode: boolean } => {
                 userInToken = JSON.parse(localStorage.getItem("user-storage"))?.state?.rememberMe
             }
             const token = localStorage.getItem("token") || userInToken
-            if (token) {
-                fetchUser()
+            if (!token) {
+                openLoginModal()
+                return
+            }
+
+            if (isTokenExpired(token)) {
+                logout()
+                openLoginModal()
+                return
+            }
+
+            const user = await fetchUser()
+            if (!user) {
+                openLoginModal()
             }
         }
         fetchUserInfo()

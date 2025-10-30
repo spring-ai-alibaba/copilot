@@ -1,6 +1,7 @@
 import {authService} from "@/api/auth"
 import {create} from "zustand"
 import {persist} from "zustand/middleware"
+import { apiUrl } from "@/api/base"
 
 export enum TierType {
   FREE = "free",
@@ -102,12 +103,11 @@ const useUserStore = create<UserState>()(
               localStorage.removeItem("rememberMe")
               localStorage.removeItem("user-storage")
               try {
-                await fetch(`${process.env.APP_BASE_URL}/auth/logout`, {
+                await fetch(apiUrl('/auth/logout'), {
                   method: "POST",
                   headers: {
                     "Content-Type": "application/json",
                     Authorization: `Bearer ${token}`,
-                    satoken: token,
                   },
                 })
               } catch {}
@@ -153,7 +153,7 @@ const useUserStore = create<UserState>()(
               "token=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/; secure=true;"
           }
           if (token) {
-            fetch(`${process.env.APP_BASE_URL}/auth/logout`, {
+            fetch(apiUrl('/auth/logout'), {
               method: "POST",
               headers: {
                 "Content-Type": "application/json",

@@ -1,14 +1,12 @@
 import type {User} from "@/stores/userSlice"
-
-const BASE = process.env.APP_BASE_URL || ""
-const apiUrl = (path: string) => (BASE ? `${BASE}${path}` : `/api${path}`)
+import { apiUrl } from "./base"
 
 export const authService = {
-  async login(email: string, password: string) {
+  async login(username: string, password: string) {
     const res = await fetch(apiUrl('/auth/login'), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ username: email, password, loginType: "PASSWORD" }),
+      body: JSON.stringify({ username, password }),
     })
 
     const data = await res.json()
@@ -22,7 +20,6 @@ export const authService = {
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
-          satoken: token,
         },
       })
       const wrapper = await res.json()
@@ -51,8 +48,8 @@ export const authService = {
   },
 
   async updatePassword(email: string, oldPassword: string, newPassword: string) {
-    const res = await fetch(`${process.env.APP_BASE_URL}/api/auth/update-password`, {
-      method: "PUT",
+    const res = await fetch(apiUrl('/auth/reset/password'), {
+      method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ 
         email, 

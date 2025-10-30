@@ -1,6 +1,6 @@
 import {Dispatch, SetStateAction, useEffect, useState} from "react"
 import {motion} from "framer-motion"
-import {FaCode, FaEnvelope, FaLock,} from "react-icons/fa6"
+import {FaCode, FaUser, FaLock,} from "react-icons/fa6"
 import {authService} from "../../api/auth"
 import {toast} from "react-hot-toast"
 import useUserStore from "../../stores/userSlice"
@@ -14,10 +14,10 @@ type LoginFormProps = {
 }
 
 const LoginForm = ({ onSuccess, onTabChange }: LoginFormProps) => {
-  const [loginMethod, setLoginMethod] = useState<"email" | "github" | "wechat">(
-    "email"
+  const [loginMethod, setLoginMethod] = useState<"account" | "github" | "wechat">(
+    "account"
   )
-  const [email, setEmail] = useState("")
+  const [username, setUsername] = useState("")
   const [password, setPassword] = useState("")
   const [loading, setLoading] = useState(false)
   const [oauthLoading, setOauthLoading] = useState(false)
@@ -62,7 +62,7 @@ const LoginForm = ({ onSuccess, onTabChange }: LoginFormProps) => {
     setError("")
     setLoading(true)
     try {
-      const wrapper = await authService.login(email, password)
+      const wrapper = await authService.login(username, password)
       if (typeof wrapper?.code === 'number' && wrapper.code !== 200) {
         throw new Error(wrapper?.msg || "Login failed")
       }
@@ -108,19 +108,19 @@ const LoginForm = ({ onSuccess, onTabChange }: LoginFormProps) => {
       </div>
 
 
-      {loginMethod === "email" && (
+      {loginMethod === "account" && (
         <form onSubmit={handleSubmit} className="space-y-4">
           {error && (
             <div className="text-red-500 text-sm text-center">{error}</div>
           )}
           <div className="relative group">
-            <FaEnvelope className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 dark:text-[#666] transition-colors group-focus-within:text-[#3B82F6]" />
+            <FaUser className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 dark:text-[#666] transition-colors group-focus-within:text-[#3B82F6]" />
             <input
-              type="email"
-              placeholder="Email"
+              type="text"
+              placeholder="用户名/账号"
               required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
               className="w-full bg-white dark:bg-[#222] border border-gray-200 dark:border-[#333] rounded-xl py-3.5 px-11 text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-[#666]
                 focus:outline-none focus:border-[#3B82F6] focus:bg-gray-50 dark:focus:bg-[#1A1A1A] focus:ring-1 focus:ring-[#3B82F6]
                 transition-all duration-300"

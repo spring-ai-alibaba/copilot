@@ -14,6 +14,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.validation.annotation.Validated;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -25,7 +26,6 @@ import org.springframework.web.bind.annotation.RestController;
  * @author yzm
  */
 @Slf4j
-@SaIgnore
 @Validated
 @RequiredArgsConstructor
 @RestController
@@ -42,6 +42,7 @@ public class AuthController {
      * @return 结果
      */
     @PostMapping("/login")
+    @SaIgnore
     public R<LoginVo> login(@Validated @RequestBody LoginBody body) {
         LoginVo loginVo = new LoginVo();
         // 生成令牌
@@ -60,6 +61,7 @@ public class AuthController {
      * @return token信息
      */
     @PostMapping("/visitorLogin")
+    @SaIgnore
     public R<LoginVo> visitorLogin(@RequestBody VisitorLoginBody loginBody) {
         LoginVo loginVo = new LoginVo();
         return R.ok(loginVo);
@@ -78,6 +80,7 @@ public class AuthController {
      * 用户注册
      */
     @PostMapping("/register")
+    @SaIgnore
     public R<Void> register(@Validated @RequestBody RegisterBody user, HttpServletRequest request) {
         String domainName =  request.getServerName();
         user.setDomainName(domainName);
@@ -89,9 +92,17 @@ public class AuthController {
      * 重置密码
      */
     @PostMapping("/reset/password")
-    @SaIgnore
     public R<Void> resetPassWord(@Validated @RequestBody RegisterBody user) {
         registerService.resetPassWord(user);
         return R.ok();
+    }
+
+    /**
+     * 获取当前登录用户信息
+     */
+    @GetMapping("/me")
+    public R<LoginUser> me() {
+        LoginUser loginUser = LoginHelper.getLoginUser();
+        return R.ok(loginUser);
     }
 }

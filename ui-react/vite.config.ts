@@ -91,10 +91,34 @@ export default defineConfig(async ({ mode }) => {
         ignored: ["**/workspace/**"],
       },
       proxy: {
-        '/api': {
-          target: 'http://localhost:6039',
-          changeOrigin: true,
-          secure: false,
+        // 统一代理目标可通过环境变量配置（优先 APP_BASE_URL，其次 VITE_PROXY_TARGET，最后默认6039）
+        // 仅在开发模式下使用，用于避免跨域；生产环境不使用代理
+        // 注意：如果在开发环境设置了 APP_BASE_URL，则前端会直连后端，代理配置将不会生效
+        // 为保持单一入口，你也可以只设置 APP_BASE_URL，这里将自动沿用
+        get '/api'() {
+          const target = env.APP_BASE_URL || env.VITE_PROXY_TARGET || 'http://localhost:6039';
+          return {
+            target,
+            changeOrigin: true,
+            secure: false,
+          };
+        },
+        // 认证等未带 /api 前缀的后端路由，开发环境也通过代理以避免跨域
+        get '/auth'() {
+          const target = env.APP_BASE_URL || env.VITE_PROXY_TARGET || 'http://localhost:6039';
+          return {
+            target,
+            changeOrigin: true,
+            secure: false,
+          };
+        },
+        get '/admin'() {
+          const target = env.APP_BASE_URL || env.VITE_PROXY_TARGET || 'http://localhost:6039';
+          return {
+            target,
+            changeOrigin: true,
+            secure: false,
+          };
         },
       },
     },
