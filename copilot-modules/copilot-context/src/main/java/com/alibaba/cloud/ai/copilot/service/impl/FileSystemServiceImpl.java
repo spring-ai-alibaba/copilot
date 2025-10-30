@@ -28,8 +28,13 @@ public class FileSystemServiceImpl implements FileSystemService {
             String safeUserId = (userId != null) ? userId : "anonymous";
             String safeConversationId = (conversationId != null) ? conversationId : "default";
 
+            // Windows 文件名不允许的字符: \\ / : * ? " < > |
+            // 为跨平台安全，统一将这些非法字符替换为下划线，并移除结尾的点/空格
+            String userDir = sanitizePathSegment(safeUserId);
+            String conversationDir = sanitizePathSegment(safeConversationId);
+
             // 创建工作目录路径: workspaceRoot/userId/conversationId
-            String workspacePath = Paths.get(workspaceRoot, safeUserId, safeConversationId).toString();
+            String workspacePath = Paths.get(workspaceRoot, userDir, conversationDir).toString();
             File workspaceDir = new File(workspacePath);
 
             if (!workspaceDir.exists()) {
@@ -39,12 +44,39 @@ public class FileSystemServiceImpl implements FileSystemService {
                 }
             }
 
+            if (!safeUserId.equals(userDir) || !safeConversationId.equals(conversationDir)) {
+                log.debug("Sanitized workspace path segments. userId='{}'->'{}', conversationId='{}'->'{}'",
+                    safeUserId, userDir, safeConversationId, conversationDir);
+            }
             log.info("Created workspace for conversation {} at: {}", safeConversationId, workspacePath);
             return workspacePath;
         } catch (Exception e) {
             log.error("Error creating workspace for conversation {}: {}", conversationId, e.getMessage());
             throw new RuntimeException("Failed to create workspace", e);
         }
+    }
+
+    /**
+     * 将路径段标准化为跨平台安全的文件/目录名
+     * 规则：
+     * - 替换非法字符（\\ / : * ? " < > |）为下划线
+     * - 将连续空白替换为单个下划线
+     * - 去除结尾的点和空格（Windows 不允许）
+     * - 为空时退化为 "unnamed"
+     */
+    private String sanitizePathSegment(String input) {
+        String s = (input == null) ? "" : input;
+        // 替换非法字符
+        s = s.replaceAll("[\\\\/:*?\"<>|]", "_");
+        // 折叠空白
+        s = s.replaceAll("\\s+", "_");
+        // 去除末尾的点和空格
+        s = s.replaceAll("[. ]+$", "");
+        // 避免空字符串
+        if (s.isEmpty()) {
+            s = "unnamed";
+        }
+        return s;
     }
 
     @Override

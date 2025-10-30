@@ -24,7 +24,6 @@
         <dependency>
             <groupId>com.alibaba.cloud.ai</groupId>
             <artifactId>copilot-common-satoken</artifactId>
-            <version>1.0.0</version>
         </dependency>
     </dependencies>
 

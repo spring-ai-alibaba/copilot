@@ -10,6 +10,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Import;
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
@@ -29,28 +31,26 @@ public class SecurityConfig implements WebMvcConfigurer {
     private final SecurityProperties securityProperties;
 
     /**
+     * 提供 AllUrlHandler Bean（用于收集所有可匹配的 URL）
+     */
+    @Bean
+    public AllUrlHandler allUrlHandler() {
+        return new AllUrlHandler();
+    }
+
+    /**
      * 注册sa-token的拦截器
      */
     @Override
     public void addInterceptors(InterceptorRegistry registry) {
         // 注册路由拦截器，自定义验证规则
         registry.addInterceptor(new SaInterceptor(handler -> {
-            AllUrlHandler allUrlHandler = SpringUtils.getBean(AllUrlHandler.class);
-            // 登录验证 -- 排除多个路径
+            // 登录验证：对所有路径进行检查，拦截器本身已排除 excludes
             SaRouter
-                // 获取所有的
-                .match(allUrlHandler.getUrls())
-                // 对未排除的路径进行检查
+                .match("/**")
                 .check(() -> {
                     // 检查是否登录 是否有token
                     StpUtil.checkLogin();
-
-                    // 有效率影响 用于临时测试
-                    // if (log.isDebugEnabled()) {
-                    //     log.debug("剩余有效时间: {}", StpUtil.getTokenTimeout());
-                    //     log.debug("临时有效时间: {}", StpUtil.getTokenActivityTimeout());
-                    // }
-
                 });
         })).addPathPatterns("/**")
             // 排除不需要拦截的路径

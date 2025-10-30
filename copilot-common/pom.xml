@@ -24,6 +24,7 @@
         <module>copilot-common-satoken</module>
         <module>copilot-common-redis</module>
         <module>copilot-common-security</module>
+        <module>copilot-common-bom</module>
     </modules>
 
 </project>

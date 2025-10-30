@@ -49,6 +49,10 @@
             <groupId>com.alibaba.cloud.ai</groupId>
             <artifactId>copilot-common-core</artifactId>
         </dependency>
+        <dependency>
+            <groupId>com.alibaba.cloud.ai</groupId>
+            <artifactId>copilot-common-security</artifactId>
+        </dependency>
 
         <!-- Spring Boot Starters -->
         <dependency>

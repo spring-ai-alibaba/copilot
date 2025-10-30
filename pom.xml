@@ -55,6 +55,14 @@
     <!-- 依赖管理 -->
     <dependencyManagement>
         <dependencies>
+            <!-- Copilot Common BOM -->
+            <dependency>
+                <groupId>com.alibaba.cloud.ai</groupId>
+                <artifactId>copilot-common-bom</artifactId>
+                <version>${project.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
             <!-- Spring Boot BOM -->
             <dependency>
                 <groupId>org.springframework.boot</groupId>
