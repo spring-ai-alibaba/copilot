@@ -1,6 +1,6 @@
-import { ProjectTitle } from "./ProjectTitle";
-import { HeaderActions } from "./HeaderActions";
-import { FaCode } from "react-icons/fa6";
+import {ProjectTitle} from "./ProjectTitle";
+import {HeaderActions} from "./HeaderActions";
+import {FaCode} from "react-icons/fa6";
 
 function Header() {
   return (

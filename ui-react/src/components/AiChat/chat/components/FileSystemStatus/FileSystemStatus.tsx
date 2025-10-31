@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { isFileSystemEnabled } from '@/api/filesystem';
+import React, {useEffect, useState} from 'react';
+import {isFileSystemEnabled} from '@/api/filesystem';
 
 export interface FileSystemStatusProps {
   className?: string;

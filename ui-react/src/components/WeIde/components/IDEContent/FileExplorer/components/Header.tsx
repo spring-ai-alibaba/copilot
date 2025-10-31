@@ -1,9 +1,9 @@
-import { useFileStore } from "@/components/WeIde/stores/fileStore";
-import { FolderTree, Upload, Settings } from "lucide-react";
-import { useTranslation } from "react-i18next";
-import { useState } from 'react';
-import { FileUploadArea } from './FileUploadArea';
-import { ProjectRootSelector } from './ProjectRootSelector';
+import {useFileStore} from "@/components/WeIde/stores/fileStore";
+import {FolderTree, Settings, Upload} from "lucide-react";
+import {useTranslation} from "react-i18next";
+import {useState} from 'react';
+import {FileUploadArea} from './FileUploadArea';
+import {ProjectRootSelector} from './ProjectRootSelector';
 
 export function Header() {
   const { setFiles, setIsFirstSend, setIsUpdateSend } = useFileStore();

@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { isValidFileName } from '../utils/fileSystem';
+import {useState} from 'react';
+import {isValidFileName} from '../utils/fileSystem';
 
 interface CreateFolderDialogProps {
   path: string;

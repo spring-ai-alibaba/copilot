@@ -1,11 +1,11 @@
-import React, { useEffect, useState } from "react";
-import { createPortal } from "react-dom";
-import { GeneralSettings } from "./GeneralSettings";
-import { QuotaSettings } from "./QuotaSettings";
-import { useTranslation } from "react-i18next";
+import React, {useEffect, useState} from "react";
+import {createPortal} from "react-dom";
+import {GeneralSettings} from "./GeneralSettings";
+import {QuotaSettings} from "./QuotaSettings";
+import {useTranslation} from "react-i18next";
 import styled from "styled-components";
-import { ThemeMode } from "antd-style";
-import { Divider } from "antd";
+import {ThemeMode} from "antd-style";
+import {Divider} from "antd";
 import MCPSettings from "@/components/Settings/MCPSettings";
 import KnowledgeSettings from "@/components/Settings/KnowledgeSettings";
 import ModelSettings from "@/components/Settings/ModelSettings";

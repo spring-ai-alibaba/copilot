@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
-import { Modal, Form, Input, Select, Switch, Button, Space, Card, Divider } from 'antd';
-import { PlusOutlined, DeleteOutlined } from '@ant-design/icons';
-import { useTranslation } from 'react-i18next';
-import { PromptTemplate, PromptCategory, PromptCreateRequest, PromptVariable } from '@/api/prompts';
+import React, {useEffect, useState} from 'react';
+import {Button, Card, Divider, Form, Input, Modal, Select, Switch} from 'antd';
+import {DeleteOutlined, PlusOutlined} from '@ant-design/icons';
+import {useTranslation} from 'react-i18next';
+import {PromptCategory, PromptCreateRequest, PromptTemplate, PromptVariable} from '@/api/prompts';
 
 const { TextArea } = Input;
 const { Option } = Select;

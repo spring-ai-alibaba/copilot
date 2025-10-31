@@ -1,5 +1,5 @@
-import { useEffect, useRef } from "react";
-import { EditorView } from "@codemirror/view";
+import {useEffect, useRef} from "react";
+import {EditorView} from "@codemirror/view";
 
 interface UseEditorScrollProps {
   view: EditorView | undefined;

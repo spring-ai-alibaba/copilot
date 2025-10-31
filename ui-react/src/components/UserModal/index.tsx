@@ -1,8 +1,8 @@
-import { create } from "zustand";
-import { X } from "lucide-react";
-import { useTranslation } from "react-i18next";
-import { useState } from "react";
-import { Settings } from "../Settings";
+import {create} from "zustand";
+import {X} from "lucide-react";
+import {useTranslation} from "react-i18next";
+import {useState} from "react";
+import {Settings} from "../Settings";
 
 interface LimitModalStore {
   isVisible: boolean;

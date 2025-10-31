@@ -1,9 +1,9 @@
 package com.alibaba.cloud.ai.copilot.dto;
 
 import com.alibaba.cloud.ai.copilot.entity.ModelConfigEntity;
+import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import lombok.AllArgsConstructor;
 
 /**
  * 模型选项 VO，用于前端模型列表展示

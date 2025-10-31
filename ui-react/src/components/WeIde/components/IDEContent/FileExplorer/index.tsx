@@ -1,12 +1,12 @@
-import { FileList } from './components/FileList';
-import { Header } from './components/Header';
-import { FolderContextMenu } from './components/FolderContextMenu';
-import { CreateDialog } from './components/CreateDialog';
-import { useState } from 'react';
+import {FileList} from './components/FileList';
+import {Header} from './components/Header';
+import {FolderContextMenu} from './components/FolderContextMenu';
+import {CreateDialog} from './components/CreateDialog';
+import {useState} from 'react';
 
-import { createFile, createFolder } from './utils/fileSystem';
-import { FileExplorerProps } from './types';
-import { useFileStore } from '@/components/WeIde/stores/fileStore';
+import {createFile, createFolder} from './utils/fileSystem';
+import {FileExplorerProps} from './types';
+import {useFileStore} from '@/components/WeIde/stores/fileStore';
 
 export function FileExplorer({ onFileSelect }: FileExplorerProps) {
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);

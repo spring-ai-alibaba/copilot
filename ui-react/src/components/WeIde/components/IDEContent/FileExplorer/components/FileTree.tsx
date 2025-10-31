@@ -1,10 +1,10 @@
-import { useState, useCallback } from "react";
-import { FileTreeItem } from "./FileTreeItem";
-import { CreateFileDialog } from "./CreateFileDialog";
-import { CreateFolderDialog } from "./CreateFolderDialog";
-import { createFile, createFolder } from "../utils/fileSystem";
-import { FileTreeProps } from "../types";
-import { cn } from "@/utils/cn";
+import {useCallback, useState} from "react";
+import {FileTreeItem} from "./FileTreeItem";
+import {CreateFileDialog} from "./CreateFileDialog";
+import {CreateFolderDialog} from "./CreateFolderDialog";
+import {createFile, createFolder} from "../utils/fileSystem";
+import {FileTreeProps} from "../types";
+import {cn} from "@/utils/cn";
 
 export function FileTree({ items, onFileSelect }: FileTreeProps) {
   // 默认展开的文件夹

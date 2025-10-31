@@ -114,7 +114,9 @@ api/
 NODE_ENV=development
 
 # API地址配置
-REACT_APP_API_BASE_URL=http://localhost:8080
+# 开发模式：不设置 APP_BASE_URL，所有请求通过 Vite 代理到后端 6039
+# 生产/直连：设置为后端基址，例如：
+# APP_BASE_URL=http://localhost:6039
 ```
 
 ## 使用指南

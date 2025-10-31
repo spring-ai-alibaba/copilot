@@ -1,4 +1,4 @@
-import { EditorView } from "@codemirror/view";
+import {EditorView} from "@codemirror/view";
 
 export const editorTheme = EditorView.theme({
   "&": {

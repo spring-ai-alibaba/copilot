@@ -4,9 +4,9 @@ import com.alibaba.cloud.ai.copilot.model.ChatMode;
 import com.alibaba.cloud.ai.copilot.model.Message;
 import com.alibaba.cloud.ai.copilot.model.PromptExtra;
 import com.alibaba.cloud.ai.copilot.model.ToolInfo;
+import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import lombok.AllArgsConstructor;
 
 import java.util.List;
 

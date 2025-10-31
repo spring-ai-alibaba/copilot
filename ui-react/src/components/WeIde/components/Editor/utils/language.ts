@@ -1,17 +1,15 @@
-import { LanguageSupport } from "@codemirror/language";
-import { javascript } from "@codemirror/lang-javascript";
-import { Extension } from "@codemirror/state";
-import { foldGutter, foldKeymap } from "@codemirror/language";
-import { keymap } from "@codemirror/view";
-import { highlightExtension } from "./highlighting";
-import { searchKeymap } from "@codemirror/search";
-import { lineNumbers } from "@codemirror/view";
-import { history } from "@codemirror/commands";
-import { markdown } from "@codemirror/lang-markdown";
-import { python } from "@codemirror/lang-python";
-import { css } from "@codemirror/lang-css";
-import { json } from "@codemirror/lang-json";
-import { html } from "@codemirror/lang-html";
+import {foldGutter, foldKeymap, LanguageSupport} from "@codemirror/language";
+import {javascript} from "@codemirror/lang-javascript";
+import {Extension} from "@codemirror/state";
+import {keymap, lineNumbers} from "@codemirror/view";
+import {highlightExtension} from "./highlighting";
+import {searchKeymap} from "@codemirror/search";
+import {history} from "@codemirror/commands";
+import {markdown} from "@codemirror/lang-markdown";
+import {python} from "@codemirror/lang-python";
+import {css} from "@codemirror/lang-css";
+import {json} from "@codemirror/lang-json";
+import {html} from "@codemirror/lang-html";
 
 export function getLanguageExtension(fileName: string): Extension[] {
   if (!fileName) return [javascript()];

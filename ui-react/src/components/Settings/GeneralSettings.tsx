@@ -1,11 +1,11 @@
 import useThemeStore from "@/stores/themeSlice";
-import { useState, useEffect, useRef } from "react";
+import {useEffect, useRef, useState} from "react";
 import useChatStore from "@/stores/chatSlice";
 import i18n from "@/utils/i18";
 
-import { useTranslation } from "react-i18next";
-import { Switch, Select, Input, Radio, message } from "antd";
-import { BackendSettings } from "./BackendSettings";
+import {useTranslation} from "react-i18next";
+import {message} from "antd";
+import {BackendSettings} from "./BackendSettings";
 import classNames from "classnames";
 
 interface OtherConfig {

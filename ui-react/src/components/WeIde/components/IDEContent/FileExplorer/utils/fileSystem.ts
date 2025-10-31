@@ -1,5 +1,5 @@
-import { useFileStore } from "@/components/WeIde/stores/fileStore";
-import { getDefaultContent } from "@/utils/defaultContent";
+import {useFileStore} from "@/components/WeIde/stores/fileStore";
+import {getDefaultContent} from "@/utils/defaultContent";
 
 // Path utilities with improved handling
 const path = {

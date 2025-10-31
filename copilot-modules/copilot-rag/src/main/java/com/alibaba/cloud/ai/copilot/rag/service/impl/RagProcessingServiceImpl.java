@@ -2,7 +2,9 @@ package com.alibaba.cloud.ai.copilot.rag.service.impl;
 
 import com.alibaba.cloud.ai.copilot.rag.config.RagProperties;
 import com.alibaba.cloud.ai.copilot.rag.config.VectorStoreConfiguration;
-import com.alibaba.cloud.ai.copilot.rag.service.*;
+import com.alibaba.cloud.ai.copilot.rag.service.DocumentParserService;
+import com.alibaba.cloud.ai.copilot.rag.service.DocumentSplitterService;
+import com.alibaba.cloud.ai.copilot.rag.service.RagProcessingService;
 import dev.langchain4j.data.document.Document;
 import dev.langchain4j.data.embedding.Embedding;
 import dev.langchain4j.data.segment.TextSegment;

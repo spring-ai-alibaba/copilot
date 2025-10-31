@@ -1,7 +1,6 @@
-import React, { useState } from 'react';
-import { Input, Button, Space, Alert, Tabs } from 'antd';
-import { DeleteOutlined, PlusOutlined } from '@ant-design/icons';
-import { PathParam } from '../types';
+import React, {useState} from 'react';
+import {Alert, Input, Space, Tabs} from 'antd';
+import {PathParam} from '../types';
 
 interface PathParamsEditorProps {
   url: string;

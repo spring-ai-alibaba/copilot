@@ -1,7 +1,7 @@
-import { useState } from 'react';
+import {useState} from 'react';
 
-import { isValidFileName } from '../utils/fileSystem';
-import { Dialog } from '../../../Dialog';
+import {isValidFileName} from '../utils/fileSystem';
+import {Dialog} from '../../../Dialog';
 
 interface CreateDialogProps {
   type: 'file' | 'folder';

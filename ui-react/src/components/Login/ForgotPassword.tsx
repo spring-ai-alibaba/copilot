@@ -1,10 +1,10 @@
-import { useState } from "react"
-import { motion } from "framer-motion"
-import { FaEnvelope, FaLock, FaSpinner } from "react-icons/fa6"
-import { toast } from "react-hot-toast"
-import { useTranslation } from "react-i18next"
-import { authService } from "../../api/auth"
-import type { TabType } from "./index"
+import {useState} from "react"
+import {motion} from "framer-motion"
+import {FaEnvelope, FaLock, FaSpinner} from "react-icons/fa6"
+import {toast} from "react-hot-toast"
+import {useTranslation} from "react-i18next"
+import {authService} from "../../api/auth"
+import type {TabType} from "./index"
 
 type ForgotPasswordProps = {
   onSuccess: () => void;

@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
-import { FolderOpen, Settings, Check, X } from 'lucide-react';
-import { useTranslation } from 'react-i18next';
-import { useFileStore } from '@/components/WeIde/stores/fileStore';
+import React, {useState} from 'react';
+import {Check, FolderOpen, Settings, X} from 'lucide-react';
+import {useTranslation} from 'react-i18next';
+import {useFileStore} from '@/components/WeIde/stores/fileStore';
 
 interface ProjectRootSelectorProps {
   isOpen: boolean;

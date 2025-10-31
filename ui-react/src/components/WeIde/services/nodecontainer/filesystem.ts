@@ -1,6 +1,6 @@
 const ipcRenderer = window?.electron?.ipcRenderer;
-import { useFileStore } from '../../stores/fileStore';
-import { add, debounce } from 'lodash';
+import {useFileStore} from '../../stores/fileStore';
+import {debounce} from 'lodash';
 
 import {isHiddenNodeModules} from "../../../../../config/electronOrSrcCommonConfig"
 

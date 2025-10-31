@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
-import { Card, Descriptions, Tabs, Typography } from 'antd';
-import { ApiResponse, ResponseData } from '../types';
+import React, {useEffect, useState} from 'react';
+import {Tabs} from 'antd';
+import {ApiResponse, ResponseData} from '../types';
 
 interface ResponseViewerProps {
   response: ApiResponse | null;

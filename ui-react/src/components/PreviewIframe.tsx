@@ -1,9 +1,9 @@
-import { useEffect, useState, useRef, Dispatch, SetStateAction } from "react";
-import { getContainerInstance } from "./WeIde/services";
-import { Smartphone, Tablet, Laptop, Monitor, ChevronDown } from "lucide-react";
-import { findWeChatDevToolsPath } from "./EditorPreviewTabs";
-import { useFileStore } from "./WeIde/stores/fileStore";
-import { useTranslation } from "react-i18next";
+import {Dispatch, SetStateAction, useEffect, useRef, useState} from "react";
+import {getContainerInstance} from "./WeIde/services";
+import {ChevronDown, Laptop, Monitor, Smartphone, Tablet} from "lucide-react";
+import {findWeChatDevToolsPath} from "./EditorPreviewTabs";
+import {useFileStore} from "./WeIde/stores/fileStore";
+import {useTranslation} from "react-i18next";
 
 interface PreviewIframeProps {
   setShowIframe: Dispatch<SetStateAction<string>>;

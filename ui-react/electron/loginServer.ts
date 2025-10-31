@@ -1,7 +1,5 @@
 import http from "http";
-import path from "path";
-import fs from "fs";
-import { BrowserWindow } from "electron";
+import {BrowserWindow} from "electron";
 
 // HTML template for React component
 const htmlTemplate = `

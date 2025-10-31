@@ -1,11 +1,7 @@
 package com.alibaba.cloud.ai.copilot.service.impl;
 
 import com.alibaba.cloud.ai.copilot.entity.ModelConfigEntity;
-import com.alibaba.cloud.ai.copilot.service.DynamicModelService;
-import com.alibaba.cloud.ai.copilot.service.ModelConfigService;
-import com.alibaba.cloud.ai.copilot.service.OpenAiModelFactory;
-import com.alibaba.cloud.ai.copilot.service.PromptEnhancementService;
-import com.alibaba.cloud.ai.copilot.service.PromptTemplateService;
+import com.alibaba.cloud.ai.copilot.service.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.model.ChatModel;
@@ -17,8 +13,6 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
-
-import java.util.Map;
 
 /**
  * Implementation of prompt enhancement service using Spring AI

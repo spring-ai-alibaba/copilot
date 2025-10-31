@@ -1,5 +1,5 @@
-import { useFileStore } from '@/components/WeIde/stores/fileStore';
-import { useState, useCallback, useMemo } from 'react';
+import {useFileStore} from '@/components/WeIde/stores/fileStore';
+import {useCallback, useMemo, useState} from 'react';
 
 
 interface SearchMatch {

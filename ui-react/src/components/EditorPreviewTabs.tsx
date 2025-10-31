@@ -1,11 +1,9 @@
 import PreviewIframe from "./PreviewIframe";
-import { useState } from "react";
-import { useFileStore } from "./WeIde/stores/fileStore";
+import {useState} from "react";
+import {useFileStore} from "./WeIde/stores/fileStore";
 import WeIde from "./WeIde";
-import useTerminalStore from "@/stores/terminalSlice";
 import WeAPI from "./WeAPI";
-import { useTranslation } from "react-i18next";
-import { Diff } from "./Diff";
+import {useTranslation} from "react-i18next";
 
 const ipcRenderer = window?.electron?.ipcRenderer;
 

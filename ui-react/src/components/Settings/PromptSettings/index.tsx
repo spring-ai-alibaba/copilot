@@ -1,44 +1,29 @@
-import React, { useState, useEffect } from 'react';
-import { useTranslation } from 'react-i18next';
-import { 
-  Button, 
-  Card, 
-  List, 
-  Modal, 
-  Input, 
-  Select, 
-  Switch, 
-  message, 
-  Popconfirm, 
-  Tag, 
-  Tooltip,
-  Space,
-  Divider,
-  Badge
-} from 'antd';
-import { 
-  PlusOutlined, 
-  EditOutlined, 
-  DeleteOutlined, 
-  EyeOutlined,
-  CopyOutlined,
-  FileTextOutlined,
-  TagsOutlined,
-  UserOutlined,
-  ClockCircleOutlined
+import React, {useEffect, useState} from 'react';
+import {useTranslation} from 'react-i18next';
+import {Badge, Button, Card, Input, message, Popconfirm, Select, Space, Tag, Tooltip} from 'antd';
+import {
+    ClockCircleOutlined,
+    CopyOutlined,
+    DeleteOutlined,
+    EditOutlined,
+    EyeOutlined,
+    FileTextOutlined,
+    PlusOutlined,
+    TagsOutlined,
+    UserOutlined
 } from '@ant-design/icons';
-import { 
-  PromptTemplate, 
-  PromptCategory,
-  PromptCreateRequest,
-  getPrompts, 
-  getPromptCategories,
-  createPrompt, 
-  updatePrompt, 
-  deletePrompt
+import {
+    createPrompt,
+    deletePrompt,
+    getPromptCategories,
+    getPrompts,
+    PromptCategory,
+    PromptCreateRequest,
+    PromptTemplate,
+    updatePrompt
 } from '@/api/prompts';
-import { PromptEditor } from './PromptEditor';
-import { PromptPreview } from './PromptPreview';
+import {PromptEditor} from './PromptEditor';
+import {PromptPreview} from './PromptPreview';
 import './PromptSettings.css';
 
 const { Search } = Input;

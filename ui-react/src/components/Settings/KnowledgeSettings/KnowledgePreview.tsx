@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
-import { Modal, Spin, List, Input, Button, Card, Tag, message, Divider } from 'antd';
-import { SearchOutlined, FileTextOutlined, ClockCircleOutlined } from '@ant-design/icons';
-import { useTranslation } from 'react-i18next';
-import { KnowledgeDocument, KnowledgeChunk, getDocumentChunks, searchKnowledge } from '@/api/knowledge';
+import React, {useEffect, useState} from 'react';
+import {Button, Card, Divider, Input, message, Modal, Spin, Tag} from 'antd';
+import {ClockCircleOutlined, FileTextOutlined, SearchOutlined} from '@ant-design/icons';
+import {useTranslation} from 'react-i18next';
+import {getDocumentChunks, KnowledgeChunk, KnowledgeDocument, searchKnowledge} from '@/api/knowledge';
 
 const { Search } = Input;
 

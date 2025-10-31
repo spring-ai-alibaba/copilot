@@ -1,7 +1,7 @@
 package com.alibaba.cloud.ai.copilot.context.api;
 
-import com.alibaba.cloud.ai.copilot.context.domain.ConversationContext;
 import com.alibaba.cloud.ai.copilot.context.domain.ContextScope;
+import com.alibaba.cloud.ai.copilot.context.domain.ConversationContext;
 
 import java.util.List;
 import java.util.Map;

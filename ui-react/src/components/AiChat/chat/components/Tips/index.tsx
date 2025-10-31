@@ -1,10 +1,10 @@
-import { useTranslation } from "react-i18next";
-import { MessageSquare, Upload, Code2, Globe } from "lucide-react";
-import { useRef, useState } from "react";
-import { ChatMode } from "../ChatInput";
+import {useTranslation} from "react-i18next";
+import {Code2, Globe, Upload} from "lucide-react";
+import {useRef, useState} from "react";
+import {ChatMode} from "../ChatInput";
 import useChatModeStore from "@/stores/chatModeSlice";
-import { UrlInputDialog } from "../UrlInputDialog";
-import { Logo } from "@/components/Logo";
+import {UrlInputDialog} from "../UrlInputDialog";
+import {Logo} from "@/components/Logo";
 
 interface TipsProps {
   setInput: (s: string) => void;

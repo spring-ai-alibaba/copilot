@@ -1,7 +1,7 @@
-import { FileCode, FileText } from 'lucide-react';
+import {FileCode, FileText} from 'lucide-react';
 
 import '../styles/search.css';
-import { cn } from '@/utils/cn';
+import {cn} from '@/utils/cn';
 
 interface SearchMatch {
   path: string;

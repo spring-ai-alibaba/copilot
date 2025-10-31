@@ -3,7 +3,6 @@ package com.alibaba.cloud.ai.copilot.controller;
 import com.alibaba.cloud.ai.copilot.model.ChatMessage;
 import com.alibaba.cloud.ai.copilot.service.ConversationService;
 import com.alibaba.cloud.ai.copilot.service.SimpleChatMemoryService;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.web.bind.annotation.*;

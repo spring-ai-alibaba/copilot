@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import {useState} from "react";
+import {AnimatePresence, motion} from "framer-motion";
 import LoginForm from "./LoginForm";
 import RegisterForm from "./RegisterForm";
 import useUserStore from "../../stores/userSlice";
@@ -45,9 +45,6 @@ const Login = ({ isOpen, onClose }: LoginProps) => {
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
             transition={{ duration: 0.2 }}
-            onClick={() => {
-              handleClose();
-            }}
             className="fixed inset-0 grid place-items-center z-50"
           >
             <div

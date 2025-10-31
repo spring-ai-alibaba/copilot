@@ -1,5 +1,5 @@
-import { WebContainer } from '@webcontainer/api';
-import type { NodeContainer } from './nodecontainer/types';
+import {WebContainer} from '@webcontainer/api';
+import type {NodeContainer} from './nodecontainer/types';
 import * as webContainer from './webcontainer';
 import * as nodeContainer from './nodecontainer';
 

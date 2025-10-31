@@ -1,4 +1,4 @@
-import { message } from "antd";
+import {message} from "antd";
 
 interface TokenUsage {
   tokensUsed: number;
@@ -8,7 +8,7 @@ interface TokenUsage {
 
 export async function getTokenUsage(token: string): Promise<TokenUsage | null> {
   try {
-    const response = await fetch(`${process.env.APP_BASE_URL}/api/tokens`, {
+    const response = await fetch(apiUrl('/api/tokens'), {
       headers: {
         Authorization: `Bearer ${token}`,
       },
@@ -23,3 +23,4 @@ export async function getTokenUsage(token: string): Promise<TokenUsage | null> {
     return null;
   }
 }
+import { apiUrl } from "./base";

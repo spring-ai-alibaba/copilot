@@ -1,12 +1,11 @@
 package com.alibaba.cloud.ai.copilot.exception;
 
+import com.alibaba.cloud.ai.copilot.core.domain.R;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
-
-import java.util.Map;
 
 /**
  * Global exception handler
@@ -16,46 +15,29 @@ import java.util.Map;
 public class GlobalExceptionHandler {
 
     @ExceptionHandler(IllegalArgumentException.class)
-    public ResponseEntity<Map<String, Object>> handleIllegalArgumentException(IllegalArgumentException e) {
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public R<Void> handleIllegalArgumentException(IllegalArgumentException e) {
         log.error("Illegal argument exception", e);
-        return ResponseEntity.badRequest()
-                .body(Map.of(
-                    "error", "Invalid request",
-                    "message", e.getMessage(),
-                    "status", HttpStatus.BAD_REQUEST.value()
-                ));
+        return R.fail(HttpStatus.BAD_REQUEST.value(), e.getMessage());
     }
 
     @ExceptionHandler(RuntimeException.class)
-    public ResponseEntity<Map<String, Object>> handleRuntimeException(RuntimeException e) {
+    public R<Void> handleRuntimeException(RuntimeException e) {
         log.error("Runtime exception", e);
         
         // Check if it's an API key related error
         if (e.getMessage() != null && e.getMessage().contains("API key")) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body(Map.of(
-                        "error", "Invalid or missing API key",
-                        "message", "Please check your API key configuration",
-                        "status", HttpStatus.UNAUTHORIZED.value()
-                    ));
+            // 返回体仍为 R，但设置 code 为 401。HTTP 状态交由上层处理或保持 200。
+            // 如需严格返回 401，可考虑抛出自定义异常并在安全异常处理器中标注 @ResponseStatus(UNAUTHORIZED)。
+            return R.fail(HttpStatus.UNAUTHORIZED.value(), "Invalid or missing API key");
         }
         
-        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(Map.of(
-                    "error", "Internal server error",
-                    "message", e.getMessage(),
-                    "status", HttpStatus.INTERNAL_SERVER_ERROR.value()
-                ));
+        return R.fail(HttpStatus.INTERNAL_SERVER_ERROR.value(), e.getMessage());
     }
 
     @ExceptionHandler(Exception.class)
-    public ResponseEntity<Map<String, Object>> handleGenericException(Exception e) {
+    public R<Void> handleGenericException(Exception e) {
         log.error("Unexpected exception", e);
-        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(Map.of(
-                    "error", "Internal server error",
-                    "message", "An unexpected error occurred",
-                    "status", HttpStatus.INTERNAL_SERVER_ERROR.value()
-                ));
+        return R.fail(HttpStatus.INTERNAL_SERVER_ERROR.value(), "An unexpected error occurred");
     }
 }

@@ -1,18 +1,11 @@
-import { useState, useEffect, Dispatch, SetStateAction } from "react"
-import { motion } from "framer-motion"
-import {
-  FaWeixin,
-  FaEnvelope,
-  FaLock,
-  FaGithub,
-  FaCode,
-  FaSpinner,
-} from "react-icons/fa6"
-import { authService } from "../../api/auth"
-import { toast } from "react-hot-toast"
+import {Dispatch, SetStateAction, useEffect, useState} from "react"
+import {motion} from "framer-motion"
+import {FaCode, FaUser, FaLock,} from "react-icons/fa6"
+import {authService} from "../../api/auth"
+import {toast} from "react-hot-toast"
 import useUserStore from "../../stores/userSlice"
-import { useTranslation } from "react-i18next"
-import { TabType } from "."
+import {useTranslation} from "react-i18next"
+import {TabType} from "."
 
 
 type LoginFormProps = {
@@ -21,10 +14,10 @@ type LoginFormProps = {
 }
 
 const LoginForm = ({ onSuccess, onTabChange }: LoginFormProps) => {
-  const [loginMethod, setLoginMethod] = useState<"email" | "github" | "wechat">(
-    "email"
+  const [loginMethod, setLoginMethod] = useState<"account" | "github" | "wechat">(
+    "account"
   )
-  const [email, setEmail] = useState("")
+  const [username, setUsername] = useState("")
   const [password, setPassword] = useState("")
   const [loading, setLoading] = useState(false)
   const [oauthLoading, setOauthLoading] = useState(false)
@@ -39,10 +32,16 @@ const LoginForm = ({ onSuccess, onTabChange }: LoginFormProps) => {
 
       if (token) {
         setToken(token)
-        const user = await authService.getUserInfo(token)
-        setUser(user)
+        // 统一在登录成功后拉取一次用户完整信息（含配额等）
+        try {
+          await fetchUser()
+        } catch {}
         toast.success("success login")
         onSuccess?.()
+        // 简化方案：登录成功后整页刷新，确保所有组件按新 token 重新初始化
+        setTimeout(() => {
+          try { window.location.reload() } catch {}
+        }, 150)
       } else {
       }
     }
@@ -69,46 +68,41 @@ const LoginForm = ({ onSuccess, onTabChange }: LoginFormProps) => {
     setError("")
     setLoading(true)
     try {
-      const response = await fetch(
-        `${process.env.APP_BASE_URL}/api/auth/login`,
-        {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ email, password, language: localStorage.getItem('language')  }),
-        }
-      )
-
-      const data = await response.json()
-       if(data.code !== 200){
-        throw new Error(data.message || "Login failed")
-      }
-      if(data.status && data.status !== 200){
-        throw new Error(data.message || "Login failed")
+      const wrapper = await authService.login(username, password)
+      if (typeof wrapper?.code === 'number' && wrapper.code !== 200) {
+        throw new Error(wrapper?.msg || "Login failed")
       }
 
-      setToken(data.token)
+      const payload = wrapper?.data ?? wrapper
+      const token = payload?.token
+      const userInfo = payload?.userInfo
 
-      // TODO 这里最好加一个loading
-      // 拿到了 token 之后，再去fetchUser
-      const user = await fetchUser()
+      if (!token) throw new Error("Missing token")
 
-      if (!response.ok) {
-        throw new Error(data.error || "Login failed")
+      setToken(token)
+      // 持久化用户信息，便于 getUserInfo 回退读取
+      if (userInfo) {
+        try { localStorage.setItem('user', JSON.stringify(userInfo)) } catch {}
+        setUser(userInfo)
       }
 
-      // Set remember me state
+      // 登录后主动刷新一次用户信息，保证配额等字段及时可用
+      try {
+        await fetchUser()
+      } catch {}
+
+      // 记住我
       setRememberMe(rememberMe)
-
-      // After successful login, use login action to set user info and token at once
-      setUser(user)
 
       toast.success("Login successful!")
       onSuccess?.()
+      // 简化方案：登录成功后整页刷新，确保所有组件按新 token 重新初始化
+      setTimeout(() => {
+        try { window.location.reload() } catch {}
+      }, 150)
     } catch (err) {
-      
-      setError(t(`login.${err.message}`) || "Login failed")
+      const message = err instanceof Error ? err.message : "Login failed"
+      setError(t(`login.${message}`) || message)
     } finally {
       setLoading(false)
     }
@@ -129,19 +123,19 @@ const LoginForm = ({ onSuccess, onTabChange }: LoginFormProps) => {
       </div>
 
 
-      {loginMethod === "email" && (
+      {loginMethod === "account" && (
         <form onSubmit={handleSubmit} className="space-y-4">
           {error && (
             <div className="text-red-500 text-sm text-center">{error}</div>
           )}
           <div className="relative group">
-            <FaEnvelope className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 dark:text-[#666] transition-colors group-focus-within:text-[#3B82F6]" />
+            <FaUser className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 dark:text-[#666] transition-colors group-focus-within:text-[#3B82F6]" />
             <input
-              type="email"
-              placeholder="Email"
+              type="text"
+              placeholder="用户名/账号"
               required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
               className="w-full bg-white dark:bg-[#222] border border-gray-200 dark:border-[#333] rounded-xl py-3.5 px-11 text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-[#666]
                 focus:outline-none focus:border-[#3B82F6] focus:bg-gray-50 dark:focus:bg-[#1A1A1A] focus:ring-1 focus:ring-[#3B82F6]
                 transition-all duration-300"

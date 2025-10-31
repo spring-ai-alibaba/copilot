@@ -1,6 +1,6 @@
-
-import { useState, useRef, useEffect } from "react";
-import { useTranslation } from 'react-i18next';
+import {useEffect, useRef, useState} from "react";
+import {useTranslation} from 'react-i18next';
+import { apiUrl } from "@/api/base";
 
 interface PromptEnhancedProps {
   setInput: (text: string) => void;
@@ -12,7 +12,6 @@ const PromptEnhanced = (props: PromptEnhancedProps) => {
   const [promptText, setPromptText] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const popoverRef = useRef<HTMLDivElement>(null);
-  const baseUrl = process.env.APP_BASE_URL;
   const { t } = useTranslation();
   useEffect(() => {
     if (isOpen) {
@@ -22,7 +21,7 @@ const PromptEnhanced = (props: PromptEnhancedProps) => {
   const handleClick = async () => {
     setIsLoading(true);
     try {
-      const res = await fetch(`${baseUrl}/api/enhancedPrompt`, {
+      const res = await fetch(apiUrl('/api/enhancedPrompt'), {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

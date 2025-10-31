@@ -1,4 +1,4 @@
-import { FilePreview } from "@/stores/chatSlice";
+import {FilePreview} from "@/stores/chatSlice";
 
 export const ImagePreview = ({
   file,

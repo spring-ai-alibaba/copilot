@@ -28,8 +28,7 @@ export interface ModelUpdateRequest extends Partial<ModelCreateRequest> {
   isEnabled?: boolean;
 }
 
-// API基础URL
-const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:8080';
+import { apiUrl } from './base';
 
 // 模拟数据
 const mockModels: AIModel[] = [
@@ -110,7 +109,7 @@ export const getModels = async (): Promise<AIModel[]> => {
     return [...mockModels];
   }
 
-  const response = await fetch(`${API_BASE_URL}/api/models`, {
+  const response = await fetch(apiUrl('/api/models'), {
     method: 'GET',
     headers: {
       'Content-Type': 'application/json',
@@ -139,7 +138,7 @@ export const createModel = async (data: ModelCreateRequest): Promise<AIModel> =>
     return newModel;
   }
 
-  const response = await fetch(`${API_BASE_URL}/api/models`, {
+  const response = await fetch(apiUrl('/api/models'), {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -170,7 +169,7 @@ export const updateModel = async (id: string, data: ModelUpdateRequest): Promise
     return mockModels[index];
   }
 
-  const response = await fetch(`${API_BASE_URL}/api/models/${id}`, {
+  const response = await fetch(apiUrl(`/api/models/${id}`), {
     method: 'PUT',
     headers: {
       'Content-Type': 'application/json',
@@ -196,7 +195,7 @@ export const deleteModel = async (id: string): Promise<void> => {
     return;
   }
 
-  const response = await fetch(`${API_BASE_URL}/api/models/${id}`, {
+  const response = await fetch(apiUrl(`/api/models/${id}`), {
     method: 'DELETE',
   });
 
@@ -217,7 +216,7 @@ export const testModel = async (id: string): Promise<{ success: boolean; message
     };
   }
 
-  const response = await fetch(`${API_BASE_URL}/api/models/${id}/test`, {
+  const response = await fetch(apiUrl(`/api/models/${id}/test`), {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',

@@ -1,8 +1,8 @@
-import React, { useEffect, useState } from 'react'
-import { useTranslation } from 'react-i18next'
-import { MCPServer } from "@/types/mcp"
+import React, {useEffect, useState} from 'react'
+import {useTranslation} from 'react-i18next'
+import {MCPServer} from "@/types/mcp"
 import useMCPSlice from "@/stores/useMCPSlice"
-import { TopView } from "@/components/TopView"
+import {TopView} from "@/components/TopView"
 import classNames from "classnames"
 
 interface ShowParams {

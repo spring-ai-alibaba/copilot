@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import {useCallback, useState} from 'react';
 
 const MAX_HISTORY = 100;
 

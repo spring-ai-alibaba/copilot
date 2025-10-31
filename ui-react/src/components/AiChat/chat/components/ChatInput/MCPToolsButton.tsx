@@ -1,6 +1,6 @@
 import {CodeOutlined} from '@ant-design/icons'
 import {Dropdown, Switch, Tooltip} from 'antd'
-import {FC, useEffect, useRef, useState} from 'react'
+import {FC, useRef, useState} from 'react'
 import {useTranslation} from 'react-i18next'
 import styled from 'styled-components'
 import useMCPServers from '@/hooks/useMCPServers'

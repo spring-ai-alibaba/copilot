@@ -1,6 +1,6 @@
 import React from 'react';
-import { Modal, Form, Input, Button } from 'antd';
-import { useTranslation } from 'react-i18next';
+import {Button, Form, Input, Modal} from 'antd';
+import {useTranslation} from 'react-i18next';
 
 interface CreateKnowledgeBaseModalProps {
   visible: boolean;

@@ -1,7 +1,5 @@
 package com.alibaba.cloud.ai.copilot.rag.service;
 
-import dev.langchain4j.data.document.Document;
-import dev.langchain4j.data.segment.TextSegment;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;

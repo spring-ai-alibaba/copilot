@@ -1,7 +1,7 @@
-import { EditorView } from '@codemirror/view';
-import { useEditorStore } from '../../../stores/editorStore';
-import { EditorSelection } from '@codemirror/state';
-import { useFileStore } from '../../../stores/fileStore';
+import {EditorView} from '@codemirror/view';
+import {useEditorStore} from '../../../stores/editorStore';
+import {EditorSelection} from '@codemirror/state';
+import {useFileStore} from '../../../stores/fileStore';
 
 export const editorCommands = {
   save: (view: EditorView) => {

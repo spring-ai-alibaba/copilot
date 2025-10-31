@@ -1,5 +1,5 @@
-import { WebContainer } from '@webcontainer/api';
-import { useFileStore } from '../../stores/fileStore';
+import {WebContainer} from '@webcontainer/api';
+import {useFileStore} from '../../stores/fileStore';
 
 let webcontainerInstance: WebContainer | null = null;
 let bootPromise: Promise<WebContainer> | null = null;

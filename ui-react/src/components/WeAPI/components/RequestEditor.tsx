@@ -1,10 +1,10 @@
 import React from 'react';
-import { Tabs } from 'antd';
+import {Tabs} from 'antd';
 import HeadersEditor from './HeadersEditor';
 import QueryEditor from './QueryEditor';
 import CookiesEditor from './CookiesEditor';
 import BodyEditor from './BodyEditor';
-import { ApiItem } from '../types';
+import {ApiItem} from '../types';
 import PathParamsEditor from './PathParamsEditor';
 
 interface RequestEditorProps {

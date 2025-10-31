@@ -1,5 +1,5 @@
-import { Code } from "lucide-react";
-import { motion } from "framer-motion";
+import {Code} from "lucide-react";
+import {motion} from "framer-motion";
 
 export const Logo = () => (
   <div className="group flex items-center gap-3">

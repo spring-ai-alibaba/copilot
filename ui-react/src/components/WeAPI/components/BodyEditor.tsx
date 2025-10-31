@@ -1,7 +1,7 @@
 import React from 'react';
-import { Radio, Input, Button, Upload, Space, Select } from 'antd';
-import { DeleteOutlined, PlusOutlined, UploadOutlined } from '@ant-design/icons';
-import { BodyType, RequestBody, FormDataItem } from '../types';
+import {Button, Input, Radio, Select, Space, Upload} from 'antd';
+import {DeleteOutlined, PlusOutlined, UploadOutlined} from '@ant-design/icons';
+import {BodyType, FormDataItem, RequestBody} from '../types';
 
 const { TextArea } = Input;
 

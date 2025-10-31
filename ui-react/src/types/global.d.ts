@@ -1,4 +1,4 @@
-import { PostHog } from "posthog-js";
+import {PostHog} from "posthog-js";
 import {MCPServer, MCPTool} from "@/types/mcp";
 import {HookAPI} from "antd/es/modal/useModal";
 

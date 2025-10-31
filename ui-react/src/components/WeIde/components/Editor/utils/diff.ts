@@ -1,12 +1,6 @@
-import {
-  EditorView,
-  Decoration,
-  DecorationSet,
-  WidgetType,
-} from "@codemirror/view";
-import { StateEffect, StateField, Extension, Range } from "@codemirror/state";
-import { keymap } from "@codemirror/view";
-import { createDiffButtons } from "../../DiffButtons";
+import {Decoration, DecorationSet, EditorView, keymap, WidgetType,} from "@codemirror/view";
+import {Extension, Range, StateEffect, StateField} from "@codemirror/state";
+import {createDiffButtons} from "../../DiffButtons";
 
 
 interface DiffRange {

@@ -1,10 +1,10 @@
-import React, { useState, useEffect } from "react"
-import { createPortal } from "react-dom"
-import { Settings, SettingsTab, TAB_KEYS } from "../Settings"
-import { db } from "../../utils/indexDB"
-import { eventEmitter } from "../AiChat/utils/EventEmitter"
+import React, {useEffect, useState} from "react"
+import {createPortal} from "react-dom"
+import {Settings, SettingsTab, TAB_KEYS} from "../Settings"
+import {db} from "../../utils/indexDB"
+import {eventEmitter} from "../AiChat/utils/EventEmitter"
 import useUserStore from "../../stores/userSlice"
-import { useTranslation } from "react-i18next"
+import {useTranslation} from "react-i18next"
 
 interface SidebarProps {
   isOpen: boolean

@@ -1,7 +1,7 @@
-import React, { useState, useRef } from 'react';
-import { Upload, FolderUp, X } from 'lucide-react';
-import { useTranslation } from 'react-i18next';
-import { useFileStore } from '@/components/WeIde/stores/fileStore';
+import React, {useRef, useState} from 'react';
+import {FolderUp, Upload, X} from 'lucide-react';
+import {useTranslation} from 'react-i18next';
+import {useFileStore} from '@/components/WeIde/stores/fileStore';
 
 interface FileUploadAreaProps {
   isOpen: boolean;

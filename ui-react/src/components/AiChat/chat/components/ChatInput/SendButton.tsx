@@ -1,7 +1,7 @@
 import React from "react";
 import classNames from "classnames";
-import type { SendButtonProps } from "./types";
-import { useTranslation } from "react-i18next";
+import type {SendButtonProps} from "./types";
+import {useTranslation} from "react-i18next";
 
 export const SendButton: React.FC<SendButtonProps> = ({
   isLoading,

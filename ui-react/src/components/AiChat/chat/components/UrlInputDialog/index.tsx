@@ -1,7 +1,6 @@
-import useChatModeStore from '@/stores/chatModeSlice';
 import useChatStore from '@/stores/chatSlice';
-import React, { useState, KeyboardEvent } from 'react';
-import { useTranslation } from 'react-i18next';
+import React, {KeyboardEvent, useState} from 'react';
+import {useTranslation} from 'react-i18next';
 
 interface UrlInputDialogProps {
   isOpen: boolean;

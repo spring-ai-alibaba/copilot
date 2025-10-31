@@ -1,9 +1,9 @@
-import { useState, useRef } from 'react';
-import { Search, X, ArrowUp, ArrowDown } from 'lucide-react';
+import {useRef, useState} from 'react';
+import {ArrowDown, ArrowUp, Search, X} from 'lucide-react';
 
 import '../styles/search.css';
-import { useTranslation } from "react-i18next";
-import { cn } from '@/utils/cn';
+import {useTranslation} from "react-i18next";
+import {cn} from '@/utils/cn';
 
 interface SearchBarProps {
   onSearch: (query: string) => void;

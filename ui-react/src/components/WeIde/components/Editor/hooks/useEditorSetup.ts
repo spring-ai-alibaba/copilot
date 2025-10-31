@@ -1,15 +1,13 @@
-import { useEffect, useMemo, useRef } from "react";
-import { EditorView, keymap } from "@codemirror/view";
-import { EditorState, Extension } from "@codemirror/state";
-import { defaultKeymap, indentWithTab, copyLineDown, copyLineUp } from "@codemirror/commands";
-import { getLanguageExtension } from "../utils/language";
-import { editorKeymap } from "../utils/keymap";
-import { editorTheme } from "../config/theme";
-import { autocompletion, completionKeymap } from "@codemirror/autocomplete";
-import {
-  createDiffExtension,
-} from "../utils/diff";
-import { useEditorStore } from "@/components/WeIde/stores/editorStore";
+import {useEffect, useMemo, useRef} from "react";
+import {EditorView, keymap} from "@codemirror/view";
+import {EditorState, Extension} from "@codemirror/state";
+import {defaultKeymap, indentWithTab} from "@codemirror/commands";
+import {getLanguageExtension} from "../utils/language";
+import {editorKeymap} from "../utils/keymap";
+import {editorTheme} from "../config/theme";
+import {autocompletion} from "@codemirror/autocomplete";
+import {createDiffExtension,} from "../utils/diff";
+import {useEditorStore} from "@/components/WeIde/stores/editorStore";
 
 
 interface UseEditorSetupProps {

@@ -1,5 +1,6 @@
 // import { ChatMode } from '@/components/AiChat/chat/components/ChatInput';
-import { create } from 'zustand';
+import {create} from 'zustand';
+
 enum ChatMode {
   Chat = 'chat',
   Builder = 'builder'
