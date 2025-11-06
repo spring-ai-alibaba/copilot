@@ -1,4 +1,4 @@
-import { FolderPlus, FilePlus, Pencil, Trash2, Folder } from 'lucide-react';
+import {FilePlus, Folder, FolderPlus, Pencil, Trash2} from 'lucide-react';
 
 interface FolderContextMenuProps {
   x: number;

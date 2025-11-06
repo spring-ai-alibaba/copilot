@@ -1,8 +1,8 @@
 package com.alibaba.cloud.ai.copilot.dto;
 
+import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import lombok.AllArgsConstructor;
 
 import java.util.List;
 

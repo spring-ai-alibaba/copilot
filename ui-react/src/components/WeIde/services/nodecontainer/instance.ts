@@ -1,6 +1,6 @@
-import { EventEmitter } from '@/components/AiChat/utils/EventEmitter';
-import { useFileStore } from '../../stores/fileStore';
-import type { NodeContainer } from './types';
+import {EventEmitter} from '@/components/AiChat/utils/EventEmitter';
+import {useFileStore} from '../../stores/fileStore';
+import type {NodeContainer} from './types';
 
 
 const ipcRenderer = window.electron?.ipcRenderer as any;

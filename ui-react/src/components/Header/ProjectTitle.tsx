@@ -1,8 +1,8 @@
-import React, { useState, useRef, useEffect } from "react";
-import { Sidebar } from "../Sidebar";
-import { db } from "../../utils/indexDB";
+import React, {useEffect, useRef, useState} from "react";
+import {Sidebar} from "../Sidebar";
+import {db} from "../../utils/indexDB";
 import useUserStore from "../../stores/userSlice";
-import { useTranslation } from "react-i18next";
+import {useTranslation} from "react-i18next";
 
 export function ProjectTitle() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);

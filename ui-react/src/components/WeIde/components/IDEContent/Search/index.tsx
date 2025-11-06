@@ -1,7 +1,7 @@
-import { cn } from "@/utils/cn";
-import { SearchBar } from "./components/SearchBar";
-import { SearchResults } from "./components/SearchResults";
-import { useFileSearch } from "./hooks/useFileSearch";
+import {cn} from "@/utils/cn";
+import {SearchBar} from "./components/SearchBar";
+import {SearchResults} from "./components/SearchResults";
+import {useFileSearch} from "./hooks/useFileSearch";
 import "./styles/search.css";
 
 interface SearchProps {

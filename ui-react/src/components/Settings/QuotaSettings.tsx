@@ -1,16 +1,11 @@
-import React, { useEffect, useState } from "react";
-import { getTokenUsage } from "../../api/tokens";
-import { Spin } from "antd";
-import useUserStore, { TierType } from "../../stores/userSlice";
-import { useTranslation } from "react-i18next";
+import React from "react";
+import {Spin} from "antd";
+import useUserStore, {TierType} from "../../stores/userSlice";
+import {useTranslation} from "react-i18next";
 
 export function QuotaSettings() {
   const { t } = useTranslation();
-  const { user, fetchUser, isLoading: loading, openLoginModal } = useUserStore();
-
-  useEffect(() => {
-    fetchUser();
-  }, []);
+  const { user, isLoading: loading, openLoginModal } = useUserStore();
 
   if(!user?.id){
     return (

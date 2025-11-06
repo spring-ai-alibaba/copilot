@@ -1,11 +1,10 @@
-import { Terminal as XTerm } from '@xterm/xterm';
-import { FitAddon } from '@xterm/addon-fit';
-import { WebLinksAddon } from '@xterm/addon-web-links';
-import { IPty } from 'node-pty';
-import { updateFileSystemNow } from '../../../services';
-import { getWebContainerInstance } from '../../../services/webcontainer';
-import { getNodeContainerInstance } from '../../../services/nodecontainer';
-import { eventEmitter } from '@/components/AiChat/utils/EventEmitter';
+import {Terminal as XTerm} from '@xterm/xterm';
+import {FitAddon} from '@xterm/addon-fit';
+import {WebLinksAddon} from '@xterm/addon-web-links';
+import {updateFileSystemNow} from '../../../services';
+import {getWebContainerInstance} from '../../../services/webcontainer';
+import {getNodeContainerInstance} from '../../../services/nodecontainer';
+import {eventEmitter} from '@/components/AiChat/utils/EventEmitter';
 
 interface CommandResult {
   output: string[];

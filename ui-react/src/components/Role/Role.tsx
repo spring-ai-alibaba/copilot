@@ -1,5 +1,5 @@
 import React from 'react';
-import { RoleAvatar } from './RoleAvatar';
+import {RoleAvatar} from './RoleAvatar';
 
 export interface RoleProps {
   name: string;

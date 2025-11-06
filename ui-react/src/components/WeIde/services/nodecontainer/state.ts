@@ -1,5 +1,5 @@
-import { create } from 'zustand';
-import { getNodeContainerInstance } from './instance';
+import {create} from 'zustand';
+import {getNodeContainerInstance} from './instance';
 
 interface TerminalState {
   currentPath: string;

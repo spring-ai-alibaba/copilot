@@ -5,27 +5,28 @@ import com.alibaba.cloud.ai.copilot.model.PromptExtra;
 import com.alibaba.cloud.ai.copilot.model.ToolInfo;
 import com.alibaba.cloud.ai.copilot.service.*;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.springframework.beans.factory.annotation.Qualifier;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.memory.ChatMemory;
-import org.springframework.ai.chat.messages.UserMessage;
-import org.springframework.ai.chat.messages.SystemMessage;
 import org.springframework.ai.chat.messages.AssistantMessage;
-import org.springframework.ai.chat.model.ChatResponse;
-import reactor.core.publisher.Flux;
+import org.springframework.ai.chat.messages.SystemMessage;
+import org.springframework.ai.chat.messages.UserMessage;
 import org.springframework.ai.chat.model.ChatModel;
+import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.ai.openai.OpenAiChatOptions;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
+import reactor.core.publisher.Flux;
 
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * Builder handler implementation
+ * 构建处理器实现
  */
 @Slf4j
 @Service
@@ -38,6 +39,7 @@ public class BuilderHandlerImpl implements BuilderHandler {
     private final ConversationService conversationService;
     private final ChatMemory chatMemory;
     private final PromptTemplateService promptTemplateService;
+    private final FileSystemService fileSystemService;
 
     public BuilderHandlerImpl(
             TokenService tokenService,
@@ -46,7 +48,8 @@ public class BuilderHandlerImpl implements BuilderHandler {
             OpenAiModelFactory openAiModelFactory,
             @Qualifier("chatMemoryConversationService") ConversationService conversationService,
             ChatMemory chatMemory,
-            @Qualifier("promptTemplateServiceImpl") PromptTemplateService promptTemplateService) {
+            @Qualifier("promptTemplateServiceImpl") PromptTemplateService promptTemplateService,
+            FileSystemService fileSystemService) {
         this.tokenService = tokenService;
         this.fileProcessorService = fileProcessorService;
         this.dynamicModelService = dynamicModelService;
@@ -54,6 +57,7 @@ public class BuilderHandlerImpl implements BuilderHandler {
         this.conversationService = conversationService;
         this.chatMemory = chatMemory;
         this.promptTemplateService = promptTemplateService;
+        this.fileSystemService = fileSystemService;
     }
 
     private final ObjectMapper objectMapper = new ObjectMapper();
@@ -81,6 +85,10 @@ public class BuilderHandlerImpl implements BuilderHandler {
             // Get or create conversation ID for this user session
             String conversationId = conversationService.getOrCreateConversationId(userId);
             log.info("Processing conversation {} for user {}", conversationId, userId);
+
+            // 创建工作空间
+            String workspacePath = fileSystemService.createSessionWorkspace(conversationId, userId);
+            log.info("Created workspace for conversation {} at: {}", conversationId, workspacePath);
 
             // Process files from messages
             FileProcessorService.ProcessedFiles processedFiles =
@@ -129,7 +137,7 @@ public class BuilderHandlerImpl implements BuilderHandler {
                 boolean isFirstConversation = memoryMessages.isEmpty();
 
                 // 构建最终的消息列表
-                List<org.springframework.ai.chat.messages.Message> finalMessages = new java.util.ArrayList<>();
+                List<org.springframework.ai.chat.messages.Message> finalMessages = new ArrayList<>();
 
                 // 只在第一次对话时添加系统提示词到记忆中
                 if (isFirstConversation) {
@@ -160,8 +168,8 @@ public class BuilderHandlerImpl implements BuilderHandler {
                 // 使用Flux流式API
                 Flux<ChatResponse> responseStream = chatModel.stream(prompt);
                 responseStream
-                    .doOnNext(chatResponse -> {
-                        try {
+                   .doOnNext(chatResponse -> {
+                       try {
                             // 获取当前块的内容
                             String content = chatResponse.getResult().getOutput().getText();
                             if (content != null && !content.isEmpty()) {
@@ -169,9 +177,9 @@ public class BuilderHandlerImpl implements BuilderHandler {
                                 // 发送流式数据块到前端
                                 sendStreamingChunk(emitter, content);
                             }
-                        } catch (Exception e) {
-                            log.error("Error processing streaming chunk", e);
-                        }
+                       } catch (Exception e) {
+                           log.error("Error processing streaming chunk", e);
+                       }
                     })
                     .doOnError(error -> {
                         try {
@@ -182,13 +190,29 @@ public class BuilderHandlerImpl implements BuilderHandler {
                     })
                     .doOnComplete(() -> {
                         try {
-                            // 将AI的完整响应添加到记忆中
-                            if (!responseBuilder.isEmpty()) {
-                                AssistantMessage assistantMessage = new AssistantMessage(responseBuilder.toString());
+                            // 解析AI响应中的文件并保存到工作空间
+                            String fullResponse = responseBuilder.toString();
+                            if (!fullResponse.isEmpty()) {
+                               // 解析boltArtifact中的文件
+                               FileProcessorService.ParsedMessage parsedMessage =
+                                   fileProcessorService.parseMessage(fullResponse);
+
+                               if (parsedMessage.getFiles() != null && !parsedMessage.getFiles().isEmpty()) {
+                                   // 保存生成的文件到工作空间
+                                   fileSystemService.saveFiles(workspacePath, parsedMessage.getFiles());
+                                   log.info("Saved {} generated files to workspace: {}",
+                                           parsedMessage.getFiles().size(), workspacePath);
+
+                                   // 发送文件信息到前端
+                                   sendFileSystemEventToFrontend(emitter, workspacePath, parsedMessage.getFiles());
+                               }
+
+                               // 将AI的完整响应添加到记忆中
+                                AssistantMessage assistantMessage = new AssistantMessage(fullResponse);
                                 chatMemory.add(conversationId, assistantMessage);
                                 log.debug("Added assistant response to memory for conversation {}: {}",
-                                         conversationId, responseBuilder.length() > 100 ?
-                                         responseBuilder.substring(0, 100) + "..." : responseBuilder.toString());
+                                         conversationId, fullResponse.length() > 100 ?
+                                         fullResponse.substring(0, 100) + "..." : fullResponse.toString());
                             }
                             // 发送结束信号
                             sendSseEndEvent(emitter);
@@ -218,8 +242,8 @@ public class BuilderHandlerImpl implements BuilderHandler {
         // Extract URL from message content
         String content = lastMessage.getContent();
         String urlPattern = "https?://\\S+";
-        java.util.regex.Pattern pattern = java.util.regex.Pattern.compile(urlPattern);
-        java.util.regex.Matcher matcher = pattern.matcher(content);
+        Pattern pattern = Pattern.compile(urlPattern);
+        Matcher matcher = pattern.matcher(content);
 
         if (matcher.find()) {
             String url = matcher.group();
@@ -242,7 +266,7 @@ public class BuilderHandlerImpl implements BuilderHandler {
         }
     }
 
-    private String determineFileType(java.util.Set<String> filePaths) {
+    private String determineFileType(Set<String> filePaths) {
         // Simple file type detection based on file extensions
         for (String path : filePaths) {
             if (path.endsWith(".wxml") || path.endsWith(".wxss") || path.endsWith(".js")) {
@@ -252,11 +276,31 @@ public class BuilderHandlerImpl implements BuilderHandler {
         return "other";
     }
 
+    /**
+     * 发送文件系统事件到前端
+     */
+    private void sendFileSystemEventToFrontend(SseEmitter emitter, String workspacePath, Map<String, String> files) {
+        try {
+            Map<String, Object> fileSystemData = new HashMap<>();
+            fileSystemData.put("workspacePath", workspacePath);
+            fileSystemData.put("files", files);
+            fileSystemData.put("fileCount", files.size());
+            fileSystemData.put("message", "Files generated by AI.");
 
+            Map<String, Object> sseEventData = new HashMap<>();
+            sseEventData.put("type", "fileSystem");
+            sseEventData.put("data", fileSystemData);
 
+            String fileInfoJson = objectMapper.writeValueAsString(sseEventData);
+            SseEmitter.SseEventBuilder event = SseEmitter.event()
+                .data(fileInfoJson);
+            emitter.send(event);
 
-
-
+            log.debug("Sent file system event to frontend: {} files in workspace {}", files.size(), workspacePath);
+        } catch (Exception e) {
+            log.error("Error sending file system event to frontend", e);
+        }
+    }
 
     /**
      * 发送流式数据块
@@ -264,17 +308,17 @@ public class BuilderHandlerImpl implements BuilderHandler {
     private void sendStreamingChunk(SseEmitter emitter, String content) {
         try {
             // 使用Map构造JSON对象，确保格式正确
-            Map<String, Object> response = new java.util.HashMap<>();
-            response.put("id", "chatcmpl-" + java.util.UUID.randomUUID().toString().substring(0, 8));
+            Map<String, Object> response = new HashMap<>();
+            response.put("id", "chatcmpl-" + UUID.randomUUID().toString().substring(0, 8));
             response.put("object", "chat.completion.chunk");
             response.put("created", System.currentTimeMillis() / 1000);
             response.put("model", "");
 
-            Map<String, Object> choice = new java.util.HashMap<>();
+            Map<String, Object> choice = new HashMap<>();
             choice.put("index", 0);
             choice.put("finish_reason", null);
 
-            Map<String, Object> delta = new java.util.HashMap<>();
+            Map<String, Object> delta = new HashMap<>();
             delta.put("content", content);
             choice.put("delta", delta);
 
@@ -303,15 +347,15 @@ public class BuilderHandlerImpl implements BuilderHandler {
     private void sendSseEndEvent(SseEmitter emitter) {
         try {
             // 先发送一个finish_reason为stop的chunk
-            Map<String, Object> finishResponse = new java.util.HashMap<>();
-            finishResponse.put("id", "chatcmpl-" + java.util.UUID.randomUUID().toString().substring(0, 8));
+            Map<String, Object> finishResponse = new HashMap<>();
+            finishResponse.put("id", "chatcmpl-" + UUID.randomUUID().toString().substring(0, 8));
             finishResponse.put("object", "chat.completion.chunk");
             finishResponse.put("created", System.currentTimeMillis() / 1000);
             finishResponse.put("model", "");
 
-            Map<String, Object> finishChoice = new java.util.HashMap<>();
+            Map<String, Object> finishChoice = new HashMap<>();
             finishChoice.put("index", 0);
-            finishChoice.put("delta", new java.util.HashMap<>());
+            finishChoice.put("delta", new HashMap<>());
             finishChoice.put("finish_reason", "stop");
 
             finishResponse.put("choices", List.of(finishChoice));

@@ -1,7 +1,6 @@
-import { contextBridge, ipcRenderer } from "electron";
-import { dialog } from "@electron/remote";
-import type { OpenDialogOptions } from 'electron';
-import type { IpcRendererEvent } from 'electron';
+import type {IpcRendererEvent, OpenDialogOptions} from 'electron';
+import {contextBridge, ipcRenderer} from "electron";
+import {dialog} from "@electron/remote";
 import {MCPServer} from "@/types/mcp";
 
 type ListenerFunction = (...args: unknown[]) => void;

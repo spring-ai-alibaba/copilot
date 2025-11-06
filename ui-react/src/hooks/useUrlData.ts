@@ -1,8 +1,8 @@
-import { useState, useEffect, useRef } from 'react';
-import { parseDataFromUrl } from '../utils/parseDataFromUrl';
-import { ChatRequestOptions, CreateMessage, Message } from 'ai';
-import { v4 as uuidv4 } from "uuid";
-import { UploadRef } from 'antd/es/upload/Upload';
+import {useEffect, useRef, useState} from 'react';
+import {parseDataFromUrl} from '../utils/parseDataFromUrl';
+import {ChatRequestOptions, CreateMessage, Message} from 'ai';
+import {v4 as uuidv4} from "uuid";
+import {UploadRef} from 'antd/es/upload/Upload';
 
 /**
  * Interface definition for URL data

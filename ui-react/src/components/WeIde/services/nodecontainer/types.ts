@@ -1,5 +1,5 @@
-import { Dirent } from "node:fs";
-import { EventEmitter } from 'events';
+import {Dirent} from "node:fs";
+import {EventEmitter} from 'events';
 
 export interface CommandResult {
   output: string[];

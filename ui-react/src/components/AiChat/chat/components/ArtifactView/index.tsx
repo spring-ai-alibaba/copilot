@@ -1,21 +1,16 @@
-import { openFile } from "../../../../WeIde/emit";
-import React, { useMemo, useState, useEffect } from "react";
+import {openFile} from "../../../../WeIde/emit";
+import React, {useEffect, useMemo, useState} from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { useFileStore } from "../../../../WeIde/stores/fileStore";
+import {useFileStore} from "../../../../WeIde/stores/fileStore";
 import classNames from "classnames";
 
 import useTerminalStore from "@/stores/terminalSlice";
 
-import {
-  CodeBlock,
-  isThinkContent,
-  processStreamParts,
-  processThinkContent,
-} from "../MessageItem";
-import { parseFileFromContext } from "../../../utils/index";
-import { Message } from "ai";
-import { getWorkspaceFiles, readWorkspaceFile, isFileSystemEnabled } from "@/api/filesystem";
+import {CodeBlock, isThinkContent, processStreamParts, processThinkContent,} from "../MessageItem";
+import {parseFileFromContext} from "../../../utils/index";
+import {Message} from "ai";
+import {getWorkspaceFiles, isFileSystemEnabled, readWorkspaceFile} from "@/api/filesystem";
 
 interface Task {
   status: "done" | "parsing";

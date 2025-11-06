@@ -1,7 +1,7 @@
-import { message, Modal } from 'antd'
-import React, { PropsWithChildren, useCallback, useEffect, useRef, useState } from 'react'
+import {message, Modal} from 'antd'
+import React, {PropsWithChildren, useCallback, useEffect, useRef, useState} from 'react'
 
-import { Box } from '../Layout'
+import {Box} from '../Layout'
 
 
 let onPop = () => {}

@@ -1,31 +1,30 @@
-import React, { useState, useEffect } from 'react';
-import { useTranslation } from 'react-i18next';
+import React, {useEffect, useState} from 'react';
+import {useTranslation} from 'react-i18next';
 import './KnowledgeSettings.css';
-import { Button, Card, List, Modal, Input, Upload, message, Spin, Tag, Tooltip, Popconfirm } from 'antd';
-import { 
-  PlusOutlined, 
-  UploadOutlined, 
-  DeleteOutlined, 
-  EyeOutlined, 
-  ReloadOutlined,
-  FileTextOutlined,
-  DatabaseOutlined,
-  SearchOutlined
+import type {UploadProps} from 'antd';
+import {Button, Input, List, message, Popconfirm, Spin, Tag, Tooltip, Upload} from 'antd';
+import {
+    DatabaseOutlined,
+    DeleteOutlined,
+    EyeOutlined,
+    FileTextOutlined,
+    PlusOutlined,
+    ReloadOutlined,
+    UploadOutlined
 } from '@ant-design/icons';
-import type { UploadProps } from 'antd';
-import { 
-  KnowledgeBase, 
-  KnowledgeDocument, 
-  getKnowledgeBases, 
-  createKnowledgeBase, 
-  deleteKnowledgeBase,
-  getKnowledgeDocuments,
-  uploadDocument,
-  deleteDocument,
-  reprocessDocument
+import {
+    createKnowledgeBase,
+    deleteDocument,
+    deleteKnowledgeBase,
+    getKnowledgeBases,
+    getKnowledgeDocuments,
+    KnowledgeBase,
+    KnowledgeDocument,
+    reprocessDocument,
+    uploadDocument
 } from '@/api/knowledge';
-import { KnowledgePreview } from './KnowledgePreview';
-import { CreateKnowledgeBaseModal } from './CreateKnowledgeBaseModal';
+import {KnowledgePreview} from './KnowledgePreview';
+import {CreateKnowledgeBaseModal} from './CreateKnowledgeBaseModal';
 
 const { Search } = Input;
 

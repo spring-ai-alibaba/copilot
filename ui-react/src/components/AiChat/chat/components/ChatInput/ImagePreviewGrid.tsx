@@ -1,6 +1,6 @@
 import React from "react";
-import { ImagePreview } from "../ImageGrid";
-import type { ImagePreviewGridProps } from "./types";
+import {ImagePreview} from "../ImageGrid";
+import type {ImagePreviewGridProps} from "./types";
 
 export const ImagePreviewGrid: React.FC<ImagePreviewGridProps> = ({
   uploadedImages,

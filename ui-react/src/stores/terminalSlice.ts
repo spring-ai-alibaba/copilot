@@ -1,5 +1,5 @@
 import React from 'react'
-import { create } from 'zustand';
+import {create} from 'zustand';
 import weTerminal from '../components/WeIde/components/Terminal/utils/weTerminal';
 
 interface TerminalState {

@@ -1,5 +1,5 @@
-import { create } from "zustand";
-import { IModelOption } from "@/components/AiChat/chat";
+import {create} from "zustand";
+import {IModelOption} from "@/components/AiChat/chat";
 
 export interface FilePreview {
   id: string;

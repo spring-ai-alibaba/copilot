@@ -1,5 +1,5 @@
-import { create } from "zustand";
-import { syncFileSystem } from "../services";
+import {create} from "zustand";
+import {syncFileSystem} from "../services";
 
 export interface ErrorMessage {
   message: string;

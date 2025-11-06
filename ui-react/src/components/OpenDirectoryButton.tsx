@@ -1,10 +1,10 @@
 import React from "react";
-import { Tooltip, message } from "antd";
+import {message, Tooltip} from "antd";
 
-import { updateFileSystemNow } from "./WeIde/services";
-import { useFileStore } from "./WeIde/stores/fileStore";
-import { ActionButton } from "./Header/ActionButton";
-import { useTranslation } from "react-i18next";
+import {updateFileSystemNow} from "./WeIde/services";
+import {useFileStore} from "./WeIde/stores/fileStore";
+import {ActionButton} from "./Header/ActionButton";
+import {useTranslation} from "react-i18next";
 import useTerminalStore from "@/stores/terminalSlice";
 
 export const OpenDirectoryButton: React.FC = () => {

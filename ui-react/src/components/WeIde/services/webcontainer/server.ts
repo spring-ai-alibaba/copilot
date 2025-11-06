@@ -1,4 +1,4 @@
-import { getWebContainerInstance } from './instance';
+import {getWebContainerInstance} from './instance';
 
 export async function startDevServer() {
   const webcontainer = await getWebContainerInstance();

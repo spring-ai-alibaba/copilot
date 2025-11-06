@@ -1,22 +1,22 @@
-import React, { useRef, useState, useCallback, useEffect } from "react";
-import { FileIcon, MessageSquare, Code2 } from "lucide-react";
-import { toast } from "react-hot-toast";
-import { uploadImage } from "@/api/chat";
+import React, {useCallback, useEffect, useRef, useState} from "react";
+import {Code2, FileIcon, MessageSquare} from "lucide-react";
+import {toast} from "react-hot-toast";
+import {uploadImage} from "@/api/chat";
 import classNames from "classnames";
-import { useFileStore } from "../../../../WeIde/stores/fileStore";
-import type { MentionOption } from "../MentionMenu";
-import { ErrorDisplay } from "./ErrorDisplay";
-import { ImagePreviewGrid } from "./ImagePreviewGrid";
-import { UploadButtons } from "./UploadButtons";
-import { SendButton } from "./SendButton";
-import type { ChatInputProps as ChatInputPropsType } from "./types";
-import { useTranslation } from "react-i18next";
+import {useFileStore} from "../../../../WeIde/stores/fileStore";
+import type {MentionOption} from "../MentionMenu";
+import {ErrorDisplay} from "./ErrorDisplay";
+import {ImagePreviewGrid} from "./ImagePreviewGrid";
+import {UploadButtons} from "./UploadButtons";
+import {SendButton} from "./SendButton";
+import type {ChatInputProps as ChatInputPropsType} from "./types";
+import {useTranslation} from "react-i18next";
 import useChatModeStore from "../../../../../stores/chatModeSlice";
-import useChatStore from "@/stores/chatSlice";
 import useThemeStore from "@/stores/themeSlice";
-import { v4 as uuidv4 } from "uuid";
+import {v4 as uuidv4} from "uuid";
 import OptimizedPromptWord from "./OptimizedPromptWord";
 import useUserStore from "@/stores/userSlice";
+
 // import type { ModelOption } from './UploadButtons';
 
 export enum ChatMode {

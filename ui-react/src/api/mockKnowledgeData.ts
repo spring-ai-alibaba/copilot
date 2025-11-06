@@ -1,5 +1,5 @@
 // 模拟数据，用于开发和测试
-import { KnowledgeBase, KnowledgeDocument, KnowledgeChunk } from './knowledge';
+import {KnowledgeBase, KnowledgeChunk, KnowledgeDocument} from './knowledge';
 
 export const mockKnowledgeBases: KnowledgeBase[] = [
   {

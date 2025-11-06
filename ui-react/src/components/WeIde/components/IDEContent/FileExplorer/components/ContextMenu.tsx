@@ -1,4 +1,4 @@
-import { FileText, FolderIcon, Pencil, Trash2 } from 'lucide-react';
+import {FileText, FolderIcon, Pencil, Trash2} from 'lucide-react';
 
 interface ContextMenuProps {
   x: number;

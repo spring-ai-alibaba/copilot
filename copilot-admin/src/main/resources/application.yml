@@ -1,32 +1,238 @@
+# ===================================================================
+# Spring AI Alibaba Copilot - 主配置文件
+# ===================================================================
+
+# 服务器配置
 server:
   port: 6039
   servlet:
     context-path: /
 
+# Spring 核心配置
 spring:
   application:
     name: spring-ai-alibaba-copilot
-  datasource:
-    driver-class-name: com.mysql.cj.jdbc.Driver
-    url: jdbc:mysql://localhost:3306/spring_ai_copilot?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai
-    username: root
-    password: qxyg1010
 
+  # 国际化配置
+  messages:
+    basename: i18n/messages  # 国际化资源文件路径
+
+  # ===================================================================
+  # 数据源配置
+  # ===================================================================
+  datasource:
+    type: com.zaxxer.hikari.HikariDataSource
+    dynamic:
+      # 性能分析插件(有性能损耗 不建议生产环境使用)
+      p6spy: true
+      # 设置默认的数据源或者数据源组,默认值即为 master
+      primary: master
+      # 严格模式 匹配不到数据源则报错
+      strict: true
+      datasource:
+        # 主库数据源
+        master:
+          type: ${spring.datasource.type}
+          driverClassName: com.mysql.cj.jdbc.Driver
+          url: jdbc:mysql://localhost:3306/spring_ai_copilot?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai
+          username: root
+          password: root
+
+      # HikariCP 连接池配置
+      hikari:
+        # 最大连接池数量
+        maxPoolSize: 20
+        # 最小空闲线程数量
+        minIdle: 10
+        # 配置获取连接等待超时的时间
+        connectionTimeout: 30000
+        # 校验超时时间
+        validationTimeout: 5000
+        # 空闲连接存活最大时间，默认10分钟
+        idleTimeout: 600000
+        # 此属性控制池中连接的最长生命周期，值0表示无限生命周期，默认30分钟
+        maxLifetime: 1800000
+        # 连接测试query（配置检测连接是否有效）
+        connectionTestQuery: SELECT 1
+        # 多久检查一次连接的活性
+        keepaliveTime: 30000
+
+  # ===================================================================
+  # AI 模型配置
+  # ===================================================================
   ai:
     dashscope:
       # 提供一个临时的API key来避免启动错误，实际使用时会从数据库获取
       api-key: ${AI_DASHSCOPE_API_KEY:sk-temp-key-for-startup}
     openai:
       # 提供一个临时的API key来避免启动错误，实际使用时会从数据库获取
-      api-key: ${OPENAI_API_KEY:sk-temp-key-for-startup}
-    chat:
-      memory:
-        repository:
-          jdbc:
-            # 自动初始化数据库表结构
-            initialize-schema: always
+      api-key: ${OPENAI_API_KEY:sk-temp-key-for-rag-startup}
 
+# ===================================================================
+# Redis 配置 (单机模式)
+# ===================================================================
+spring.data:
+  redis:
+    # 地址
+    host: 127.0.0.1
+    # 端口，默认为6379
+    port: 6379
+    # 数据库索引
+    database: 2
+    # 密码(如没有密码请注释掉)
+    # password: 123456
+    # 连接超时时间
+    timeout: 10S
+
+# Redisson 配置
+redisson:
+  # redis key前缀
+  keyPrefix:
+  # 线程池数量
+  threads: 4
+  # Netty线程池数量
+  nettyThreads: 8
+  # 单节点配置
+  singleServerConfig:
+    # 客户端名称
+    clientName: ${ruoyi.name}
+    # 最小空闲连接数
+    connectionMinimumIdleSize: 8
+    # 连接池大小
+    connectionPoolSize: 32
+    # 连接空闲超时，单位：毫秒
+    idleConnectionTimeout: 10000
+    # 命令等待超时，单位：毫秒
+    timeout: 3000
+    # 发布和订阅连接池大小
+    subscriptionConnectionPoolSize: 50
+
+# ===================================================================
+# MyBatis Plus 配置
+# https://baomidou.com/config/
+# ===================================================================
+mybatis-plus:
+  # 不支持多包, 如有需要可在注解配置 或 提升扫包等级
+  # 例如 com.**.**.mapper
+  mapperPackage: com.alibaba.cloud.ai.copilot.**.mapper
+  # 对应的 XML 文件位置
+  mapperLocations: classpath*:mapper/**/*Mapper.xml
+  # 实体扫描，多个package用逗号或者分号分隔
+  typeAliasesPackage: com.alibaba.cloud.ai.copilot.**.domain
+  # 启动时是否检查 MyBatis XML 文件的存在，默认不检查
+  checkConfigLocation: false
+  configuration:
+    # 自动驼峰命名规则（camel case）映射
+    mapUnderscoreToCamelCase: true
+    # MyBatis 自动映射策略
+    # NONE：不启用 PARTIAL：只对非嵌套 resultMap 自动映射 FULL：对所有 resultMap 自动映射
+    autoMappingBehavior: FULL
+    # MyBatis 自动映射时未知列或未知属性处理策
+    # NONE：不做处理 WARNING：打印相关警告 FAILING：抛出异常和详细信息
+    autoMappingUnknownColumnBehavior: NONE
+    # 更详细的日志输出 会有性能损耗 org.apache.ibatis.logging.stdout.StdOutImpl
+    # 关闭日志记录 (可单纯使用 p6spy 分析) org.apache.ibatis.logging.nologging.NoLoggingImpl
+    # 默认日志输出 org.apache.ibatis.logging.slf4j.Slf4jImpl
+    logImpl: org.apache.ibatis.logging.slf4j.Slf4jImpl
+  global-config:
+    # 是否打印 Logo banner
+    banner: true
+    dbConfig:
+      # 主键类型
+      # AUTO 自增 NONE 空 INPUT 用户输入 ASSIGN_ID 雪花 ASSIGN_UUID 唯一 UUID
+      idType: ASSIGN_ID
+      # 逻辑已删除值
+      logicDeleteValue: 2
+      # 逻辑未删除值
+      logicNotDeleteValue: 0
+      # 字段验证策略之 insert,在 insert 的时候的字段验证策略
+      # IGNORED 忽略 NOT_NULL 非NULL NOT_EMPTY 非空 DEFAULT 默认 NEVER 不加入 SQL
+      insertStrategy: NOT_NULL
+      # 字段验证策略之 update,在 update 的时候的字段验证策略
+      updateStrategy: NOT_NULL
+      # 字段验证策略之 select,在 select 的时候的字段验证策略既 wrapper 根据内部 entity 生成的 where 条件
+      where-strategy: NOT_NULL
+
+# ===================================================================
+# security配置
+# ===================================================================
+security:
+  # 排除路径
+  excludes:
+    # 重置密码
+    - /auth/reset/password
+    # 登录与注册
+    - /auth/login
+    - /auth/register
+    - /auth/visitorLogin
+    # 静态资源
+    - /*.html
+    - /**/*.html
+    - /**/*.css
+    - /**/*.js
+
+# ===================================================================
+# 数据加密配置
+# ===================================================================
+mybatis-encryptor:
+  # 是否开启加密
+  enable: false
+  # 默认加密算法
+  algorithm: BASE64
+  # 编码方式 BASE64/HEX。默认BASE64
+  encode: BASE64
+  # 安全秘钥 对称算法的秘钥 如：AES，SM4
+  password:
+  # 公私钥 非对称算法的公私钥 如：SM2，RSA
+  publicKey:
+  privateKey:
+
+# ===================================================================
+# RAG (检索增强生成) 配置
+# ===================================================================
+copilot:
+  rag:
+    embedding:
+      # 使用本地模型避免OpenAI API Key依赖
+      provider: local
+      model: all-MiniLM-L6-v2
+
+# ===================================================================
+# 用户安全配置
+# ===================================================================
+user:
+  password:
+    # 密码最大错误次数
+    maxRetryCount: 5
+    # 密码锁定时间（默认10分钟）
+    lockTime: 10
+
+# ===================================================================
+# Sa-Token 认证配置
+# ===================================================================
+sa-token:
+  # token名称 (同时也是cookie名称)
+  token-name: Authorization
+  # token有效期 设为7天 (必定过期) 单位: 秒
+  timeout: 604800
+  # token临时有效期 (指定时间无操作就过期) 单位: 秒
+  activity-timeout: 604800
+  # 是否允许同一账号并发登录 (为true时允许一起登录, 为false时新登录挤掉旧登录)
+  is-concurrent: true
+  # 在多人登录同一账号时，是否共用一个token (为true时所有登录共用一个token, 为false时每次登录新建一个token)
+  is-share: false
+  # 是否尝试从header里读取token
+  is-read-header: true
+  # 是否尝试从cookie里读取token
+  is-read-cookie: false
+  # token前缀
+  token-prefix: "Bearer"
+  # jwt秘钥
+  jwt-secret-key: abcdefghijklmnopqrstuvwxyz
+
+# ===================================================================
 # 日志配置
+# ===================================================================
 logging:
   level:
     org.springframework.ai: DEBUG
@@ -35,11 +241,14 @@ logging:
     org.mybatis.spring.mapper: ERROR
   config: classpath:logback-plus.xml
 
+# ===================================================================
+# 应用自定义配置
+# ===================================================================
 app:
   # 工作目录配置
   workspace:
     # 使用 ${file.separator} 或让 Java 代码处理路径拼接
-    root-directory: ${user.dir}/workspace  # 改为使用正斜杠，Java会自动转换
+    root-directory: ./workspace  # 项目根目录下的workspace文件夹
     max-file-size: 10485760  # 10MB
     allowed-extensions:
       - .txt
@@ -113,35 +322,13 @@ app:
       similarity-threshold: 0.7
       enable-reranking: false
 
-  # 文件系统配置（默认禁用，可通过spring.profiles.active=file-system启用）
+  # 文件系统配置
   file-system:
     security:
       enable-path-validation: true  # 启用路径验证
-      allowed-extensions:  # 允许的文件扩展名
-        - .js
-        - .html
-        - .css
-        - .json
-        - .md
-        - .ts
-        - .tsx
-        - .jsx
       forbidden-paths:  # 禁止的路径
         - ../
         - /etc/
         - /root/
         - /usr/
         - /var/
-
----
-# 文件系统功能profile配置
-spring:
-  config:
-    activate:
-      on-profile: file-system
-
-
-app:
-  chat:
-    file-system:
-      enabled: true  # 在file-system profile中启用文件系统功能

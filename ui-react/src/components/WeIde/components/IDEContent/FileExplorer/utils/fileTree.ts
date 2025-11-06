@@ -1,4 +1,4 @@
-import { FileItem } from '../types';
+import {FileItem} from '../types';
 
 export function buildFileTree(paths: string[]): FileItem[] {
   const root: FileItem[] = [];

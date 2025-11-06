@@ -1,9 +1,8 @@
-import React, { useState, useCallback, useMemo, useEffect } from "react";
+import React, {memo, useCallback, useMemo, useState} from "react";
 import ReactMarkdown from "react-markdown";
-import { ArtifactView } from "../ArtifactView";
-import { ImageGrid } from "../ImageGrid";
-import { Message } from "ai";
-import { memo } from "react";
+import {ArtifactView} from "../ArtifactView";
+import {ImageGrid} from "../ImageGrid";
+import {Message} from "ai";
 
 import classNames from "classnames";
 import useUserStore from "../../../../../stores/userSlice";
@@ -12,8 +11,8 @@ import hljs from "highlight.js";
 import remarkGfm from "remark-gfm";
 import "highlight.js/styles/github.css"; // 亮色主题
 import "highlight.js/styles/github-dark.css"; // 暗色主题
-import { message } from "antd";
-import { useTranslation } from 'react-i18next';
+import {message} from "antd";
+import {useTranslation} from 'react-i18next';
 
 const codeStyles = `
   .hljs-attr {

@@ -1,4 +1,4 @@
-import { Message } from "ai/react";
+import {Message} from "ai/react";
 
 interface ChatRecord {
   data: {

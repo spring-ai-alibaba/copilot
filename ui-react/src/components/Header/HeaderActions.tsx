@@ -1,13 +1,15 @@
-import { useFileStore } from "../WeIde/stores/fileStore";
+import {useFileStore} from "../WeIde/stores/fileStore";
 import JSZip from "jszip";
-import { OpenDirectoryButton } from "../OpenDirectoryButton";
-import { useTranslation } from "react-i18next";
+import {OpenDirectoryButton} from "../OpenDirectoryButton";
+import {useTranslation} from "react-i18next";
 import useChatModeStore from "@/stores/chatModeSlice";
-import { ChatMode } from "@/types/chat";
+import {ChatMode} from "@/types/chat";
 import useTerminalStore from "@/stores/terminalSlice";
-import { getWebContainerInstance } from "../WeIde/services/webcontainer";
-import { useState } from "react";
-import { toast } from "react-toastify";
+import {getWebContainerInstance} from "../WeIde/services/webcontainer";
+import {useState} from "react";
+import {toast} from "react-toastify";
+import { apiUrl } from "@/api/base";
+import useUserStore from "@/stores/userSlice";
 
 
 // 添加一个递归获取文件的辅助函数
@@ -66,6 +68,7 @@ export function HeaderActions() {
   const [showModal, setShowModal] = useState(false);
   const [deployUrl, setDeployUrl] = useState("");
   const [isDeploying, setIsDeploying] = useState(false);
+  const { isAuthenticated, logout } = useUserStore();
 
   const handleDownload = async () => {
     try {
@@ -89,7 +92,6 @@ export function HeaderActions() {
   };
   const publish = async () => {
     setIsDeploying(true);
-    const API_BASE = process.env.APP_BASE_URL;
     
     try {
       const webcontainer = await getWebContainerInstance();
@@ -113,7 +115,7 @@ export function HeaderActions() {
           formData.append('file', new File([blob], 'dist.zip', { type: 'application/zip' }));
           
           // 发送请求
-          const response = await fetch(`${API_BASE}/api/deploy`, {
+          const response = await fetch(apiUrl('/api/deploy'), {
             method: "POST",
             body: formData,
           });
@@ -216,6 +218,28 @@ export function HeaderActions() {
           )}
           {window.electron && <OpenDirectoryButton />}
         </div>
+      )}
+      {isAuthenticated && (
+        <button
+          onClick={() => logout()}
+          className="flex items-center gap-1.5 px-2.5 py-1.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/5 rounded-lg transition-colors"
+          title="退出登录"
+        >
+          <svg
+            className="w-4 h-4"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
+            />
+          </svg>
+          <span>退出登录</span>
+        </button>
       )}
       {showModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">

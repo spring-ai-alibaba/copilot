@@ -1,7 +1,7 @@
-import { WebContainer } from '@webcontainer/api';
-import { useFileStore } from '../../stores/fileStore';
-import { getWebContainerInstance } from './instance';
-import { debounce } from 'lodash';
+import {WebContainer} from '@webcontainer/api';
+import {useFileStore} from '../../stores/fileStore';
+import {getWebContainerInstance} from './instance';
+import {debounce} from 'lodash';
 
 import {isHiddenNodeModules} from "../../../../../config/electronOrSrcCommonConfig"
 

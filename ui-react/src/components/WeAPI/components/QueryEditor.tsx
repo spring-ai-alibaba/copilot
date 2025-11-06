@@ -1,7 +1,7 @@
 import React from 'react';
-import { Input, Button, Space } from 'antd';
-import { DeleteOutlined, PlusOutlined } from '@ant-design/icons';
-import { KeyValuePair } from '../types';
+import {Button, Input, Space} from 'antd';
+import {DeleteOutlined, PlusOutlined} from '@ant-design/icons';
+import {KeyValuePair} from '../types';
 
 interface QueryEditorProps {
   query: KeyValuePair[];

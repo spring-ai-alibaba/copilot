@@ -1,13 +1,13 @@
-import React, { useState, useRef, useEffect } from "react"
+import React, {useEffect, useRef, useState} from "react"
 import classNames from "classnames"
-import { App, Tooltip, Modal, Input } from "antd"
-import { Image, ChevronDown, Figma } from "lucide-react"
-import type { UploadButtonsProps } from "./types"
+import {Tooltip} from "antd"
+import {ChevronDown, Image} from "lucide-react"
+import type {UploadButtonsProps} from "./types"
 
-import { useTranslation } from "react-i18next"
-import { IModelOption } from "../.."
+import {useTranslation} from "react-i18next"
+import {IModelOption} from "../.."
 import useChatStore from "@/stores/chatSlice"
-import { aiProvierIcon } from "./config"
+import {aiProvierIcon} from "./config"
 import MCPToolsButton from "./MCPToolsButton"
 
 export const UploadButtons: React.FC<UploadButtonsProps> = ({
