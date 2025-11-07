@@ -25,8 +25,10 @@ public class OpenAiModelFactoryImpl implements OpenAiModelFactory {
 
     private final ModelConfigService modelConfigService;
 
-    // 默认配置常量 - 增加token限制以支持完整代码生成
-    private static final int DEFAULT_MAX_TOKENS = 100000;  // 增加到32K
+    // 默认配置常量 - 根据不同模型设置合理的token限制
+    private static final int DEFAULT_MAX_TOKENS = 4096;  // 通用默认值，适用于大多数模型
+    private static final int DEEPSEEK_MAX_TOKENS = 4096;  // DeepSeek 模型的最大输出 token 限制
+    private static final int OPENAI_MAX_TOKENS = 4096;    // OpenAI 模型的默认值
     private static final double DEFAULT_TEMPERATURE = 0.7;
 
     @Override
@@ -87,6 +89,33 @@ public class OpenAiModelFactoryImpl implements OpenAiModelFactory {
 
     @Override
     public OpenAiChatOptions createDefaultChatOptions(String modelName) {
-        return createChatOptions(modelName, DEFAULT_MAX_TOKENS, DEFAULT_TEMPERATURE);
+        // 根据模型名称智能选择合适的 max_tokens
+        int maxTokens = getMaxTokensForModel(modelName);
+        return createChatOptions(modelName, maxTokens, DEFAULT_TEMPERATURE);
+    }
+
+    /**
+     * 根据模型名称获取合适的 max_tokens 值
+     * 避免超出各个模型 API 的限制
+     */
+    private int getMaxTokensForModel(String modelName) {
+        if (modelName == null) {
+            return DEFAULT_MAX_TOKENS;
+        }
+        
+        String lowerModelName = modelName.toLowerCase();
+        
+        // DeepSeek 模型
+        if (lowerModelName.contains("deepseek")) {
+            return DEEPSEEK_MAX_TOKENS;
+        }
+        
+        // OpenAI 模型
+        if (lowerModelName.contains("gpt")) {
+            return OPENAI_MAX_TOKENS;
+        }
+        
+        // 其他模型使用默认值
+        return DEFAULT_MAX_TOKENS;
     }
 }

@@ -26,5 +26,5 @@ CREATE TABLE IF NOT EXISTS model_config (
 
 -- 插入初始数据
 INSERT INTO model_config (model_name, model_key, use_image, description, icon_url, provider, api_key, api_url, function_call, enabled, sort_order) VALUES
-('deepseek-R1', 'deepseek-reasoner', 0, 'Deepseek R1 model with reasoning and chain-of-thought capabilities', NULL, 'deepseek', NULL, NULL, 0, 1, 3),
-('deepseek-v3', 'deepseek-chat', 0, 'Deepseek V3 model', NULL, 'deepseek', NULL, NULL, 1, 1, 4)
+('deepseek-reasoner', 'deepseek-reasoner', 0, 'Deepseek R1 model with reasoning and chain-of-thought capabilities', NULL, 'deepseek', NULL, NULL, 0, 1, 3),
+('deepseek-chat', 'deepseek-chat', 0, 'Deepseek V3 model', NULL, 'deepseek', NULL, NULL, 1, 1, 4)
