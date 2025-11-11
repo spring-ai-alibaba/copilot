@@ -14,6 +14,11 @@
  Date: 06/11/2025 10:42:39
 */
 
+-- 创建数据库（如果不存在）
+CREATE DATABASE IF NOT EXISTS spring_ai_copilot DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+USE spring_ai_copilot;
+
 SET NAMES utf8mb4;
 SET FOREIGN_KEY_CHECKS = 0;
 
