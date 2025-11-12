@@ -5,74 +5,9 @@ import WeIde from "./WeIde";
 import WeAPI from "./WeAPI";
 import {useTranslation} from "react-i18next";
 
-const ipcRenderer = window?.electron?.ipcRenderer;
-
-// Find WeChat DevTools path
+// WeChat DevTools is not available in Web mode
 export async function findWeChatDevToolsPath() {
-  try {
-    // Get operating system type through IPC call to main process
-    const platform = await ipcRenderer.invoke("node-container:platform");
-    console.log(platform, "platform");
-    if (platform === "win32") {
-      // Windows platform
-      const defaultPath =
-        process.env.Path.split(";")
-          .find((value) => {
-            value.includes("WeChat Web DevTools");
-          })
-          .split("WeChat Web DevTools")[0] + "WeChat Web DevTools/cli.bat";
-
-      try {
-        // Check if file exists
-        await ipcRenderer.invoke(
-          "node-container:check-file-exists",
-          defaultPath
-        );
-        return defaultPath;
-      } catch {
-        // If default path doesn't exist, use where command to find
-        const result = await ipcRenderer.invoke(
-          "node-container:exec-command",
-          "where cli.bat"
-        );
-        if (!result.trim()) {
-          throw new Error("WeChat DevTools path not found");
-        }
-        return result.trim();
-      }
-    } else if (platform === "darwin") {
-      // macOS platform
-      const defaultPath =
-        "/Applications/wechatwebdevtools.app/Contents/MacOS/cli";
-
-      try {
-        // Check if file exists
-        await ipcRenderer.invoke(
-          "node-container:check-file-exists",
-          defaultPath
-        );
-        return defaultPath;
-      } catch {
-        // If default path doesn't exist, use find command to search globally
-        const result = await ipcRenderer.invoke(
-          "node-container:exec-command",
-          'find / -name "cli" -type f 2>/dev/null'
-        );
-
-        const paths = result
-          .split("\n")
-          .filter((path) => path.includes("wechatwebdevtools.app"));
-        if (paths.length > 0) {
-          return paths[0];
-        }
-        throw new Error("WeChat DevTools path not found");
-      }
-    } else {
-      throw new Error("Unsupported operating system");
-    }
-  } catch (error) {
-    throw new Error(`Failed to find WeChat DevTools: ${error.message}`);
-  }
+  throw new Error("WeChat DevTools is only available in desktop mode");
 }
 const EditorPreviewTabs: React.FC = () => {
   const { getFiles, projectRoot,oldFiles,files } = useFileStore();
@@ -88,23 +23,7 @@ const EditorPreviewTabs: React.FC = () => {
   const isMinPrograme = getFiles().includes("app.json");
 
   const openWeChatEditor = async () => {
-    if (!window.electron) {
-      console.error("Electron not available");
-      return;
-    }
-
-    try {
-      const cliPath = await findWeChatDevToolsPath();   
-      if (getFiles().includes("app.json") || getFiles().includes("miniprogram/app.json")) {
-        const defaultRoot = await ipcRenderer.invoke(
-          "node-container:get-project-root"
-        );
-        const command = `"${cliPath}" -o "${projectRoot || defaultRoot}" --auto-port`;
-        await ipcRenderer.invoke("node-container:exec-command", command);
-      }
-    } catch (error) {
-      console.error("Failed to open WeChat editor:", error);
-    }
+    console.warn("WeChat DevTools is not available in Web mode");
   };
 
   const onToggle = (name) => {
@@ -154,7 +73,7 @@ const EditorPreviewTabs: React.FC = () => {
             icon={<APITestIcon />}
             label={t("editor.apiTest")}
           />
-          
+
         </div>
 
         {/* <div className="flex items-center gap-2 mr-2">
@@ -170,7 +89,7 @@ const EditorPreviewTabs: React.FC = () => {
       ${frameStyleMap["editor"]}
         `}
         >
-          <WeIde /> 
+          <WeIde />
         </div>
         <div
           className={`
