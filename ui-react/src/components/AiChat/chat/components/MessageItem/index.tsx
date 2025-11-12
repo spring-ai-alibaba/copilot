@@ -135,7 +135,7 @@ const getArtifactTitle = (content: string) => {
 
 // 如果生成结束了，user在最后，就要展示重试
 const isShowRetry = (isUser: boolean, isLoading: boolean, isEndMessage:boolean) => {
-  return isUser && !isLoading && isEndMessage; 
+  return isUser && !isLoading && isEndMessage;
 };
 
 // 添加图片预览组件
@@ -424,11 +424,11 @@ export const processThinkContent = (content: string) => {
 };
 
 // 修改 ToolInvocationCard 组件
-const ToolInvocationCard = ({ 
+const ToolInvocationCard = ({
   toolInvocation,
   messageId,
   onUpdateMessage,
-}: { 
+}: {
   toolInvocation: {
     args: any;
     state: string;
@@ -452,24 +452,8 @@ const ToolInvocationCard = ({
   const handleRetry = async () => {
     try {
       setIsLoading(true);
-      const res = await window.myAPI.mcp.callTool({
-        client: toolName[0],
-        name: toolName[1],
-        args: toolInvocation.args,
-      });
-      const contens: {
-        text: string;
-        type: string;
-      }[] = res?.content || [];
-      if (res?.content && onUpdateMessage) {
-        // append 到 message 的 content 中
-        onUpdateMessage(messageId, contens.map(e => ({
-          text: `\`\`\`json\n${e.text}`,
-          type: e.type
-        })));
-        setHasInvoked(true);  // 调用成功后设置状态
-      }
-
+      // MCP tool calls are not available in Web mode
+      message.error(t('settings.mcp.notAvailableInWebMode') || 'MCP tools are not available in Web mode');
     } catch (error) {
       message.error(t('settings.mcp.addError'));
     } finally {
@@ -483,7 +467,7 @@ const ToolInvocationCard = ({
       <div className="text-xs text-gray-500 dark:text-gray-400">
         {toolName?.[1]} {t('chat.buttons.mcp_tools')}: {toolName?.[2]}
       </div>
-      
+
       <div className="relative rounded-lg border dark:border-gray-700 bg-gray-50 dark:bg-[#1e1e1e] overflow-hidden">
         <div className="flex items-center gap-2 px-3 py-2 border-b dark:border-gray-700 bg-white dark:bg-[#2d2d2d]">
           <svg className="w-4 h-4 text-gray-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -498,7 +482,7 @@ const ToolInvocationCard = ({
             {JSON.stringify(toolInvocation?.args, null, 2)}
           </pre>
         </div>
-        
+
         {/* 右下角按钮 - 只在未调用过时显示 */}
         {!hasInvoked && (
           <div className="absolute bottom-3 right-3">
@@ -605,8 +589,8 @@ export const MessageItem: React.FC<MessageItemProps> = ({
                   {message.parts?.map((part, index) => {
                     if (part.type === "tool-invocation") {
                       return (
-                        <ToolInvocationCard 
-                          key={index} 
+                        <ToolInvocationCard
+                          key={index}
                           toolInvocation={part.toolInvocation}
                           messageId={message.id}
                           onUpdateMessage={onUpdateMessage}
@@ -615,7 +599,7 @@ export const MessageItem: React.FC<MessageItemProps> = ({
                     }
                     return null;
                   })}
-                  
+
                   <ReactMarkdown
                     remarkPlugins={[remarkGfm]}
                     components={{

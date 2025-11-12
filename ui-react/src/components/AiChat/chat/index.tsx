@@ -177,7 +177,7 @@ export const BaseChat = ({uuid: propUuid}: { uuid?: string }) => {
             });
     }, []);
 
-    
+
 
     useEffect(() => {
         if (
@@ -344,16 +344,8 @@ export const BaseChat = ({uuid: propUuid}: { uuid?: string }) => {
 
     const [mcpTools, setMcpTools] = useState<MCPTool[]>([])
     useEffect(() => {
-        if (enabledMCPs && enabledMCPs.length > 0) {
-            window.myAPI.mcp.listTools().then((allMCPTools) => {
-                const filteredTools = allMCPTools.filter((tool) => {
-                    return enabledMCPs.some((mcp) => mcp.name === tool.serverName);
-                });
-                setMcpTools(filteredTools)
-            })
-        } else {
-            setMcpTools([])
-        }
+        // MCP tools are not available in Web mode
+        setMcpTools([])
     }, [enabledMCPs])
 
     // 自定义 fetch 函数来处理流数据
@@ -504,7 +496,7 @@ export const BaseChat = ({uuid: propUuid}: { uuid?: string }) => {
 
         },
 
-        
+
         id: chatUuid,
         onResponse: async (response) => {
             // console.log("=== onResponse Debug ===");
@@ -614,7 +606,7 @@ export const BaseChat = ({uuid: propUuid}: { uuid?: string }) => {
         },
         // onError: (error: any) => {
 
-          
+
 
         //     const msg = error?.errors?.[0]?.responseBody || String(error);
         //     console.log("error", error, msg);
@@ -713,12 +705,12 @@ export const BaseChat = ({uuid: propUuid}: { uuid?: string }) => {
         if (!isScrolledToBottom) {
             // 用户正在滚动查看历史消息
             setUserScrolling(true)
-            
+
             // 清除之前的定时器
             if (userScrollTimeoutRef.current) {
                 clearTimeout(userScrollTimeoutRef.current)
             }
-            
+
             // 设置新的定时器，3秒后允许自动滚动
             userScrollTimeoutRef.current = setTimeout(() => {
                 setUserScrolling(false)
@@ -978,7 +970,7 @@ export const BaseChat = ({uuid: propUuid}: { uuid?: string }) => {
                             handleRetry={() => {
                                 // 测试
                                 reload();
-                            }} 
+                            }}
                             key={`${message.id}-${index}`}
                             message={message}
                             isEndMessage={
@@ -990,7 +982,7 @@ export const BaseChat = ({uuid: propUuid}: { uuid?: string }) => {
                                     role: "user",
                                     content: ` ${content?.[0]?.text}`,
                                 })
-         
+
                             }}
                         />
                     ))}
