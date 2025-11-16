@@ -49,7 +49,7 @@ public class TaskToolConfiguration {
      */
     @Bean
     @ConditionalOnMissingBean
-    public TaskScheduler taskScheduler() {
+    public TaskScheduler copilotTaskScheduler() {
         return new PriorityTaskScheduler();
     }
 
