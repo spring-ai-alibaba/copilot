@@ -26,7 +26,7 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <spring-boot.version>3.4.5</spring-boot.version>
         <spring-ai-alibaba.version>1.0.0.2</spring-ai-alibaba.version>
-        <spring-ai.version>1.0.0</spring-ai.version>
+        <spring-ai.version>1.1.0</spring-ai.version>
         <lombok.version>1.18.30</lombok.version>
         <mybatis.version>3.5.16</mybatis.version>
         <mybatis-plus.version>3.5.12</mybatis-plus.version>
