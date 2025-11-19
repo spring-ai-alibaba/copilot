@@ -1,9 +1,12 @@
 import { WebSocketMessageParser, OperationCallbackData, FileOperationData, CommandOperationData } from "./websocketMessageParser";
 import { createFileWithContent } from "../WeIde/components/IDEContent/FileExplorer/utils/fileSystem";
 import { deleteFile } from "../WeIde/components/IDEContent/FileExplorer/utils/fileSystem";
-import { updateContent } from "../WeIde/stores/fileStore";
+import { useFileStore } from "../WeIde/stores/fileStore";
 import useTerminalStore from "@/stores/terminalSlice";
 import { Message } from "ai/react";
+import { WebSocketConnectionManager, ConnectionStatus } from "./websocketConnectionManager";
+import { SSEConnectionManager, SSEConnectionStatus } from "./sseConnectionManager";
+import { useEffect, useState } from "react";
 
 class Queue {
   private queue: string[] = [];
@@ -136,7 +139,7 @@ const messageParser = new WebSocketMessageParser({
       // 流式更新文件内容
       if (fileData.content !== undefined && fileData.filePath) {
         try {
-          await updateContent(fileData.filePath, fileData.content, false, false);
+          await useFileStore.getState().updateContent(fileData.filePath, fileData.content, false, false);
         } catch (error) {
           console.error('[WebSocket] 编辑文件进度更新失败:', error);
         }
@@ -149,7 +152,7 @@ const messageParser = new WebSocketMessageParser({
       
       if (fileData.content !== undefined && fileData.filePath) {
         try {
-          await updateContent(fileData.filePath, fileData.content, false, true);
+          await useFileStore.getState().updateContent(fileData.filePath, fileData.content, false, true);
         } catch (error) {
           console.error('[WebSocket] 编辑文件失败:', error);
         }
@@ -253,4 +256,268 @@ export const clearMessage = (messageId: string): void => {
  */
 export const getMessageState = (messageId: string) => {
   return messageParser.getMessageState(messageId);
+};
+
+// ==================== 连接管理功能 ====================
+
+/**
+ * 创建并配置 WebSocket 连接管理器（带自动重连）
+ * 集成了消息解析器，自动解析接收到的消息
+ */
+export const createWebSocketConnection = (
+  url: string,
+  options?: {
+    autoConnect?: boolean;
+    reconnectInterval?: number;
+    maxReconnectInterval?: number;
+    maxReconnectAttempts?: number;
+    heartbeatInterval?: number;
+    onStatusChange?: (status: ConnectionStatus) => void;
+    onError?: (error: Event) => void;
+  }
+): WebSocketConnectionManager => {
+  const connectionManager = new WebSocketConnectionManager(
+    {
+      url,
+      reconnectInterval: options?.reconnectInterval ?? 1000,
+      maxReconnectInterval: options?.maxReconnectInterval ?? 30000,
+      reconnectDecay: 1.5,
+      maxReconnectAttempts: options?.maxReconnectAttempts ?? Infinity,
+      timeout: 10000,
+      enableMessageQueue: true,
+      maxQueueSize: 100,
+      heartbeatInterval: options?.heartbeatInterval ?? 30000,
+      heartbeatMessage: 'ping',
+    },
+    {
+      onOpen: (event) => {
+        console.log('[WebSocket] 连接已建立', event);
+      },
+      onClose: (event) => {
+        console.log('[WebSocket] 连接已关闭', {
+          code: event.code,
+          reason: event.reason,
+          wasClean: event.wasClean,
+        });
+      },
+      onError: (error) => {
+        console.error('[WebSocket] 连接错误', error);
+        options?.onError?.(error);
+      },
+      onMessage: (event) => {
+        try {
+          // 解析消息并传递给解析器
+          const message = JSON.parse(event.data);
+          const messageId = message.messageId || `msg_${Date.now()}`;
+          
+          // 解析消息
+          parseWebSocketMessage(messageId, message);
+        } catch (error) {
+          console.error('[WebSocket] 解析消息失败:', error);
+        }
+      },
+      onReconnect: (attempt) => {
+        console.log(`[WebSocket] 正在尝试第 ${attempt} 次重连...`);
+      },
+      onReconnectFailed: () => {
+        console.error('[WebSocket] 重连失败，已达到最大重连次数');
+      },
+      onStatusChange: (status) => {
+        console.log(`[WebSocket] 连接状态变更: ${status}`);
+        options?.onStatusChange?.(status);
+      },
+    }
+  );
+
+  // 自动连接
+  if (options?.autoConnect !== false) {
+    connectionManager.connect();
+  }
+
+  return connectionManager;
+};
+
+/**
+ * 创建并配置 SSE 连接管理器（带自动重连）
+ * 集成了消息解析器，自动解析接收到的消息
+ */
+export const createSSEConnection = (
+  url: string,
+  options?: {
+    autoConnect?: boolean;
+    reconnectInterval?: number;
+    maxReconnectAttempts?: number;
+    onStatusChange?: (status: SSEConnectionStatus) => void;
+    onError?: (error: Event | Error) => void;
+  }
+): SSEConnectionManager => {
+  const connectionManager = new SSEConnectionManager(
+    {
+      url,
+      withCredentials: false,
+    },
+    {
+      onOpen: (event) => {
+        console.log('[SSE] 连接已建立', event);
+      },
+      onClose: () => {
+        console.log('[SSE] 连接已关闭');
+      },
+      onError: (error) => {
+        console.error('[SSE] 连接错误', error);
+        options?.onError?.(error);
+      },
+      onMessage: (event) => {
+        try {
+          // 解析 SSE 消息
+          let message: any;
+          let eventName: string;
+
+          if (typeof event.data === 'string') {
+            try {
+              message = JSON.parse(event.data);
+            } catch (e) {
+              console.error('[SSE] JSON 解析失败:', e);
+              return;
+            }
+          } else {
+            message = event.data;
+          }
+
+          // 获取事件名
+          eventName = event.type !== 'message' ? event.type : (message.event || 'message');
+          const messageId = message.messageId || `msg_${Date.now()}`;
+
+          // 构建完整的消息对象（包含 event 字段）
+          const fullMessage = {
+            ...message,
+            event: eventName,
+          };
+
+          // 解析消息
+          parseWebSocketMessage(messageId, fullMessage);
+        } catch (error) {
+          console.error('[SSE] 解析消息失败:', error);
+        }
+      },
+      onStatusChange: (status) => {
+        console.log(`[SSE] 连接状态变更: ${status}`);
+        options?.onStatusChange?.(status);
+      },
+    }
+  );
+
+  // 设置重连配置
+  if (options?.reconnectInterval) {
+    connectionManager.setReconnectInterval(options.reconnectInterval);
+  }
+  if (options?.maxReconnectAttempts !== undefined) {
+    connectionManager.setMaxReconnectAttempts(options.maxReconnectAttempts);
+  } else {
+    connectionManager.setMaxReconnectAttempts(Infinity); // 默认无限重连
+  }
+
+  // 自动连接
+  if (options?.autoConnect !== false) {
+    connectionManager.connect();
+  }
+
+  return connectionManager;
+};
+
+/**
+ * React Hook: 使用 WebSocket 连接管理器
+ * 提供自动重连、状态管理等功能
+ */
+export const useWebSocketConnection = (
+  url: string | null,
+  options?: {
+    autoConnect?: boolean;
+    reconnectInterval?: number;
+    maxReconnectInterval?: number;
+    maxReconnectAttempts?: number;
+    heartbeatInterval?: number;
+    onStatusChange?: (status: ConnectionStatus) => void;
+    onError?: (error: Event) => void;
+  }
+) => {
+  const [connectionManager, setConnectionManager] = useState<WebSocketConnectionManager | null>(null);
+  const [status, setStatus] = useState<ConnectionStatus>('disconnected');
+
+  useEffect(() => {
+    if (!url) {
+      return;
+    }
+
+    const manager = createWebSocketConnection(url, {
+      ...options,
+      autoConnect: options?.autoConnect !== false,
+      onStatusChange: (newStatus) => {
+        setStatus(newStatus);
+        options?.onStatusChange?.(newStatus);
+      },
+    });
+
+    setConnectionManager(manager);
+
+    return () => {
+      manager.destroy();
+    };
+  }, [url]);
+
+  return {
+    connectionManager,
+    status,
+    connect: () => connectionManager?.connect(),
+    disconnect: () => connectionManager?.close(),
+    send: (data: string | ArrayBuffer | Blob) => connectionManager?.send(data),
+    isConnected: () => connectionManager?.isConnected() ?? false,
+  };
+};
+
+/**
+ * React Hook: 使用 SSE 连接管理器
+ * 提供自动重连、状态管理等功能
+ */
+export const useSSEConnection = (
+  url: string | null,
+  options?: {
+    autoConnect?: boolean;
+    reconnectInterval?: number;
+    maxReconnectAttempts?: number;
+    onStatusChange?: (status: SSEConnectionStatus) => void;
+    onError?: (error: Event | Error) => void;
+  }
+) => {
+  const [connectionManager, setConnectionManager] = useState<SSEConnectionManager | null>(null);
+  const [status, setStatus] = useState<SSEConnectionStatus>('disconnected');
+
+  useEffect(() => {
+    if (!url) {
+      return;
+    }
+
+    const manager = createSSEConnection(url, {
+      ...options,
+      autoConnect: options?.autoConnect !== false,
+      onStatusChange: (newStatus) => {
+        setStatus(newStatus);
+        options?.onStatusChange?.(newStatus);
+      },
+    });
+
+    setConnectionManager(manager);
+
+    return () => {
+      manager.destroy();
+    };
+  }, [url]);
+
+  return {
+    connectionManager,
+    status,
+    connect: () => connectionManager?.connect(),
+    disconnect: () => connectionManager?.close(),
+    isConnected: () => connectionManager?.isConnected() ?? false,
+  };
 };
