@@ -26,9 +26,9 @@ public class OpenAiModelFactoryImpl implements OpenAiModelFactory {
     private final ModelConfigService modelConfigService;
 
     // 默认配置常量 - 根据不同模型设置合理的token限制
-    private static final int DEFAULT_MAX_TOKENS = 4096;  // 通用默认值，适用于大多数模型
-    private static final int DEEPSEEK_MAX_TOKENS = 4096;  // DeepSeek 模型的最大输出 token 限制
-    private static final int OPENAI_MAX_TOKENS = 4096;    // OpenAI 模型的默认值
+    private static final int DEFAULT_MAX_TOKENS = 64000;  // 通用默认值，适用于大多数模型
+    private static final int DEEPSEEK_MAX_TOKENS = 64000;  // DeepSeek 模型的最大输出 token 限制
+    private static final int OPENAI_MAX_TOKENS = 64000;    // OpenAI 模型的默认值
     private static final double DEFAULT_TEMPERATURE = 0.7;
 
     @Override
