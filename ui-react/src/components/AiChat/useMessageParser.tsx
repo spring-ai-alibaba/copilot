@@ -6,7 +6,7 @@ import useTerminalStore from "@/stores/terminalSlice";
 import { Message } from "ai/react";
 import { WebSocketConnectionManager, ConnectionStatus } from "./websocketConnectionManager";
 import { SSEConnectionManager, SSEConnectionStatus } from "./sseConnectionManager";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 
 class Queue {
   private queue: string[] = [];
@@ -519,5 +519,249 @@ export const useSSEConnection = (
     connect: () => connectionManager?.connect(),
     disconnect: () => connectionManager?.close(),
     isConnected: () => connectionManager?.isConnected() ?? false,
+  };
+};
+
+// ==================== 聊天 WebSocket Hook ====================
+
+/**
+ * React Hook: 直接使用 WebSocket 发送和接收聊天消息
+ * 流程：用户点击发送 -> 建立/使用 WebSocket 连接 -> 通过 WebSocket 发送消息 -> 接收服务端推送的消息
+ */
+export const useChatWebSocket = (
+  wsUrl: string,
+  options?: {
+    onMessage?: (message: Message) => void;
+    onStatusChange?: (status: ConnectionStatus) => void;
+    onError?: (error: Error | Event) => void;
+    reconnectInterval?: number;
+    maxReconnectAttempts?: number;
+    heartbeatInterval?: number;
+  }
+) => {
+  const [connectionManager, setConnectionManager] = useState<WebSocketConnectionManager | null>(null);
+  const [status, setStatus] = useState<ConnectionStatus>('disconnected');
+  const [isConnecting, setIsConnecting] = useState(false);
+  const currentAssistantMessageRef = useRef<Message | null>(null);
+  const connectionManagerRef = useRef<WebSocketConnectionManager | null>(null);
+
+  // 初始化连接管理器（只在首次创建）
+  useEffect(() => {
+    if (connectionManager) {
+      return; // 已经创建过了
+    }
+
+    const manager = new WebSocketConnectionManager(
+      {
+        url: wsUrl,
+        reconnectInterval: options?.reconnectInterval ?? 1000,
+        maxReconnectInterval: 30000,
+        reconnectDecay: 1.5,
+        maxReconnectAttempts: options?.maxReconnectAttempts ?? Infinity,
+        timeout: 10000,
+        enableMessageQueue: true,
+        maxQueueSize: 100,
+        heartbeatInterval: options?.heartbeatInterval ?? 30000,
+        heartbeatMessage: 'ping',
+      },
+      {
+        onOpen: (event) => {
+          console.log('[ChatWebSocket] 连接已建立', event);
+          setIsConnecting(false);
+        },
+        onClose: (event) => {
+          console.log('[ChatWebSocket] 连接已关闭', event);
+          setIsConnecting(false);
+        },
+        onError: (error) => {
+          console.error('[ChatWebSocket] WebSocket 错误:', error);
+          setIsConnecting(false);
+          options?.onError?.(error);
+        },
+        onMessage: (event: MessageEvent) => {
+          try {
+            const data = JSON.parse(event.data);
+            
+            // 检查是否是文本消息（用于更新 UI）
+            if (data.type === 'text' || data.content) {
+              const textContent = data.content || data.text || '';
+              
+              // 创建或更新助手消息
+              if (!currentAssistantMessageRef.current) {
+                currentAssistantMessageRef.current = {
+                  id: data.messageId || `msg_${Date.now()}`,
+                  role: 'assistant',
+                  content: textContent,
+                };
+              } else {
+                currentAssistantMessageRef.current = {
+                  ...currentAssistantMessageRef.current,
+                  content: (currentAssistantMessageRef.current.content || '') + textContent,
+                };
+              }
+
+              // 通知外部组件更新消息
+              if (options?.onMessage && currentAssistantMessageRef.current) {
+                options.onMessage(currentAssistantMessageRef.current);
+              }
+            }
+
+            // 检查是否是完成消息
+            if (data.type === 'done' || data.finishReason) {
+              if (currentAssistantMessageRef.current && options?.onMessage) {
+                options.onMessage(currentAssistantMessageRef.current);
+              }
+              currentAssistantMessageRef.current = null;
+            }
+
+            // 同时调用原有的消息解析逻辑（处理文件操作等）
+            const messageId = data.messageId || `msg_${Date.now()}`;
+            parseWebSocketMessage(messageId, data);
+          } catch (error) {
+            console.error('[ChatWebSocket] 解析消息失败:', error);
+          }
+        },
+        onStatusChange: (newStatus) => {
+          setStatus(newStatus);
+          options?.onStatusChange?.(newStatus);
+        },
+      }
+    );
+
+    setConnectionManager(manager);
+    connectionManagerRef.current = manager;
+  }, [wsUrl, options]);
+
+  // 发送消息
+  const sendMessage = useCallback(async (
+    requestBody: {
+      messages: Message[];
+      model?: string;
+      mode?: string;
+      otherConfig?: any;
+      tools?: any[];
+    }
+  ) => {
+    // 使用 ref 获取最新的连接管理器
+    const manager = connectionManagerRef.current;
+    
+    // 如果连接管理器不存在，等待它创建
+    if (!manager) {
+      console.warn('[ChatWebSocket] 连接管理器尚未初始化，等待创建...');
+      // 等待连接管理器创建（最多等待 2 秒）
+      let attempts = 0;
+      const maxAttempts = 20; // 20 * 100ms = 2秒
+      while (!connectionManagerRef.current && attempts < maxAttempts) {
+        await new Promise(resolve => setTimeout(resolve, 100));
+        attempts++;
+      }
+      
+      const currentManager = connectionManagerRef.current;
+      if (!currentManager) {
+        console.error('[ChatWebSocket] 连接管理器初始化超时');
+        options?.onError?.(new Error('连接管理器初始化超时'));
+        return;
+      }
+
+      // 如果未连接，尝试连接
+      if (!currentManager.isConnected()) {
+        setIsConnecting(true);
+        currentManager.connect();
+        
+        // 等待连接建立（最多等待 5 秒）
+        let connectAttempts = 0;
+        const maxConnectAttempts = 50; // 50 * 100ms = 5秒
+        while (!currentManager.isConnected() && connectAttempts < maxConnectAttempts) {
+          await new Promise(resolve => setTimeout(resolve, 100));
+          connectAttempts++;
+        }
+
+        if (!currentManager.isConnected()) {
+          console.error('[ChatWebSocket] 连接超时，无法发送消息');
+          setIsConnecting(false);
+          options?.onError?.(new Error('WebSocket 连接超时'));
+          return;
+        }
+      }
+
+      // 通过 WebSocket 发送消息
+      const message = JSON.stringify({
+        messages: requestBody.messages,
+        model: requestBody.model,
+        mode: requestBody.mode,
+        otherConfig: requestBody.otherConfig,
+        tools: requestBody.tools,
+      });
+
+      const sent = currentManager.send(message);
+      if (!sent) {
+        console.error('[ChatWebSocket] 发送消息失败');
+        options?.onError?.(new Error('发送消息失败'));
+      }
+      return;
+    }
+
+    // 如果未连接，尝试连接
+    if (!manager.isConnected()) {
+      setIsConnecting(true);
+      manager.connect();
+      
+      // 等待连接建立（最多等待 5 秒）
+      let attempts = 0;
+      const maxAttempts = 50; // 50 * 100ms = 5秒
+      while (!manager.isConnected() && attempts < maxAttempts) {
+        await new Promise(resolve => setTimeout(resolve, 100));
+        attempts++;
+      }
+
+      if (!manager.isConnected()) {
+        console.error('[ChatWebSocket] 连接超时，无法发送消息');
+        setIsConnecting(false);
+        options?.onError?.(new Error('WebSocket 连接超时'));
+        return;
+      }
+    }
+
+    // 通过 WebSocket 发送消息
+    const message = JSON.stringify({
+      messages: requestBody.messages,
+      model: requestBody.model,
+      mode: requestBody.mode,
+      otherConfig: requestBody.otherConfig,
+      tools: requestBody.tools,
+    });
+
+    const sent = manager.send(message);
+    if (!sent) {
+      console.error('[ChatWebSocket] 发送消息失败');
+      options?.onError?.(new Error('发送消息失败'));
+    }
+  }, [options]);
+
+  // 清理函数
+  useEffect(() => {
+    return () => {
+      if (connectionManagerRef.current) {
+        connectionManagerRef.current.close();
+        connectionManagerRef.current = null;
+      }
+    };
+  }, []);
+
+  return {
+    connectionManager,
+    status,
+    isConnecting,
+    sendMessage,
+    disconnect: () => {
+      if (connectionManagerRef.current) {
+        connectionManagerRef.current.close();
+        connectionManagerRef.current = null;
+      }
+      setConnectionManager(null);
+      setStatus('disconnected');
+      currentAssistantMessageRef.current = null;
+    },
+    isConnected: () => connectionManagerRef.current?.isConnected() ?? false,
   };
 };
