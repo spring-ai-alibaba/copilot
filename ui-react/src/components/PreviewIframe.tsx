@@ -31,7 +31,6 @@ const PreviewIframe: React.FC<PreviewIframeProps> = ({
   setShowIframe,
   isMinPrograme,
 }) => {
-  const ipcRenderer = window.electron?.ipcRenderer;
   const [url, setUrl] = useState<string>("");
   const [port, setPort] = useState<string>("");
   const { projectRoot } = useFileStore();
@@ -185,8 +184,8 @@ const PreviewIframe: React.FC<PreviewIframeProps> = ({
       if (event.data.type === 'REQUEST_BLOB_ACCESS') {
         const blobUrl = event.data.blobUrl;
         const requestId = event.data.requestId;
-      
-      
+
+
         fetch(blobUrl)
           .then(response => {
             if (!response.ok) {
@@ -275,24 +274,11 @@ const PreviewIframe: React.FC<PreviewIframeProps> = ({
                     onClick={async () => {
                       setSelectedSize(size);
                       setIsWindowSizeDropdownOpen(false);
-                      if (isMinPrograme && window.electron) {
-                        try {
-                          const defaultRoot = await ipcRenderer.invoke(
-                            "node-container:get-project-root"
-                          );
-                          const cliPath = await findWeChatDevToolsPath();
-                          const command = `"${cliPath}" preview --project "${projectRoot || defaultRoot}" --auto-port`;
-                          await ipcRenderer.invoke(
-                            "node-container:exec-command",
-                            command
-                          );
-                          // window.electron.ipcRenderer.send("open:external:url", `http://localhost:${port}`);
-                        } catch (error) {
-                          console.error("Failed to execute WeChat DevTools command:", error);
-                        }
+                      // WeChat DevTools preview is not available in Web mode
+                      if (isMinPrograme) {
+                        console.warn("WeChat DevTools preview is not available in Web mode");
                       }
-                    }
-}
+                    }}
                   >
                     <size.icon size={20} />
                     <div className="flex flex-col">

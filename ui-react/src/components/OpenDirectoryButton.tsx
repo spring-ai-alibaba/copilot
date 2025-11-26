@@ -8,42 +8,10 @@ import {useTranslation} from "react-i18next";
 import useTerminalStore from "@/stores/terminalSlice";
 
 export const OpenDirectoryButton: React.FC = () => {
-  const { setEmptyFiles, setIsFirstSend, setIsUpdateSend, setProjectRoot } =
-    useFileStore();
-  const { resetTerminals } = useTerminalStore();
   const { t } = useTranslation();
-  const handleOpenDirectory = async () => {
-    try {
-      const result = await window.myAPI.dialog.showOpenDialog({
-        properties: ["openDirectory"],
-      });
-      if (!result.canceled && result.filePaths.length > 0) {
-        setEmptyFiles();
-        const selectedPath = result.filePaths[0];
-        await window?.electron?.ipcRenderer.invoke(
-          "node-container:set-now-path",
-          selectedPath
-        );
-        const projectRoot = await window?.electron?.ipcRenderer.invoke(
-          "node-container:get-project-root"
-        );
-        setProjectRoot(selectedPath);
-        console.log("Selected directory:", selectedPath);
-        console.log("Project root:", projectRoot);
 
-        setTimeout(() => {
-          setIsFirstSend();
-          setIsUpdateSend();
-          setTimeout(() => {
-            resetTerminals()
-            updateFileSystemNow();
-          }, 100);
-        }, 100);
-      }
-    } catch (error) {
-      console.error("Failed to open directory:", error);
-      message.error(t("header.error.open_directory"));
-    }
+  const handleOpenDirectory = async () => {
+    message.info(t("header.error.feature_not_available_in_web"));
   };
 
   return (
@@ -54,7 +22,7 @@ export const OpenDirectoryButton: React.FC = () => {
             {t("header.open_directory")}
           </div>
           <div className="text-[#666] dark:text-gray-300">
-            {t("header.open_directory_tips")}
+            {t("header.open_directory_web_tips")}
           </div>
         </div>
       }
@@ -73,7 +41,7 @@ export const OpenDirectoryButton: React.FC = () => {
           className="text-[#424242] dark:text-gray-300 hover:text-[#000] dark:hover:text-white
             bg-white dark:bg-[#333333] hover:bg-[#f5f5f5] dark:hover:bg-[#404040]
             border border-[#e5e5e5] dark:border-[#252525]
-            shadow-sm hover:shadow transition-all"
+            shadow-sm hover:shadow transition-all opacity-50 cursor-not-allowed"
         />
       </div>
     </Tooltip>

@@ -3,8 +3,6 @@ import react from "@vitejs/plugin-react";
 import path from "path";
 import {viteCommonjs} from "@originjs/vite-plugin-commonjs";
 
-const isElectron = process.env.npm_lifecycle_event?.startsWith("electron:");
-
 export default defineConfig(async ({ mode }) => {
   const glslPlugin = (await import("vite-plugin-glsl")).default;
 
@@ -47,19 +45,6 @@ export default defineConfig(async ({ mode }) => {
       }),
 
       react(),
-      // Temporarily disable electron plugin for web-only development
-      // electron([
-      //   {
-      //     // Main process entry file of the Electron App
-      //     entry: "electron/main.ts",
-      //   },
-      //   {
-      //     entry: "electron/preload.ts",
-      //     onstart(options) {
-      //       options.reload();
-      //     },
-      //   },
-      // ]),
     ],
 
     base: "./",
@@ -67,7 +52,6 @@ export default defineConfig(async ({ mode }) => {
       outDir: "dist",
       emptyOutDir: true,
       rollupOptions: {
-        external: ["@electron/remote", "electron"],
         output: {
           manualChunks(id) {
             if (id.includes("workspace/")) {
@@ -81,12 +65,10 @@ export default defineConfig(async ({ mode }) => {
     },
 
     server: {
-      headers: isElectron
-        ? {}
-        : {
-            "Cross-Origin-Embedder-Policy": "credentialless",
-            "Cross-Origin-Opener-Policy": "same-origin",
-          },
+      headers: {
+        "Cross-Origin-Embedder-Policy": "credentialless",
+        "Cross-Origin-Opener-Policy": "same-origin",
+      },
       watch: {
         ignored: ["**/workspace/**"],
       },
@@ -138,7 +120,6 @@ export default defineConfig(async ({ mode }) => {
         "@": path.resolve(__dirname, "src"),
         "@sketch-hq/sketch-file-format-ts": "@sketch-hq/sketch-file-format-ts",
         "ag-psd": "ag-psd",
-        "@electron/remote": "@electron/remote/main",
       },
     },
 
@@ -150,7 +131,6 @@ export default defineConfig(async ({ mode }) => {
         "@codemirror/state",
         "seedrandom"
       ],
-      exclude: ["@electron/remote", "electron"],
       esbuildOptions: {
         target: "esnext",
       },
