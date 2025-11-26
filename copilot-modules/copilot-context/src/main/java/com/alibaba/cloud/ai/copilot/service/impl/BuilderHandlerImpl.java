@@ -1,5 +1,6 @@
 package com.alibaba.cloud.ai.copilot.service.impl;
 
+import com.alibaba.cloud.ai.copilot.memory.context.ContextAssembler;
 import com.alibaba.cloud.ai.copilot.model.Message;
 import com.alibaba.cloud.ai.copilot.model.PromptExtra;
 import com.alibaba.cloud.ai.copilot.model.ToolInfo;
@@ -14,7 +15,9 @@ import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.ai.openai.OpenAiChatOptions;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.stereotype.Service;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 import reactor.core.publisher.Flux;
@@ -40,6 +43,10 @@ public class BuilderHandlerImpl implements BuilderHandler {
     private final ChatMemory chatMemory;
     private final PromptTemplateService promptTemplateService;
     private final FileSystemService fileSystemService;
+    
+    // 可选的记忆系统组件
+    @Autowired(required = false)
+    private ContextAssembler contextAssembler;
 
     public BuilderHandlerImpl(
             TokenService tokenService,
@@ -132,31 +139,71 @@ public class BuilderHandlerImpl implements BuilderHandler {
             ChatModel chatModel = dynamicModelService.getChatModel(model, userId);
 
             try {
-                // 获取记忆中的对话历史
-                List<org.springframework.ai.chat.messages.Message> memoryMessages = chatMemory.get(conversationId);
-                boolean isFirstConversation = memoryMessages.isEmpty();
-
                 // 构建最终的消息列表
                 List<org.springframework.ai.chat.messages.Message> finalMessages = new ArrayList<>();
 
-                // 只在第一次对话时添加系统提示词到记忆中
-                if (isFirstConversation) {
-                    // 使用已经构建好的系统提示词（避免重复构建）
-                    SystemMessage systemMessage = new SystemMessage(systemPrompt);
-                    chatMemory.add(conversationId, systemMessage);
-                   // finalMessages.add(systemMessage);
+                // 如果启用了记忆系统，使用 ContextAssembler 组装上下文
+                if (contextAssembler != null) {
+                    log.info("Using ContextAssembler to assemble context for conversation {}", conversationId);
+                    
+                    // 转换用户消息为记忆系统的 Message 格式
+                    com.alibaba.cloud.ai.copilot.memory.domain.Message userMessage = 
+                        new com.alibaba.cloud.ai.copilot.memory.domain.Message();
+                    userMessage.setId(java.util.UUID.randomUUID().toString());
+                    userMessage.setRole("user");
+                    userMessage.setContent(originalUserQuestion);
+                    userMessage.setTimestamp(java.time.LocalDateTime.now());
+                    
+                    // 使用 ContextAssembler 组装完整上下文（包含长期记忆、短期记忆、当前消息）
+                    java.nio.file.Path workspacePathObj = java.nio.file.Paths.get(workspacePath);
+                    List<com.alibaba.cloud.ai.copilot.memory.domain.Message> assembledMessages = 
+                        contextAssembler.assembleContext(
+                            conversationId,
+                            userId,
+                            userMessage,
+                            workspacePathObj,
+                            model
+                    );
+                    
+                    // 转换为 Spring AI 的 Message 格式
+                    for (com.alibaba.cloud.ai.copilot.memory.domain.Message msg : assembledMessages) {
+                        if ("system".equals(msg.getRole())) {
+                            finalMessages.add(new SystemMessage(msg.getContent()));
+                        } else if ("user".equals(msg.getRole())) {
+                            finalMessages.add(new UserMessage(msg.getContent()));
+                        } else if ("assistant".equals(msg.getRole())) {
+                            finalMessages.add(new AssistantMessage(msg.getContent()));
+                        }
+                    }
+                    
+                    // 将用户消息添加到记忆（ContextAssembler 已经处理了历史，这里只添加当前消息）
+                    UserMessage springUserMessage = new UserMessage(originalUserQuestion);
+                    chatMemory.add(conversationId, springUserMessage);
+                    
+                } else {
+                    // 降级方案：使用原有的记忆管理方式
+                    log.debug("ContextAssembler not available, using fallback memory management");
+                    
+                    // 获取记忆中的对话历史
+                    List<org.springframework.ai.chat.messages.Message> memoryMessages = chatMemory.get(conversationId);
+                    boolean isFirstConversation = memoryMessages.isEmpty();
 
-                    log.debug("Added system prompt to memory for conversation {} (length: {})",
-                             conversationId, systemPrompt.length());
+                    // 只在第一次对话时添加系统提示词到记忆中
+                    if (isFirstConversation) {
+                        SystemMessage systemMessage = new SystemMessage(systemPrompt);
+                        chatMemory.add(conversationId, systemMessage);
+                        log.debug("Added system prompt to memory for conversation {} (length: {})",
+                                 conversationId, systemPrompt.length());
+                    }
+
+                    // 将当前用户消息添加到记忆中
+                    UserMessage userMessage = new UserMessage(originalUserQuestion);
+                    chatMemory.add(conversationId, userMessage);
+
+                    // 获取更新后的记忆消息
+                    memoryMessages = chatMemory.get(conversationId);
+                    finalMessages.addAll(memoryMessages);
                 }
-
-                // 将当前用户消息（原始的纯净问题）添加到记忆中
-                UserMessage userMessage = new UserMessage(originalUserQuestion);
-                chatMemory.add(conversationId, userMessage);
-
-                // 获取更新后的记忆消息
-                memoryMessages = chatMemory.get(conversationId);
-                finalMessages.addAll(memoryMessages);
 
                 // 创建包含历史记忆的Prompt
                 OpenAiChatOptions chatOptions = openAiModelFactory.createDefaultChatOptions(model);
