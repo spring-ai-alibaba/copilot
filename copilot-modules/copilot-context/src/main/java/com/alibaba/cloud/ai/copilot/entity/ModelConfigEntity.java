@@ -21,6 +21,12 @@ public class ModelConfigEntity {
      */
     @TableId(value = "id", type = IdType.AUTO)
     private Long id;
+
+    /**
+     * 用户 id
+     */
+    @TableField("user_id")
+    private Long userId;
     
     /**
      * 模型名称
@@ -57,7 +63,13 @@ public class ModelConfigEntity {
      */
     @TableField("provider")
     private String provider;
-    
+
+    /**
+     * 最大 token
+     */
+    @TableField("max_token")
+    private Integer maxToken;
+
     /**
      * API密钥
      */

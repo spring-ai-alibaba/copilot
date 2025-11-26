@@ -19,8 +19,13 @@ import java.util.List;
 public class ChatRequest {
     
     private List<Message> messages;
-    
+
     private String model;
+
+    /**
+     * 用户配置的模型ID
+     */
+    private String modelConfigId;
     
     private ChatMode mode = ChatMode.BUILDER;
     

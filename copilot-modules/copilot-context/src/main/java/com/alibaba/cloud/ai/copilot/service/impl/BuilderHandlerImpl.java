@@ -63,11 +63,11 @@ public class BuilderHandlerImpl implements BuilderHandler {
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     @Override
-    public void handle(List<Message> messages, String model, String userId, PromptExtra otherConfig,
+    public void handle(List<Message> messages, String modelConfigId, String userId, PromptExtra otherConfig,
                       List<ToolInfo> tools, SseEmitter emitter) {
         CompletableFuture.runAsync(() -> {
             try {
-                processBuilder(messages, model, userId, otherConfig, tools, emitter);
+                processBuilder(messages, modelConfigId, userId, otherConfig, tools, emitter);
             } catch (Exception e) {
                 log.error("Error processing builder", e);
                 try {
@@ -79,7 +79,7 @@ public class BuilderHandlerImpl implements BuilderHandler {
         });
     }
 
-    private void processBuilder(List<Message> messages, String model, String userId, PromptExtra otherConfig,
+    private void processBuilder(List<Message> messages, String modelConfigId, String userId, PromptExtra otherConfig,
                                List<ToolInfo> tools, SseEmitter emitter) {
         try {
             // Get or create conversation ID for this user session
@@ -129,7 +129,7 @@ public class BuilderHandlerImpl implements BuilderHandler {
             }
 
             // 使用动态模型服务获取对应的ChatModel
-            ChatModel chatModel = dynamicModelService.getChatModel(model, userId);
+            ChatModel chatModel = dynamicModelService.getChatModelWithConfigId(modelConfigId);
 
             try {
                 // 获取记忆中的对话历史
@@ -159,8 +159,7 @@ public class BuilderHandlerImpl implements BuilderHandler {
                 finalMessages.addAll(memoryMessages);
 
                 // 创建包含历史记忆的Prompt
-                OpenAiChatOptions chatOptions = openAiModelFactory.createDefaultChatOptions(model);
-                Prompt prompt = new Prompt(finalMessages, chatOptions);
+                Prompt prompt = new Prompt(finalMessages);
 
                 // 用于收集完整的AI响应
                 StringBuilder responseBuilder = new StringBuilder();

@@ -13,6 +13,10 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class ModelOptionVO {
+    /**
+     * 模型配置 id
+     */
+    private Long modelConfigId;
 
     /**
      * 模型标识键，对应前端的 value
@@ -88,7 +92,7 @@ public class ModelOptionVO {
             label = "Model " + entity.getId();
         }
         vo.setLabel(label);
-
+        vo.setModelConfigId(entity.getId());
         vo.setUseImage(entity.getUseImage() != null ? entity.getUseImage() : false);
         vo.setQuota(100); // 默认配额
         vo.setFrom(entity.getProvider());

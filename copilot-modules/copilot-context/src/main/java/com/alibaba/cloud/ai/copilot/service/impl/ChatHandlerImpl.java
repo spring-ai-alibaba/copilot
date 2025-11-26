@@ -34,10 +34,10 @@ public class ChatHandlerImpl implements ChatHandler {
     private static final String CONTINUE_PROMPT = "Continue your prior response. IMPORTANT: Immediately begin from where you left off without any interruptions. Do not repeat any content, including artifact and action tags.";
 
     @Override
-    public void handle(List<Message> messages, String model, String userId, List<ToolInfo> tools, SseEmitter emitter) {
+    public void handle(List<Message> messages, String modelConfigId, String userId, List<ToolInfo> tools, SseEmitter emitter) {
         CompletableFuture.runAsync(() -> {
             try {
-                processChat(messages, model, userId, tools, emitter);
+                processChat(messages, modelConfigId, userId, tools, emitter);
             } catch (Exception e) {
                 log.error("Error processing chat", e);
                 try {
@@ -49,18 +49,17 @@ public class ChatHandlerImpl implements ChatHandler {
         });
     }
 
-    private void processChat(List<Message> messages, String model, String userId, List<ToolInfo> tools, SseEmitter emitter) {
+    private void processChat(List<Message> messages, String modelConfigId, String userId, List<ToolInfo> tools, SseEmitter emitter) {
         try {
             // 使用动态模型服务获取对应的ChatModel
-            ChatModel chatModel = dynamicModelService.getChatModel(model, userId);
+            ChatModel chatModel = dynamicModelService.getChatModelWithConfigId(modelConfigId);
 
             // Convert messages to Spring AI format
             List<org.springframework.ai.chat.messages.Message> springMessages =
                 streamingService.convertMessages(messages);
 
             // Create prompt with runtime options
-            OpenAiChatOptions chatOptions = openAiModelFactory.createDefaultChatOptions(model);
-            Prompt prompt = new Prompt(springMessages, chatOptions);
+            Prompt prompt = new Prompt(springMessages);
 
             // Stream response
             streamingService.streamResponse(chatModel, prompt, emitter, (response) -> {

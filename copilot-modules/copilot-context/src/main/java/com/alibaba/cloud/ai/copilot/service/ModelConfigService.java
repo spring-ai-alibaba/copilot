@@ -1,6 +1,7 @@
 package com.alibaba.cloud.ai.copilot.service;
 
 import com.alibaba.cloud.ai.copilot.context.domain.ModelConfig;
+import com.alibaba.cloud.ai.copilot.dto.LlmServiceProvider;
 import com.alibaba.cloud.ai.copilot.dto.ModelConfigResponse;
 import com.alibaba.cloud.ai.copilot.entity.ModelConfigEntity;
 
@@ -56,4 +57,18 @@ public interface ModelConfigService {
      * 根据模型名称或模型键获取模型配置实体
      */
     ModelConfigEntity getModelEntityByName(String modelName);
+
+    /***
+     * 判断当前用户配置了的模型
+     * @return
+     */
+    List<LlmServiceProvider> getCurrentUserModels(Long userId);
+
+    /**
+     * 根据供应商code删除当前用户在该供应商下的所有模型配置
+     * @param userId 用户ID
+     * @param providerCode 供应商代码
+     * @return 删除的记录数
+     */
+    int deleteModelsByProvider(Long userId, String providerCode);
 }

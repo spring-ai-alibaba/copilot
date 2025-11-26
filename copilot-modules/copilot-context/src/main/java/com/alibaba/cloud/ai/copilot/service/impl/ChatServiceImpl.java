@@ -28,7 +28,7 @@ public class ChatServiceImpl implements ChatService {
     @Override
     public void handleChatMode(ChatRequest request, String userId, SseEmitter emitter) {
         try {
-            chatHandler.handle(request.getMessages(), request.getModel(), userId, request.getTools(), emitter);
+            chatHandler.handle(request.getMessages(), request.getModelConfigId(), userId, request.getTools(), emitter);
         } catch (Exception e) {
             log.error("Error in chat mode", e);
             try {
@@ -44,7 +44,7 @@ public class ChatServiceImpl implements ChatService {
         try {
             builderHandler.handle(
                 request.getMessages(),
-                request.getModel(),
+                request.getModelConfigId(),
                 userId,
                 request.getOtherConfig(),
                 request.getTools(),
