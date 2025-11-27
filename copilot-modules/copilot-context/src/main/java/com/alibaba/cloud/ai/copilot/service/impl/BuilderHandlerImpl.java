@@ -1,6 +1,5 @@
 package com.alibaba.cloud.ai.copilot.service.impl;
 
-import com.alibaba.cloud.ai.copilot.memory.context.ContextAssembler;
 import com.alibaba.cloud.ai.copilot.model.Message;
 import com.alibaba.cloud.ai.copilot.model.PromptExtra;
 import com.alibaba.cloud.ai.copilot.model.ToolInfo;
@@ -43,7 +42,8 @@ public class BuilderHandlerImpl implements BuilderHandler {
     private final ChatMemory chatMemory;
     private final PromptTemplateService promptTemplateService;
     private final FileSystemService fileSystemService;
-    
+    private final ToolOrchestrationService toolOrchestrationService;
+
     // 可选的记忆系统组件
     @Autowired(required = false)
     private ContextAssembler contextAssembler;
@@ -56,7 +56,8 @@ public class BuilderHandlerImpl implements BuilderHandler {
             @Qualifier("chatMemoryConversationService") ConversationService conversationService,
             ChatMemory chatMemory,
             @Qualifier("promptTemplateServiceImpl") PromptTemplateService promptTemplateService,
-            FileSystemService fileSystemService) {
+            FileSystemService fileSystemService,
+            ToolOrchestrationService toolOrchestrationService) {
         this.tokenService = tokenService;
         this.fileProcessorService = fileProcessorService;
         this.dynamicModelService = dynamicModelService;
@@ -65,6 +66,7 @@ public class BuilderHandlerImpl implements BuilderHandler {
         this.chatMemory = chatMemory;
         this.promptTemplateService = promptTemplateService;
         this.fileSystemService = fileSystemService;
+        this.toolOrchestrationService = toolOrchestrationService;
     }
 
     private final ObjectMapper objectMapper = new ObjectMapper();
@@ -145,18 +147,18 @@ public class BuilderHandlerImpl implements BuilderHandler {
                 // 如果启用了记忆系统，使用 ContextAssembler 组装上下文
                 if (contextAssembler != null) {
                     log.info("Using ContextAssembler to assemble context for conversation {}", conversationId);
-                    
+
                     // 转换用户消息为记忆系统的 Message 格式
-                    com.alibaba.cloud.ai.copilot.memory.domain.Message userMessage = 
+                    com.alibaba.cloud.ai.copilot.memory.domain.Message userMessage =
                         new com.alibaba.cloud.ai.copilot.memory.domain.Message();
                     userMessage.setId(java.util.UUID.randomUUID().toString());
                     userMessage.setRole("user");
                     userMessage.setContent(originalUserQuestion);
                     userMessage.setTimestamp(java.time.LocalDateTime.now());
-                    
+
                     // 使用 ContextAssembler 组装完整上下文（包含长期记忆、短期记忆、当前消息）
                     java.nio.file.Path workspacePathObj = java.nio.file.Paths.get(workspacePath);
-                    List<com.alibaba.cloud.ai.copilot.memory.domain.Message> assembledMessages = 
+                    List<com.alibaba.cloud.ai.copilot.memory.domain.Message> assembledMessages =
                         contextAssembler.assembleContext(
                             conversationId,
                             userId,
@@ -164,7 +166,7 @@ public class BuilderHandlerImpl implements BuilderHandler {
                             workspacePathObj,
                             model
                     );
-                    
+
                     // 转换为 Spring AI 的 Message 格式
                     for (com.alibaba.cloud.ai.copilot.memory.domain.Message msg : assembledMessages) {
                         if ("system".equals(msg.getRole())) {
@@ -175,15 +177,15 @@ public class BuilderHandlerImpl implements BuilderHandler {
                             finalMessages.add(new AssistantMessage(msg.getContent()));
                         }
                     }
-                    
+
                     // 将用户消息添加到记忆（ContextAssembler 已经处理了历史，这里只添加当前消息）
                     UserMessage springUserMessage = new UserMessage(originalUserQuestion);
                     chatMemory.add(conversationId, springUserMessage);
-                    
+
                 } else {
                     // 降级方案：使用原有的记忆管理方式
                     log.debug("ContextAssembler not available, using fallback memory management");
-                    
+
                     // 获取记忆中的对话历史
                     List<org.springframework.ai.chat.messages.Message> memoryMessages = chatMemory.get(conversationId);
                     boolean isFirstConversation = memoryMessages.isEmpty();
@@ -205,9 +207,26 @@ public class BuilderHandlerImpl implements BuilderHandler {
                     finalMessages.addAll(memoryMessages);
                 }
 
-                // 创建包含历史记忆的Prompt
-                OpenAiChatOptions chatOptions = openAiModelFactory.createDefaultChatOptions(model);
-                Prompt prompt = new Prompt(finalMessages, chatOptions);
+                // 生成消息ID用于SSE事件追踪
+                String messageId = UUID.randomUUID().toString();
+
+                // 获取所有工具的ToolCallback列表用于Spring AI 1.1工具调用
+                List<org.springframework.ai.tool.ToolCallback> toolCallbacks =
+                    toolOrchestrationService.getAllToolCallbacks();
+
+                // 创建包含工具的Prompt
+                // Spring AI 1.1 会自动处理 @Tool 注解的方法，我们只需要传递 ToolCallback
+                // 使用 ToolCallingChatOptions 创建包含工具的选项
+                org.springframework.ai.model.tool.ToolCallingChatOptions toolOptions =
+                    org.springframework.ai.model.tool.ToolCallingChatOptions.builder()
+                        .toolCallbacks(toolCallbacks)
+                        .build();
+
+                log.info("Configured {} tool callbacks for conversation {}",
+                    toolCallbacks.size(), conversationId);
+
+                // 创建包含历史记忆和工具的Prompt
+                Prompt prompt = new Prompt(finalMessages, toolOptions);
 
                 // 用于收集完整的AI响应
                 StringBuilder responseBuilder = new StringBuilder();
