@@ -13,7 +13,6 @@ import org.springframework.ai.chat.messages.UserMessage;
 import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.ai.chat.prompt.Prompt;
-import org.springframework.ai.openai.OpenAiChatOptions;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
@@ -40,6 +39,7 @@ public class BuilderHandlerImpl implements BuilderHandler {
     private final ChatMemory chatMemory;
     private final PromptTemplateService promptTemplateService;
     private final FileSystemService fileSystemService;
+    private final ToolOrchestrationService toolOrchestrationService;
 
     public BuilderHandlerImpl(
             TokenService tokenService,
@@ -49,7 +49,8 @@ public class BuilderHandlerImpl implements BuilderHandler {
             @Qualifier("chatMemoryConversationService") ConversationService conversationService,
             ChatMemory chatMemory,
             @Qualifier("promptTemplateServiceImpl") PromptTemplateService promptTemplateService,
-            FileSystemService fileSystemService) {
+            FileSystemService fileSystemService,
+            ToolOrchestrationService toolOrchestrationService) {
         this.tokenService = tokenService;
         this.fileProcessorService = fileProcessorService;
         this.dynamicModelService = dynamicModelService;
@@ -58,6 +59,7 @@ public class BuilderHandlerImpl implements BuilderHandler {
         this.chatMemory = chatMemory;
         this.promptTemplateService = promptTemplateService;
         this.fileSystemService = fileSystemService;
+        this.toolOrchestrationService = toolOrchestrationService;
     }
 
     private final ObjectMapper objectMapper = new ObjectMapper();
@@ -160,6 +162,26 @@ public class BuilderHandlerImpl implements BuilderHandler {
 
                 // 创建包含历史记忆的Prompt
                 Prompt prompt = new Prompt(finalMessages);
+                // 生成消息ID用于SSE事件追踪
+                String messageId = UUID.randomUUID().toString();
+
+                // 获取所有工具的ToolCallback列表用于Spring AI 1.1工具调用
+                List<org.springframework.ai.tool.ToolCallback> toolCallbacks =
+                    toolOrchestrationService.getAllToolCallbacks();
+
+                // 创建包含工具的Prompt
+                // Spring AI 1.1 会自动处理 @Tool 注解的方法，我们只需要传递 ToolCallback
+                // 使用 ToolCallingChatOptions 创建包含工具的选项
+                org.springframework.ai.model.tool.ToolCallingChatOptions toolOptions =
+                    org.springframework.ai.model.tool.ToolCallingChatOptions.builder()
+                        .toolCallbacks(toolCallbacks)
+                        .build();
+
+                log.info("Configured {} tool callbacks for conversation {}",
+                    toolCallbacks.size(), conversationId);
+
+                // 创建包含历史记忆和工具的Prompt
+                Prompt prompt = new Prompt(finalMessages, toolOptions);
 
                 // 用于收集完整的AI响应
                 StringBuilder responseBuilder = new StringBuilder();
