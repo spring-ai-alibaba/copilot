@@ -1,39 +1,622 @@
 /* 模型管理样式 */
 .model-settings {
-  padding: 16px;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
 }
 
-.model-settings .ant-card {
-  border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+.model-settings .model-settings-container {
+  display: flex;
+  height: 100%;
+  gap: 0;
+  flex: 1;
 }
 
-.model-settings .ant-card-body {
-  padding: 24px;
-}
-
-/* 表格样式 */
-.model-settings .ant-table {
-  border-radius: 8px;
-}
-
-.model-settings .ant-table-thead > tr > th {
+/* 侧边栏样式 - 供应商列表 */
+.model-settings .model-sidebar {
+  width: 240px;
+  border-right: 1px solid #f0f0f0;
+  display: flex;
+  flex-direction: column;
   background-color: #fafafa;
-  font-weight: 600;
-  border-bottom: 2px solid #f0f0f0;
+  overflow: hidden;
 }
 
-.dark .model-settings .ant-table-thead > tr > th {
+.dark .model-settings .model-sidebar {
+  border-right-color: #333333;
   background-color: #1f1f1f;
+}
+
+/* 右侧面板 - 供应商详情 + 模型列表 */
+.model-settings .provider-detail-panel {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background-color: #ffffff;
+  overflow: hidden;
+  min-height: 0;
+}
+
+.dark .model-settings .provider-detail-panel {
+  background-color: #141414;
+}
+
+.model-settings .provider-detail-content {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 24px;
+  padding-bottom: 48px;
+  box-sizing: border-box;
+}
+
+.model-settings .provider-detail-content .ant-spin-container {
+  min-height: 100%;
+}
+
+
+.model-settings .provider-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: #999999;
+}
+
+.model-settings .sidebar-header {
+  padding: 16px;
+  border-bottom: 1px solid #f0f0f0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
+.dark .model-settings .sidebar-header {
   border-bottom-color: #333333;
 }
 
-.model-settings .ant-table-tbody > tr:hover > td {
-  background-color: #f8fafc;
+.model-settings .sidebar-title {
+  font-size: 14px;
+  font-weight: 600;
+  margin: 0;
+  color: #262626;
+  flex: 1;
 }
 
-.dark .model-settings .ant-table-tbody > tr:hover > td {
+.dark .model-settings .sidebar-title {
+  color: #ffffff;
+}
+
+.model-settings .add-model-btn-sidebar {
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.model-settings .sidebar-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px 0;
+}
+
+/* 中间面板头部 */
+.model-settings .middle-header {
+  padding: 16px;
+  border-bottom: 1px solid #f0f0f0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
+.dark .model-settings .middle-header {
+  border-bottom-color: #333333;
+}
+
+.model-settings .middle-title {
+  font-size: 14px;
+  font-weight: 600;
+  margin: 0;
+  color: #262626;
+  flex: 1;
+}
+
+.dark .model-settings .middle-title {
+  color: #ffffff;
+}
+
+/* 供应商信息区域 */
+.model-settings .provider-info-section {
+  margin-bottom: 24px;
+}
+
+.model-settings .provider-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.model-settings .provider-name {
+  font-size: 20px;
+  font-weight: 600;
+  margin: 0;
+  color: #262626;
+}
+
+.dark .model-settings .provider-name {
+  color: #ffffff;
+}
+
+.model-settings .provider-description {
+  font-size: 14px;
+  color: #666666;
+  margin-bottom: 16px;
+}
+
+.dark .model-settings .provider-description {
+  color: #999999;
+}
+
+.model-settings .section-title {
+  font-size: 14px;
+  font-weight: 600;
+  margin: 0 0 12px 0;
+  color: #262626;
+}
+
+.dark .model-settings .section-title {
+  color: #ffffff;
+}
+
+.model-settings .api-config-section {
+  margin-bottom: 16px;
+}
+
+.model-settings .config-item {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.model-settings .config-input {
+  flex: 1;
+}
+
+/* 模型列表区域 */
+.model-settings .models-section {
+  margin-top: 24px;
+}
+
+.model-settings .models-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.model-settings .models-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-bottom: 8px;
+}
+
+/* 右侧供应商卡片列表 */
+.model-settings .provider-cards-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.model-settings .provider-card {
+  border: 1px solid #f0f0f0;
+  border-radius: 10px;
+  padding: 12px 16px;
+  background-color: #ffffff;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.dark .model-settings .provider-card {
+  border-color: #333333;
+  background-color: #141414;
+}
+
+.model-settings .provider-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.model-settings .provider-card-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.model-settings .provider-card-logo-placeholder {
+  width: 20px;
+  height: 20px;
+  border-radius: 4px;
+  background: linear-gradient(135deg, #722ed1, #9254de);
+}
+
+.model-settings .provider-card-name-text {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.model-settings .provider-card-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.model-settings .provider-card-toggle-text {
+  margin-right: 4px;
+}
+
+.model-settings .provider-models-list {
+  border-top: 1px solid #f5f5f5;
+  margin-top: 8px;
+  padding-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.dark .model-settings .provider-models-list {
+  border-top-color: #333333;
+}
+
+.model-settings .provider-model-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 13px;
+}
+
+.model-settings .provider-model-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.model-settings .provider-model-name {
+  font-weight: 500;
+}
+
+.model-settings .provider-model-meta {
+  font-size: 12px;
+  color: #8c8c8c;
+}
+
+.dark .model-settings .provider-model-meta {
+  color: #999999;
+}
+
+.model-settings .provider-model-actions {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* 模型卡片 */
+.model-settings .model-card {
+  border: 1px solid #f0f0f0;
+  border-radius: 6px;
+  padding: 12px;
+  background-color: #fafafa;
+  transition: all 0.3s ease;
+}
+
+.dark .model-settings .model-card {
+  border-color: #333333;
+  background-color: #1f1f1f;
+}
+
+.model-settings .model-card:hover {
+  border-color: #d9d9d9;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.dark .model-settings .model-card:hover {
+  border-color: #434343;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.45);
+}
+
+.model-settings .model-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 12px;
+}
+
+.model-settings .model-card-title-section {
+  flex: 1;
+}
+
+.model-settings .model-card-title {
+  font-size: 14px;
+  font-weight: 600;
+  margin: 0 0 4px 0;
+  color: #262626;
+}
+
+.dark .model-settings .model-card-title {
+  color: #ffffff;
+}
+
+.model-settings .model-card-name {
+  font-size: 12px;
+  color: #999999;
+}
+
+.dark .model-settings .model-card-name {
+  color: #666666;
+}
+
+.model-settings .model-card-actions {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.model-settings .model-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.model-settings .model-card-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 13px;
+}
+
+.model-settings .model-card-label {
+  color: #666666;
+  font-weight: 500;
+}
+
+.dark .model-settings .model-card-label {
+  color: #999999;
+}
+
+.model-settings .model-card-value {
+  color: #262626;
+}
+
+.dark .model-settings .model-card-value {
+  color: #ffffff;
+}
+
+/* 侧边栏模型项 */
+.model-settings .sidebar-model-item {
+  padding: 12px 16px;
+  cursor: pointer;
+  border-left: 3px solid transparent;
+  transition: all 0.2s ease;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.model-settings .sidebar-model-item:hover {
+  background-color: #f0f0f0;
+}
+
+.dark .model-settings .sidebar-model-item:hover {
   background-color: #2a2a2a;
+}
+
+.model-settings .sidebar-model-item.active {
+  background-color: #e6f7ff;
+  border-left-color: #1890ff;
+}
+
+.dark .model-settings .sidebar-model-item.active {
+  background-color: rgba(24, 144, 255, 0.1);
+  border-left-color: #1890ff;
+}
+
+.model-settings .sidebar-item-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
+.model-settings .sidebar-item-title {
+  font-size: 14px;
+  font-weight: 500;
+  color: #262626;
+  margin: 0;
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dark .model-settings .sidebar-item-title {
+  color: #ffffff;
+}
+
+.model-settings .sidebar-item-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.model-settings .sidebar-add-btn {
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  padding: 0 4px;
+}
+
+.model-settings .sidebar-model-item:hover .sidebar-add-btn,
+.model-settings .sidebar-model-item.active .sidebar-add-btn {
+  opacity: 1;
+}
+
+.model-settings .status-indicator {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: #52c41a;
+  flex-shrink: 0;
+}
+
+.model-settings .sidebar-item-subtitle {
+  font-size: 12px;
+  color: #8c8c8c;
+  margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+}
+
+.dark .model-settings .sidebar-item-subtitle {
+  color: #999999;
+}
+
+/* 详情面板样式 */
+.model-settings .model-detail {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.model-settings .detail-panel-empty {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #8c8c8c;
+  font-size: 14px;
+}
+
+.dark .model-settings .detail-panel-empty {
+  color: #999999;
+}
+
+.model-settings .detail-panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+
+.model-settings .detail-header {
+  padding: 24px;
+  border-bottom: 1px solid #f0f0f0;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.dark .model-settings .detail-header {
+  border-bottom-color: #333333;
+}
+
+.model-settings .detail-title-section {
+  flex: 1;
+}
+
+.model-settings .detail-title {
+  font-size: 20px;
+  font-weight: 600;
+  margin: 0;
+  color: #262626;
+}
+
+.dark .model-settings .detail-title {
+  color: #ffffff;
+}
+
+.model-settings .detail-subtitle {
+  font-size: 12px;
+  color: #8c8c8c;
+  margin: 8px 0 0 0;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+}
+
+.dark .model-settings .detail-subtitle {
+  color: #999999;
+}
+
+.model-settings .detail-actions {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.model-settings .detail-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.model-settings .detail-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.model-settings .detail-label {
+  font-size: 14px;
+  font-weight: 500;
+  color: #262626;
+  min-width: 100px;
+  flex-shrink: 0;
+}
+
+.dark .model-settings .detail-label {
+  color: #ffffff;
+}
+
+.model-settings .detail-value {
+  font-size: 14px;
+  color: #262626;
+  flex: 1;
+}
+
+.dark .model-settings .detail-value {
+  color: #ffffff;
+}
+
+.model-settings .setting-value {
+  background-color: #fafafa;
+  border-radius: 6px;
+  padding: 12px;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  font-size: 12px;
+  overflow-x: auto;
+}
+
+.dark .model-settings .setting-value {
+  background-color: #1f1f1f;
+}
+
+.model-settings .setting-value pre {
+  margin: 0;
+  color: #262626;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.dark .model-settings .setting-value pre {
+  color: #ffffff;
 }
 
 /* 状态开关样式 */
@@ -52,9 +635,10 @@
 /* 标签样式 */
 .model-settings .ant-tag {
   border-radius: 12px;
-  font-size: 11px;
-  padding: 2px 8px;
+  font-size: 12px;
+  padding: 4px 12px;
   margin: 0;
+  white-space: nowrap;
 }
 
 /* 操作按钮样式 */
@@ -68,6 +652,7 @@
 .model-settings .ant-btn-text {
   padding: 4px 8px;
   height: auto;
+  min-width: 32px;
 }
 
 .model-settings .ant-btn-text:hover {
@@ -120,35 +705,55 @@
   box-shadow: 0 0 0 2px rgba(24, 144, 255, 0.2);
 }
 
-/* 网格布局 */
-.model-settings .grid {
-  display: grid;
-}
-
-.model-settings .grid-cols-2 {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-}
-
-.model-settings .gap-4 {
-  gap: 16px;
-}
-
 /* 响应式设计 */
+@media (max-width: 1024px) {
+  .model-settings .model-sidebar {
+    width: 180px;
+  }
+
+  .model-settings .provider-detail-content {
+    padding: 16px;
+  }
+}
+
 @media (max-width: 768px) {
-  .model-settings {
+  .model-settings .model-settings-container {
+    flex-direction: column;
+  }
+
+  .model-settings .model-sidebar {
+    width: 100%;
+    border-right: none;
+    border-bottom: 1px solid #f0f0f0;
+    max-height: 150px;
+  }
+
+  .dark .model-settings .model-sidebar {
+    border-bottom-color: #333333;
+  }
+
+  .model-settings .provider-detail-panel {
+    flex: 1;
+  }
+
+  .model-settings .provider-detail-content {
     padding: 12px;
   }
 
-  .model-settings .ant-card-body {
-    padding: 16px;
+  .model-settings .provider-header {
+    flex-direction: column;
+    align-items: flex-start;
   }
 
-  .model-settings .grid-cols-2 {
-    grid-template-columns: 1fr;
+  .model-settings .model-card-header {
+    flex-direction: column;
+    align-items: flex-start;
   }
 
-  .model-settings .ant-table {
-    font-size: 12px;
+  .model-settings .model-card-actions {
+    width: 100%;
+    justify-content: flex-start;
+    margin-top: 8px;
   }
 
   .model-settings .ant-modal {
@@ -171,32 +776,25 @@
   }
 }
 
-/* 加载状态 */
-.model-settings .ant-spin-container {
-  min-height: 200px;
+.model-settings .provider-detail-panel .ant-spin-nested-loading {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  flex: 1;
 }
 
-/* 空状态 */
-.model-settings .ant-empty {
-  padding: 40px 0;
+.model-settings .provider-detail-panel .ant-spin-container {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+  flex: 1;
 }
 
-/* 分页器样式 */
-.model-settings .ant-pagination {
-  margin-top: 24px;
-  text-align: right;
-}
-
-.model-settings .ant-pagination-item {
-  border-radius: 6px;
-}
-
-.model-settings .ant-pagination-item-active {
-  border-color: #1890ff;
-}
-
-.model-settings .ant-pagination-item-active a {
-  color: #1890ff;
+.model-settings .provider-detail-panel .ant-spin {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
 }
 
 /* 工具提示样式 */
@@ -218,104 +816,11 @@
 .model-settings .ant-switch + span {
   font-size: 14px;
   color: #666;
+  margin-left: 8px;
 }
 
 .dark .model-settings .ant-switch + span {
   color: #ccc;
-}
-
-/* 表格行样式优化 */
-.model-settings .ant-table-tbody > tr > td {
-  padding: 16px;
-  vertical-align: middle;
-}
-
-.model-settings .ant-table-tbody > tr > td:first-child {
-  padding-left: 24px;
-}
-
-.model-settings .ant-table-tbody > tr > td:last-child {
-  padding-right: 24px;
-}
-
-/* 模型名称显示样式 */
-.model-settings .model-name {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.model-settings .model-title {
-  font-weight: 500;
-  color: #262626;
-}
-
-.dark .model-settings .model-title {
-  color: #ffffff;
-}
-
-.model-settings .model-identifier {
-  font-size: 12px;
-  color: #8c8c8c;
-  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
-}
-
-.dark .model-settings .model-identifier {
-  color: #666666;
-}
-
-/* 操作按钮组样式 */
-.model-settings .action-buttons {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-}
-
-.model-settings .action-buttons .ant-btn {
-  min-width: 32px;
-  height: 32px;
-}
-
-/* 测试按钮特殊样式 */
-.model-settings .test-button {
-  color: #1890ff;
-}
-
-.model-settings .test-button:hover {
-  color: #40a9ff;
-  background-color: #f0f8ff;
-}
-
-.dark .model-settings .test-button:hover {
-  background-color: rgba(24, 144, 255, 0.1);
-}
-
-/* 编辑按钮样式 */
-.model-settings .edit-button {
-  color: #52c41a;
-}
-
-.model-settings .edit-button:hover {
-  color: #73d13d;
-  background-color: #f6ffed;
-}
-
-.dark .model-settings .edit-button:hover {
-  background-color: rgba(82, 196, 26, 0.1);
-}
-
-/* 删除按钮样式 */
-.model-settings .delete-button {
-  color: #ff4d4f;
-}
-
-.model-settings .delete-button:hover {
-  color: #ff7875;
-  background-color: #fff2f0;
-}
-
-.dark .model-settings .delete-button:hover {
-  background-color: rgba(255, 77, 79, 0.1);
 }
 
 /* 表单验证样式 */
