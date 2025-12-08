@@ -46,7 +46,7 @@ export const UploadButtons: React.FC<UploadButtonsProps> = ({
   const handleModelSelect = (model: IModelOption) => {
     setBaseModal(model)
     setIsOpen(false)
-    console.log("Selected model:", model.value)
+    console.log("Selected model:", model.key)
   }
 
   const handleFigmaSubmit = () => {
@@ -177,7 +177,7 @@ export const UploadButtons: React.FC<UploadButtonsProps> = ({
                 aiProvierIcon[(baseModal.provider || "").toLowerCase()];
               return Icon ? <Icon className="w-4 h-4" /> : null;
             })()}
-            <span>{baseModal.label}</span>
+            <span>{baseModal.name}</span>
           </div>
           <ChevronDown
             className={classNames(
@@ -192,7 +192,7 @@ export const UploadButtons: React.FC<UploadButtonsProps> = ({
             <div className="flex flex-col w-full">
               {modelOptions.map((model, index) => (
                 <button
-                  key={model.value || `model-${index}`}
+                  key={model.key || `model-${index}`}
                   onClick={(e) => {
                     e.stopPropagation()
                     e.preventDefault()
@@ -202,7 +202,7 @@ export const UploadButtons: React.FC<UploadButtonsProps> = ({
                   className={classNames(
                     "w-full px-3 py-1.5 flex justify-between text-left text-[11px] transition-colors duration-200",
                     "hover:bg-gray-100 dark:hover:bg-[#252525]",
-                    baseModal.value === model.value
+                    baseModal.key === model.key
                       ? "text-blue-600 dark:text-blue-400"
                       : "text-gray-700 dark:text-gray-300"
                   )}
@@ -213,7 +213,7 @@ export const UploadButtons: React.FC<UploadButtonsProps> = ({
                         aiProvierIcon[(model.provider || "").toLowerCase()];
                       return Icon ? <Icon className="w-4 h-4" /> : null;
                     })()}
-                    {model.label}
+                    {model.name}
                   </div>
                 </button>
               ))}

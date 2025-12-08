@@ -378,7 +378,8 @@ export default function ModelSettings() {
     setEditingLlmModel(model);
     setEditingMaxToken(model.maxTokens);
     editModelForm.setFieldsValue({
-      maxToken: model.maxTokens
+      maxToken: model.maxTokens,
+      modelName: model.name || model.id
     });
     setEditModelModalVisible(true);
   };
@@ -390,8 +391,9 @@ export default function ModelSettings() {
     try {
       await editModelForm.validateFields();
       const maxToken = editModelForm.getFieldValue('maxToken');
+      const modelName = editModelForm.getFieldValue('modelName');
       
-      if (maxToken === editingLlmModel.maxTokens) {
+      if (maxToken === editingLlmModel.maxTokens && modelName === (editingLlmModel.name || editingLlmModel.id)) {
         message.info('配置未发生变化');
         return;
       }
@@ -399,7 +401,8 @@ export default function ModelSettings() {
       setUpdatingModelConfig(true);
       await updateModelConfig({
         id: editingLlmModel.id,
-        maxToken: maxToken
+        maxToken: maxToken,
+        modelName: modelName
       });
 
       message.success('模型配置更新成功');
@@ -409,10 +412,13 @@ export default function ModelSettings() {
         ...p,
         models: (p.models || []).map(m =>
           m.id === editingLlmModel.id
-            ? { ...m, maxTokens: maxToken }
+            ? { ...m, maxTokens: maxToken, name: modelName }
             : m
         ),
       })));
+
+      // 发送事件通知模型配置已更改，触发聊天组件重新获取模型列表
+      eventEmitter.emit('model:status-changed');
 
       setEditModelModalVisible(false);
       setEditingLlmModel(null);
@@ -846,7 +852,7 @@ export default function ModelSettings() {
                   }
                   setCheckingModelHealth(true);
                   const result = await checkModelHealth(addModelProviderCode, modelName);
-                  if (result.success) {
+                  if (result.error==null) {
                     message.success(result.message || '该供应商支持此模型');
                     // 检测成功后刷新模型列表
                     await loadMyLlmsData();
@@ -892,10 +898,17 @@ export default function ModelSettings() {
           layout="vertical"
           requiredMark={false}
         >
-          <div style={{ marginBottom: 16 }}>
-            <span style={{ color: '#666' }}>模型名称：</span>
-            <span style={{ fontWeight: 500 }}>{editingLlmModel?.name || editingLlmModel?.id}</span>
-          </div>
+          <Form.Item
+            name="modelName"
+            label="模型别名"
+            rules={[
+              { required: true, message: '请输入模型别名' }
+            ]}
+          >
+            <Input
+              placeholder="请输入模型别名"
+            />
+          </Form.Item>
 
           <Form.Item
             name="maxToken"
