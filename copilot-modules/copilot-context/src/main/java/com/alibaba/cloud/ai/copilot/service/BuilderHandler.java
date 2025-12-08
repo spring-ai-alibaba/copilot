@@ -22,6 +22,6 @@ public interface BuilderHandler {
      * @param tools 工具列表
      * @param emitter SSE发射器
      */
-    void handle(List<Message> messages, String modelConfigId, String userId, PromptExtra otherConfig,
+    void handle(List<Message> messages,String model, String modelConfigId, String userId, PromptExtra otherConfig,
                 List<ToolInfo> tools, SseEmitter emitter);
 }

@@ -44,6 +44,7 @@ public class ChatServiceImpl implements ChatService {
         try {
             builderHandler.handle(
                 request.getMessages(),
+                request.getModel(),
                 request.getModelConfigId(),
                 userId,
                 request.getOtherConfig(),
