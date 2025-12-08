@@ -4,6 +4,8 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.util.List;
+
 /**
  * 健康检测结果
  */
@@ -11,22 +13,22 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class HealthCheckResult {
-    
+
     /**
      * 是否健康
      */
     private boolean healthy;
-    
+
     /**
      * 消息
      */
     private String message;
-    
+
     /**
      * 响应时间（毫秒）
      */
     private Long responseTime;
-    
+
     /**
      * 错误信息
      */
@@ -46,7 +48,32 @@ public class HealthCheckResult {
      * 供应商名称
      */
     private String providerName;
-    
+
+    /**
+     * 模型是否已配置（用于模型健康检测时提示用户）
+     */
+    private Boolean alreadyConfigured;
+
+    /**
+     * 模型是否新增到用户配置（检测成功后自动添加）
+     */
+    private Boolean newlyAdded;
+
+    /**
+     * 重试次数
+     */
+    private Integer retryCount;
+
+    /**
+     * 尝试过的模型列表（用于记录降级过程）
+     */
+    private List<String> attemptedModels;
+
+    /**
+     * 是否通过降级成功（使用了备选模型）
+     */
+    private Boolean fallbackUsed;
+
     /**
      * 创建成功结果
      */
@@ -56,7 +83,7 @@ public class HealthCheckResult {
         result.setMessage(message);
         return result;
     }
-    
+
     /**
      * 创建成功结果（带响应时间）
      */
@@ -67,7 +94,7 @@ public class HealthCheckResult {
         result.setResponseTime(responseTime);
         return result;
     }
-    
+
     /**
      * 创建失败结果
      */
@@ -82,7 +109,7 @@ public class HealthCheckResult {
     /**
      * 创建完整的成功结果（带模型信息）
      */
-    public static HealthCheckResult success(String providerName, String testModelName, 
+    public static HealthCheckResult success(String providerName, String testModelName,
                                             Integer maxTokens, Long responseTime) {
         HealthCheckResult result = new HealthCheckResult();
         result.setHealthy(true);
@@ -106,4 +133,3 @@ public class HealthCheckResult {
         return result;
     }
 }
-

@@ -63,13 +63,6 @@ CREATE TABLE `sys_user`  (
 ) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci COMMENT = '用户信息表' ROW_FORMAT = DYNAMIC;
 
 -- ============================================
--- 初始数据：model_config
--- ============================================
-INSERT INTO model_config (model_name, model_key, use_image, description, icon_url, provider, api_key, api_url, function_call, enabled, sort_order) VALUES
-('deepseek-reasoner', 'deepseek-reasoner', 0, 'Deepseek R1 model with reasoning and chain-of-thought capabilities', NULL, 'deepseek', NULL, NULL, 0, 1, 3),
-('deepseek-chat', 'deepseek-chat', 0, 'Deepseek V3 model', NULL, 'deepseek', NULL, NULL, 1, 1, 4);
-
--- ============================================
 -- 恢复外键检查
 -- ============================================
 SET FOREIGN_KEY_CHECKS = 1;

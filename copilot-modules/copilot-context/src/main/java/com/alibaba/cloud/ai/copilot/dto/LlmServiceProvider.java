@@ -17,6 +17,7 @@ public record LlmServiceProvider(
     public record LlmModel(
             String id,                         // 模型唯一标识，如 "gpt-4o", "Qwen/Qwen3-72B"
             String name,                       // 可读名称（可选）
+            String code,
             String type,                    // 模型能力类型
             int maxTokens,                     // 最大上下文长度
             String status,                     // "active", "deprecated" 等

@@ -1,7 +1,9 @@
 package com.alibaba.cloud.ai.copilot.controller;
 
+import com.alibaba.cloud.ai.copilot.core.domain.model.LoginUser;
 import com.alibaba.cloud.ai.copilot.dto.ModelOptionVO;
 import com.alibaba.cloud.ai.copilot.entity.ModelConfigEntity;
+import com.alibaba.cloud.ai.copilot.satoken.utils.LoginHelper;
 import com.alibaba.cloud.ai.copilot.service.ModelConfigService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -28,7 +30,8 @@ public class ModelManageController {
      */
     @GetMapping("/list")
     public List<ModelOptionVO> getAllModels() {
-        List<ModelConfigEntity> entities = modelConfigService.getAllModelEntities();
+        LoginUser loginUser = LoginHelper.getLoginUser();
+        List<ModelConfigEntity> entities = modelConfigService.getVisibleModelEntities(loginUser.getUserId());
         List<ModelOptionVO> result = entities.stream()
                 // 只返回启用的模型
                 .filter(entity -> entity.getEnabled() != null && entity.getEnabled())
@@ -36,7 +39,7 @@ public class ModelManageController {
                 .sorted(Comparator.comparingInt(a -> a.getSortOrder() != null ? a.getSortOrder() : 0))
                 .collect(Collectors.toList());
         result.forEach(model -> log.info("Model: value={}, label={}, provider={}",
-            model.getValue(), model.getLabel(), model.getProvider()));
+            model.getKey(), model.getName(), model.getProvider()));
         return result;
     }
 

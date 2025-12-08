@@ -34,6 +34,14 @@ public interface ModelConfigService {
     List<ModelConfigEntity> getAllModelEntities();
 
     /**
+     * 获取用户可见的模型配置实体
+     * 包括：公开(PUBLIC)的模型 + 用户自己配置的模型(PRIVATE)
+     * @param userId 用户ID
+     * @return 用户可见的模型配置列表
+     */
+    List<ModelConfigEntity> getVisibleModelEntities(Long userId);
+
+    /**
      * 根据ID获取模型配置实体
      */
     ModelConfigEntity getModelEntityById(Long id);
@@ -71,4 +79,20 @@ public interface ModelConfigService {
      * @return 删除的记录数
      */
     int deleteModelsByProvider(Long userId, String providerCode);
+
+    /**
+     * 编辑用户已配置的模型
+     * @param modelConfig 模型配置实体（需包含id）
+     * @return 是否更新成功
+     */
+    boolean updateUserModelConfig(ModelConfigEntity modelConfig);
+
+    /**
+     * 获取当前用户的默认模型配置
+     * <p>优先返回启用的、sortOrder 最小的模型配置</p>
+     *
+     * @param userId 用户ID
+     * @return 默认模型配置，如果没有则返回 null
+     */
+    ModelConfigEntity getDefaultModelConfig(Long userId);
 }

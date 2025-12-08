@@ -20,9 +20,15 @@ public interface LlmFactoriesMapper extends BaseMapper<LlmFactoriesEntity> {
     List<LlmFactoriesEntity> selectEnabledProviders();
     
     /**
-     * 根据供应商代码查询供应商
+     * 根据供应商名称查询供应商
      */
     @Select("SELECT * FROM llm_factories WHERE name = #{name}")
     LlmFactoriesEntity selectByFactoriesName(String name);
+    
+    /**
+     * 根据供应商代码查询供应商
+     */
+    @Select("SELECT * FROM llm_factories WHERE provider_code = #{providerCode}")
+    LlmFactoriesEntity selectByProviderCode(String providerCode);
 }
 

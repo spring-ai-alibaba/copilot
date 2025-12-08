@@ -7,6 +7,7 @@ import com.alibaba.cloud.ai.copilot.entity.LlmFactoriesEntity;
 import com.alibaba.cloud.ai.copilot.entity.ModelConfigEntity;
 import com.alibaba.cloud.ai.copilot.mapper.LlmFactoriesMapper;
 import com.alibaba.cloud.ai.copilot.mapper.ModelConfigMapper;
+import com.alibaba.cloud.ai.copilot.satoken.utils.LoginHelper;
 import com.alibaba.cloud.ai.copilot.service.ModelConfigService;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
@@ -64,6 +65,25 @@ public class ModelConfigServiceImpl implements ModelConfigService {
     }
 
     @Override
+    public List<ModelConfigEntity> getVisibleModelEntities(Long userId) {
+        // 获取用户可见的模型配置：公开(PUBLIC)的模型 + 用户自己配置的模型
+        LambdaQueryWrapper<ModelConfigEntity> queryWrapper = new LambdaQueryWrapper<>();
+        queryWrapper.and(wrapper -> wrapper
+                        // 公开的模型
+                        .eq(ModelConfigEntity::getVisibility, "PUBLIC")
+                        .or()
+                        // 用户自己配置的模型（无论visibility是什么）
+                        .eq(ModelConfigEntity::getUserId, userId)
+                )
+                .orderByAsc(ModelConfigEntity::getSortOrder)
+                .orderByAsc(ModelConfigEntity::getId);
+
+        List<ModelConfigEntity> result = modelConfigMapper.selectList(queryWrapper);
+        log.debug("获取用户可见模型配置, userId={}, count={}", userId, result.size());
+        return result;
+    }
+
+    @Override
     public ModelConfigEntity getModelEntityById(Long id) {
         return modelConfigMapper.selectById(id);
     }
@@ -109,12 +129,12 @@ public class ModelConfigServiceImpl implements ModelConfigService {
     public ModelConfigEntity getModelEntityByName(String modelName) {
         LambdaQueryWrapper<ModelConfigEntity> queryWrapper = new LambdaQueryWrapper<>();
         queryWrapper.and(wrapper -> wrapper
-                .eq(ModelConfigEntity::getModelName, modelName)
-                .or()
-                .eq(ModelConfigEntity::getModelKey, modelName)
-        ).orderByAsc(ModelConfigEntity::getSortOrder)
-         .orderByAsc(ModelConfigEntity::getId)
-         .last("LIMIT 1"); // 只返回第一条记录
+                        .eq(ModelConfigEntity::getModelName, modelName)
+                        .or()
+                        .eq(ModelConfigEntity::getModelKey, modelName)
+                ).orderByAsc(ModelConfigEntity::getSortOrder)
+                .orderByAsc(ModelConfigEntity::getId)
+                .last("LIMIT 1"); // 只返回第一条记录
 
         return modelConfigMapper.selectOne(queryWrapper);
     }
@@ -150,7 +170,8 @@ public class ModelConfigServiceImpl implements ModelConfigService {
                     new LlmServiceProvider.LlmModel(
                             String.valueOf(config.getId()),
                             Optional.ofNullable(config.getModelName()).orElse(""),
-                            Optional.ofNullable(config.getModelKey()).orElse("chat"),
+                            Optional.ofNullable(config.getModelKey()).orElse(""),
+                            Optional.ofNullable(config.getModelType()).orElse("chat"),
                             Optional.ofNullable(config.getMaxToken()).orElse(4096),
                             config.getEnabled() ? "1" : "0",
                             Map.of() // 可根据需要扩展 extra 字段
@@ -175,6 +196,70 @@ public class ModelConfigServiceImpl implements ModelConfigService {
             log.error("删除供应商模型配置失败, userId={}, providerCode={}", userId, providerCode, e);
             return 0;
         }
+    }
+
+    @Override
+    public boolean updateUserModelConfig(ModelConfigEntity modelConfig) {
+        Long userId = LoginHelper.getUserId();
+        Long modelId = modelConfig.getId();
+
+        // 验证该配置是否属于当前用户
+        ModelConfigEntity existingConfig = modelConfigMapper.selectById(modelId);
+        if (existingConfig == null) {
+            log.warn("模型配置不存在, modelId={}", modelId);
+            return false;
+        }
+        if (!userId.equals(existingConfig.getUserId())) {
+            log.warn("用户无权修改该模型配置, userId={}, modelId={}, ownerId={}",
+                    userId, modelId, existingConfig.getUserId());
+            return false;
+        }
+
+        // 构建更新条件，只更新传入的非空字段
+        LambdaUpdateWrapper<ModelConfigEntity> updateWrapper = new LambdaUpdateWrapper<>();
+        updateWrapper.eq(ModelConfigEntity::getId, modelId)
+                .eq(ModelConfigEntity::getUserId, userId);
+
+        // 根据传入的字段进行更新
+        if (modelConfig.getMaxToken() != null) {
+            updateWrapper.set(ModelConfigEntity::getMaxToken, modelConfig.getMaxToken());
+        }
+        if (modelConfig.getModelName() != null) {
+            updateWrapper.set(ModelConfigEntity::getModelName, modelConfig.getModelName());
+        }
+        if (modelConfig.getDescription() != null) {
+            updateWrapper.set(ModelConfigEntity::getDescription, modelConfig.getDescription());
+        }
+        if (modelConfig.getSortOrder() != null) {
+            updateWrapper.set(ModelConfigEntity::getSortOrder, modelConfig.getSortOrder());
+        }
+
+        int updated = modelConfigMapper.update(null, updateWrapper);
+
+        if (updated > 0) {
+            log.info("更新用户模型配置成功, userId={}, modelId={}", userId, modelId);
+            return true;
+        }
+        return false;
+    }
+
+    @Override
+    public ModelConfigEntity getDefaultModelConfig(Long userId) {
+        LambdaQueryWrapper<ModelConfigEntity> queryWrapper = new LambdaQueryWrapper<>();
+        queryWrapper.eq(ModelConfigEntity::getUserId, userId)
+                .eq(ModelConfigEntity::getEnabled, true)
+                .orderByAsc(ModelConfigEntity::getSortOrder)
+                .orderByAsc(ModelConfigEntity::getId)
+                .last("LIMIT 1");
+
+        ModelConfigEntity config = modelConfigMapper.selectOne(queryWrapper);
+        if (config != null) {
+            log.debug("获取用户默认模型配置, userId={}, configId={}, modelName={}",
+                    userId, config.getId(), config.getModelName());
+        } else {
+            log.warn("用户没有启用的模型配置, userId={}", userId);
+        }
+        return config;
     }
 
     /**

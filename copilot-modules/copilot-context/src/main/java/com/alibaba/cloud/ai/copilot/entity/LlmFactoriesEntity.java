@@ -29,6 +29,12 @@ public class LlmFactoriesEntity {
     private String name;
     
     /**
+     * 供应商代码
+     */
+    @TableField("provider_code")
+    private String providerCode;
+    
+    /**
      * 厂商logo base64字符串
      */
     @TableField("logo")

@@ -160,8 +160,6 @@ public class BuilderHandlerImpl implements BuilderHandler {
                 memoryMessages = chatMemory.get(conversationId);
                 finalMessages.addAll(memoryMessages);
 
-                // 创建包含历史记忆的Prompt
-                Prompt prompt = new Prompt(finalMessages);
                 // 生成消息ID用于SSE事件追踪
                 String messageId = UUID.randomUUID().toString();
 

@@ -6,10 +6,11 @@ import lombok.Getter;
 @Getter
 @AllArgsConstructor
 public enum ProviderEnum {
-    QIANWEN("Tongyi-Qianwen"),
+    ALIBAILIAN("ALiBaiLian"),
     DEEPSEEK("DeepSeek"),
     OPENAI("OpenAI"),
-    SILICONFLOW("SILICONFLOW");
+    SILICONFLOW("SILICONFLOW"),
+    OPENAI_COMPATIBLE("OpenAiCompatible");
     
     private final String providerCode;
 }
