@@ -364,6 +364,7 @@ export const checkOpenAiCompatibleHealth = async (
 export interface ModelConfigUpdateRequest {
   id: string;
   maxToken: number;
+  modelName?: string;
 }
 
 export const updateModelConfig = async (data: ModelConfigUpdateRequest): Promise<boolean> => {
@@ -388,6 +389,7 @@ export const updateModelConfig = async (data: ModelConfigUpdateRequest): Promise
 
 // 检测模型健康状态
 export interface ModelHealthCheckResult {
+  error: null;
   healthy: boolean;
   success: boolean;
   message?: string;
