@@ -171,7 +171,14 @@ export const UploadButtons: React.FC<UploadButtonsProps> = ({
               : "hover:bg-gray-100 dark:hover:bg-[#252525]"
           )}
         >
-          <span>{baseModal.label}</span>
+          <div className="flex items-center gap-2">
+            {(() => {
+              const Icon =
+                aiProvierIcon[(baseModal.provider || "").toLowerCase()];
+              return Icon ? <Icon className="w-4 h-4" /> : null;
+            })()}
+            <span>{baseModal.label}</span>
+          </div>
           <ChevronDown
             className={classNames(
               "w-3 h-3 text-gray-500 dark:text-gray-400 transition-transform duration-200",
@@ -201,9 +208,11 @@ export const UploadButtons: React.FC<UploadButtonsProps> = ({
                   )}
                 >
                   <div className="flex items-center gap-2">
-                    {model.provider &&
-                      aiProvierIcon[model.provider] &&
-                      React.createElement(aiProvierIcon[model.provider])}
+                    {(() => {
+                      const Icon =
+                        aiProvierIcon[(model.provider || "").toLowerCase()];
+                      return Icon ? <Icon className="w-4 h-4" /> : null;
+                    })()}
                     {model.label}
                   </div>
                 </button>

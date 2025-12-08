@@ -29,6 +29,10 @@ import {
 import {AIModel, Provider, createModel, deleteModel, getModels, getProviders, getModelsByProvider, ModelCreateRequest, testModel, updateModel, checkProviderHealth, DiscoveredModel, LlmServiceProvider, LlmModel, getMyLlms, toggleModelStatus, deleteModelProvider, checkModelHealth, updateModelConfig, checkOpenAiCompatibleHealth} from '@/api/models';
 import {eventEmitter} from '@/components/AiChat/utils/EventEmitter';
 import './ModelSettings.css';
+import Chatgpt from '@/icon/Chatgpt';
+import DeepseekIcon from '@/icon/Deepseek';
+import Tongyi from '@/icon/Tongyi';
+import SiliconFlow from '@/icon/SiliconFlow';
 
 
 const { Option } = Select;
@@ -300,6 +304,16 @@ export default function ModelSettings() {
     return <Tag color={config.color}>{config.text}</Tag>;
   };
 
+  // 根据 providerCode 返回对应的图标组件
+  const getProviderIcon = (providerCode?: string) => {
+    const code = (providerCode || '').toLowerCase();
+    if (code === 'deepseek') return DeepseekIcon;
+    if (code === 'alibailian' || code === 'tongyi') return Tongyi;
+    if (code === 'siliconflow') return SiliconFlow;
+    if (code === 'openai' || code === 'openaicompatible') return Chatgpt;
+    return Chatgpt;
+  };
+
   // 渲染侧边栏供应商列表项
   const renderSidebarProvider = (provider: Provider) => (
     <div
@@ -308,6 +322,12 @@ export default function ModelSettings() {
       onClick={() => handleProviderSelect(provider)}
     >
       <div className="sidebar-item-header">
+        <Button
+          icon={React.createElement(getProviderIcon(provider.providerCode || provider.name), {
+            style: { width: 20, height: 20 },
+          })}
+          style={{ width: '20px', height: '20px' }}
+        />
         <div className="sidebar-item-title">{provider.name}</div>
         <div className="sidebar-item-actions">
           <Button
@@ -460,7 +480,13 @@ export default function ModelSettings() {
       <div key={providerItem.providerId} className="provider-card">
         <div className="provider-card-header">
           <div className="provider-card-info">
-            <div className="provider-card-logo-placeholder" />
+            {/* <div className="provider-card-logo-placeholder" /> */}
+            <Button
+              icon={React.createElement(getProviderIcon(providerItem.providerId ), {
+                style: { width: 20, height: 20 },
+              })}
+              style={{ width: '20px', height: '20px' }}
+            />
             <span className="provider-card-name-text">{displayName}</span>
           </div>
 

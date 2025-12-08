@@ -34,7 +34,7 @@ spring:
         master:
           type: ${spring.datasource.type}
           driverClassName: com.mysql.cj.jdbc.Driver
-          url: jdbc:mysql://localhost:3306/spring_ai_copilot?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai
+          url: jdbc:mysql://127.0.0.1:2369/spring_ai_copilot?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai
           username: root
           password: root
 
@@ -65,8 +65,12 @@ spring:
       # 提供一个临时的API key来避免启动错误，实际使用时会从数据库获取
       api-key: ${AI_DASHSCOPE_API_KEY:sk-temp-key-for-startup}
     openai:
-      # 提供一个临时的API key来避免启动错误，实际使用时会从数据库获取
-      api-key: ${OPENAI_API_KEY:sk-temp-key-for-rag-startup}
+      # DeepSeek API Key（用于压缩功能）
+      # 方式1：直接在这里配置（替换下面的 sk-your-deepseek-api-key 为你的实际 API Key）
+      # 方式2：通过环境变量 OPENAI_API_KEY 设置（在 IDEA 运行配置中设置）
+      api-key: ${OPENAI_API_KEY:sk-your-deepseek-api-key}  # 请替换为你的实际 DeepSeek API Key
+      # DeepSeek API 地址（DeepSeek 使用 OpenAI 兼容 API，但需要设置正确的 base URL）
+      base-url: ${OPENAI_BASE_URL:https://api.deepseek.com}
 
 # ===================================================================
 # Redis 配置 (单机模式)
@@ -76,11 +80,11 @@ spring.data:
     # 地址
     host: 127.0.0.1
     # 端口，默认为6379
-    port: 6379
+    port: 6381
     # 数据库索引
     database: 2
     # 密码(如没有密码请注释掉)
-    # password: 123456
+    password: admin
     # 连接超时时间
     timeout: 10S
 
@@ -197,6 +201,61 @@ copilot:
       provider: local
       model: all-MiniLM-L6-v2
 
+  memory:
+    # 短期记忆配置
+    short-term:
+      enabled: true
+      compression:
+        enabled: true
+        trigger-threshold: 0.1      # 10% Token 使用率触发（测试用，生产建议 0.7）
+        min-message-count: 3        # 最小消息数量触发（达到3条消息也会触发压缩，用于测试）
+        preserve-threshold: 0.3     # 保留 30%
+        boundary-strategy: USER_MESSAGE
+        # DeepSeek 模型名称（如果遇到 "Model Not Exist" 错误，请检查模型名称是否正确）
+        # 常见模型名称：deepseek-chat, deepseek-chat-v2, deepseek-chat-0324
+        compression-model: deepseek-chat
+        chat-model-bean-name: openAiChatModel  # DeepSeek 使用 OpenAI 兼容 API
+        summary-format: XML
+        async-compression: true
+        min-interval-seconds: 300   # 5分钟
+      token-cache:
+        hybrid-mode: false  # 启用混合缓存
+    # 长期记忆配置
+    long-term:
+      enabled: true
+      filename: COPILOT_MEMORY.md
+      global-directory: .copilot
+      max-search-depth: 3
+      max-search-dirs: 50
+      max-file-size: 51200  # 50KB
+      ignore-patterns:
+        - .git
+        - node_modules
+        - target
+        - build
+        - dist
+        - .idea
+        - .vscode
+
+    # Token 预算配置
+    token-budget:
+      system-prompt-ratio: 0.05      # 5%
+      long-term-memory-ratio: 0.05   # 5%
+      compressed-history-ratio: 0.10  # 10%
+      preserved-history-ratio: 0.30   # 30%
+      response-buffer-ratio: 0.50     # 50%
+
+    # 模型 Token 限制
+    model-limits:
+      gpt-4: 8192
+      gpt-4-turbo: 128000
+      gpt-4o: 128000
+      gpt-4o-mini: 128000
+      deepseek-chat: 32768
+      deepseek-coder: 32768
+      qwen-max: 8192
+      qwen-plus: 32768
+
 # ===================================================================
 # 用户安全配置
 # ===================================================================
@@ -237,8 +296,9 @@ logging:
   level:
     org.springframework.ai: DEBUG
     com.alibaba.cloud.ai.copilot: @logging.level@
-    org.springframework: WARN
-    org.mybatis.spring.mapper: ERROR
+    org.springframework: DEBUG
+    org.mybatis.spring.mapper: DEBUG
+    com.alibaba.cloud.ai.copilot.memory: DEBUG  # 记忆系统使用 DEBUG
   config: classpath:logback-plus.xml
 
 # ===================================================================
@@ -332,3 +392,10 @@ app:
         - /root/
         - /usr/
         - /var/
+# ===================================================================
+# AI Copilot 记忆系统配置
+# ===================================================================
+
+
+
+
