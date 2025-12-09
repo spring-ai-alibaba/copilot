@@ -1,4 +1,4 @@
-package com.alibaba.cloud.ai.copilot.context.domain;
+package com.alibaba.cloud.ai.copilot.model.domain;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;

@@ -1,4 +1,4 @@
-package com.alibaba.cloud.ai.copilot.dto;
+package com.alibaba.cloud.ai.copilot.model.dto;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;

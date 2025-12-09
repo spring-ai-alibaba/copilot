@@ -1,6 +1,6 @@
-package com.alibaba.cloud.ai.copilot.mapper;
+package com.alibaba.cloud.ai.copilot.model.mapper;
 
-import com.alibaba.cloud.ai.copilot.entity.ModelConfigEntity;
+import com.alibaba.cloud.ai.copilot.model.entity.ModelConfigEntity;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Select;

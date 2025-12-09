@@ -478,7 +478,7 @@
     }
   },
   "models": {
-    "title": "模型管理",
+    "title": "模型供应商",
     "description": "管理AI模型配置和连接设置",
     "add_model": "添加模型",
     "edit_model": "编辑模型",
@@ -533,7 +533,8 @@
       "update_failed": "更新模型失败",
       "delete_failed": "删除模型失败",
       "test_failed": "测试模型连接失败",
-      "status_update_failed": "更新模型状态失败"
+      "status_update_failed": "更新模型状态失败",
+      "no_models_configured": "请先配置模型，然后再发送消息"
     }
   },
   "prompts": {
@@ -636,7 +637,8 @@
     "error": "错误",
     "warning": "警告",
     "info": "信息",
-    "create": "创建"
+    "create": "创建",
+    "detection": "检测"
   },
   "forgotPassword": {
     "title": "重置密码",

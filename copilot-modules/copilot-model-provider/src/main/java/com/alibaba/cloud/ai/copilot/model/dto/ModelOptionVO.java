@@ -1,6 +1,6 @@
-package com.alibaba.cloud.ai.copilot.dto;
+package com.alibaba.cloud.ai.copilot.model.dto;
 
-import com.alibaba.cloud.ai.copilot.entity.ModelConfigEntity;
+import com.alibaba.cloud.ai.copilot.model.entity.ModelConfigEntity;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -13,16 +13,25 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class ModelOptionVO {
+    /**
+     * 模型配置 id
+     */
+    private Long modelConfigId;
 
     /**
-     * 模型标识键，对应前端的 value
+     * 模型标识键，对应前端的 key
      */
-    private String value;
+    private String key;
 
     /**
-     * 模型显示名称，对应前端的 label
+     * 模型显示名称，对应前端的 name
      */
-    private String label;
+    private String name;
+
+    /**
+     * 模型类型: LLM, Text Embedding, Image2Text, ASR
+     */
+    private String modelType;
 
     /**
      * 是否支持图像处理
@@ -80,15 +89,15 @@ public class ModelOptionVO {
         if (value == null || value.trim().isEmpty()) {
             value = "model_" + entity.getId();
         }
-        vo.setValue(value);
+        vo.setKey(value);
 
         // 确保 label 不为空
         String label = entity.getModelName();
         if (label == null || label.trim().isEmpty()) {
             label = "Model " + entity.getId();
         }
-        vo.setLabel(label);
-
+        vo.setName(label);
+        vo.setModelConfigId(entity.getId());
         vo.setUseImage(entity.getUseImage() != null ? entity.getUseImage() : false);
         vo.setQuota(100); // 默认配额
         vo.setFrom(entity.getProvider());

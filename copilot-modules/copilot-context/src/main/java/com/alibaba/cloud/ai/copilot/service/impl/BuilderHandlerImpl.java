@@ -1,5 +1,6 @@
 package com.alibaba.cloud.ai.copilot.service.impl;
 
+import com.alibaba.cloud.ai.copilot.memory.context.ContextAssembler;
 import com.alibaba.cloud.ai.copilot.model.Message;
 import com.alibaba.cloud.ai.copilot.model.PromptExtra;
 import com.alibaba.cloud.ai.copilot.model.ToolInfo;
@@ -72,11 +73,11 @@ public class BuilderHandlerImpl implements BuilderHandler {
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     @Override
-    public void handle(List<Message> messages, String model, String userId, PromptExtra otherConfig,
+    public void handle(List<Message> messages,String model, String modelConfigId, String userId, PromptExtra otherConfig,
                       List<ToolInfo> tools, SseEmitter emitter) {
         CompletableFuture.runAsync(() -> {
             try {
-                processBuilder(messages, model, userId, otherConfig, tools, emitter);
+                processBuilder(messages, model, modelConfigId, userId, otherConfig, tools, emitter);
             } catch (Exception e) {
                 log.error("Error processing builder", e);
                 try {
@@ -88,7 +89,7 @@ public class BuilderHandlerImpl implements BuilderHandler {
         });
     }
 
-    private void processBuilder(List<Message> messages, String model, String userId, PromptExtra otherConfig,
+    private void processBuilder(List<Message> messages,String model, String modelConfigId, String userId, PromptExtra otherConfig,
                                List<ToolInfo> tools, SseEmitter emitter) {
         try {
             // Get or create conversation ID for this user session
@@ -138,7 +139,7 @@ public class BuilderHandlerImpl implements BuilderHandler {
             }
 
             // 使用动态模型服务获取对应的ChatModel
-            ChatModel chatModel = dynamicModelService.getChatModel(model, userId);
+            ChatModel chatModel = dynamicModelService.getChatModelWithConfigId(modelConfigId);
 
             try {
                 // 构建最终的消息列表
