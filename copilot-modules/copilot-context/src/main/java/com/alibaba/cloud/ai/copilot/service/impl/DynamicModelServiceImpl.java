@@ -1,11 +1,10 @@
 package com.alibaba.cloud.ai.copilot.service.impl;
 
-import com.alibaba.cloud.ai.copilot.entity.ModelConfigEntity;
-import com.alibaba.cloud.ai.copilot.mapper.ModelConfigMapper;
-import com.alibaba.cloud.ai.copilot.provider.ModelProvider;
-import com.alibaba.cloud.ai.copilot.provider.ProviderRegistry;
+import com.alibaba.cloud.ai.copilot.model.entity.ModelConfigEntity;
+import com.alibaba.cloud.ai.copilot.model.mapper.ModelConfigMapper;
+import com.alibaba.cloud.ai.copilot.model.provider.ModelProvider;
+import com.alibaba.cloud.ai.copilot.model.provider.ProviderRegistry;
 import com.alibaba.cloud.ai.copilot.service.DynamicModelService;
-import com.alibaba.cloud.ai.copilot.service.ModelConfigService;
 import com.alibaba.cloud.ai.copilot.service.OpenAiModelFactory;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

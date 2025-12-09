@@ -1,7 +1,7 @@
 package com.alibaba.cloud.ai.copilot.service.impl;
 
-import com.alibaba.cloud.ai.copilot.entity.ModelConfigEntity;
-import com.alibaba.cloud.ai.copilot.service.ModelConfigService;
+import com.alibaba.cloud.ai.copilot.model.entity.ModelConfigEntity;
+import com.alibaba.cloud.ai.copilot.model.service.ModelConfigService;
 import com.alibaba.cloud.ai.copilot.service.OpenAiModelFactory;
 import io.micrometer.observation.ObservationRegistry;
 import lombok.RequiredArgsConstructor;

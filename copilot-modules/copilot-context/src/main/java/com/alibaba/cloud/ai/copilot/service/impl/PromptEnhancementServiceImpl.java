@@ -1,6 +1,7 @@
 package com.alibaba.cloud.ai.copilot.service.impl;
 
-import com.alibaba.cloud.ai.copilot.entity.ModelConfigEntity;
+import com.alibaba.cloud.ai.copilot.model.entity.ModelConfigEntity;
+import com.alibaba.cloud.ai.copilot.model.service.ModelConfigService;
 import com.alibaba.cloud.ai.copilot.service.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
