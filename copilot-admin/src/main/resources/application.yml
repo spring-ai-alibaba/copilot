@@ -34,9 +34,9 @@ spring:
         master:
           type: ${spring.datasource.type}
           driverClassName: com.mysql.cj.jdbc.Driver
-          url: jdbc:mysql://127.0.0.1:2369/spring_ai_copilot?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai
+          url: jdbc:mysql://127.0.0.1:3306/spring_ai_copilot?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai
           username: root
-          password: root
+          password: 123456
 
       # HikariCP 连接池配置
       hikari:
@@ -80,11 +80,11 @@ spring.data:
     # 地址
     host: 127.0.0.1
     # 端口，默认为6379
-    port: 6381
+    port: 6379
     # 数据库索引
     database: 2
     # 密码(如没有密码请注释掉)
-    password: admin
+#    password: admin
     # 连接超时时间
     timeout: 10S
 

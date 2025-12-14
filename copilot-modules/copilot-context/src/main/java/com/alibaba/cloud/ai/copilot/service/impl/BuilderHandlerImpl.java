@@ -1,12 +1,15 @@
 package com.alibaba.cloud.ai.copilot.service.impl;
 
+import cn.hutool.core.collection.CollUtil;
 import com.alibaba.cloud.ai.copilot.memory.context.ContextAssembler;
 import com.alibaba.cloud.ai.copilot.model.Message;
 import com.alibaba.cloud.ai.copilot.model.PromptExtra;
 import com.alibaba.cloud.ai.copilot.model.ToolInfo;
 import com.alibaba.cloud.ai.copilot.service.*;
+import com.alibaba.cloud.ai.copilot.util.ChatMcpToolUtils;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.memory.ChatMemory;
 import org.springframework.ai.chat.messages.AssistantMessage;
 import org.springframework.ai.chat.messages.SystemMessage;
@@ -14,10 +17,10 @@ import org.springframework.ai.chat.messages.UserMessage;
 import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.ai.chat.prompt.Prompt;
-import org.springframework.ai.openai.OpenAiChatOptions;
+import org.springframework.ai.model.tool.ToolCallingChatOptions;
+import org.springframework.ai.tool.ToolCallback;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.stereotype.Service;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 import reactor.core.publisher.Flux;
@@ -44,6 +47,7 @@ public class BuilderHandlerImpl implements BuilderHandler {
     private final PromptTemplateService promptTemplateService;
     private final FileSystemService fileSystemService;
     private final ToolOrchestrationService toolOrchestrationService;
+    private final ChatMcpToolUtils chatMcpToolUtils;
 
     // 可选的记忆系统组件
     @Autowired(required = false)
@@ -58,7 +62,7 @@ public class BuilderHandlerImpl implements BuilderHandler {
             ChatMemory chatMemory,
             @Qualifier("promptTemplateServiceImpl") PromptTemplateService promptTemplateService,
             FileSystemService fileSystemService,
-            ToolOrchestrationService toolOrchestrationService) {
+            ToolOrchestrationService toolOrchestrationService, ChatMcpToolUtils chatMcpToolUtils) {
         this.tokenService = tokenService;
         this.fileProcessorService = fileProcessorService;
         this.dynamicModelService = dynamicModelService;
@@ -68,6 +72,7 @@ public class BuilderHandlerImpl implements BuilderHandler {
         this.promptTemplateService = promptTemplateService;
         this.fileSystemService = fileSystemService;
         this.toolOrchestrationService = toolOrchestrationService;
+        this.chatMcpToolUtils = chatMcpToolUtils;
     }
 
     private final ObjectMapper objectMapper = new ObjectMapper();
@@ -211,23 +216,23 @@ public class BuilderHandlerImpl implements BuilderHandler {
                 // 生成消息ID用于SSE事件追踪
                 String messageId = UUID.randomUUID().toString();
 
-                // 获取所有工具的ToolCallback列表用于Spring AI 1.1工具调用
-                List<org.springframework.ai.tool.ToolCallback> toolCallbacks =
-                    toolOrchestrationService.getAllToolCallbacks();
+                // 创建 Prompt，如果有 MCP 工具则添加工具回调
+                Prompt prompt;
+                if (CollUtil.isNotEmpty(tools)) {
+                    // 将前端传来的 ToolInfo 转换为 Spring AI 的 ToolCallback
+                    List<ToolCallback> toolCallbacks = chatMcpToolUtils.convertToolsToCallbacks(tools);
+                    log.info("配置了 {} 个 MCP 工具用于聊天", toolCallbacks.size());
 
-                // 创建包含工具的Prompt
-                // Spring AI 1.1 会自动处理 @Tool 注解的方法，我们只需要传递 ToolCallback
-                // 使用 ToolCallingChatOptions 创建包含工具的选项
-                org.springframework.ai.model.tool.ToolCallingChatOptions toolOptions =
-                    org.springframework.ai.model.tool.ToolCallingChatOptions.builder()
-                        .toolCallbacks(toolCallbacks)
-                        .build();
+                    // 创建包含工具的选项
+                    ToolCallingChatOptions toolOptions = ToolCallingChatOptions.builder()
+                            .toolCallbacks(toolCallbacks)
+                            .build();
 
-                log.info("Configured {} tool callbacks for conversation {}",
-                    toolCallbacks.size(), conversationId);
-
-                // 创建包含历史记忆和工具的Prompt
-                Prompt prompt = new Prompt(finalMessages, toolOptions);
+                    prompt = new Prompt(finalMessages, toolOptions);
+                } else {
+                    // 没有工具时创建普通 Prompt
+                    prompt = new Prompt(finalMessages);
+                }
 
                 // 用于收集完整的AI响应
                 StringBuilder responseBuilder = new StringBuilder();
@@ -239,11 +244,11 @@ public class BuilderHandlerImpl implements BuilderHandler {
                        try {
                             // 获取当前块的内容
                             String content = chatResponse.getResult().getOutput().getText();
-                            if (content != null && !content.isEmpty()) {
-                                responseBuilder.append(content);
-                                // 发送流式数据块到前端
-                                sendStreamingChunk(emitter, content);
-                            }
+                           if (!content.isEmpty()) {
+                               responseBuilder.append(content);
+                               // 发送流式数据块到前端
+                               sendStreamingChunk(emitter, content);
+                           }
                        } catch (Exception e) {
                            log.error("Error processing streaming chunk", e);
                        }

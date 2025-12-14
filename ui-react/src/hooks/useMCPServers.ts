@@ -8,14 +8,15 @@ import useMCPStore from '@/stores/useMCPSlice';
 const useMCPServers = () => {
     // Get all servers from useMCPStore
     const allServers = useMCPStore(state => state.servers);
+    const safeServers = Array.isArray(allServers) ? allServers : [];
 
     // Use useMemo to filter active servers, avoiding unnecessary recalculations
     const activedMcpServers = useMemo(() => {
-        return allServers.filter(server => server.isActive);
-    }, [allServers]);
+        return safeServers.filter(server => server.isActive);
+    }, [safeServers]);
 
     return {
-        mcpServers: allServers,
+        mcpServers: safeServers,
         activedMcpServers,
     };
 };

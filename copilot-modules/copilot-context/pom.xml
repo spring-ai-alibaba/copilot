@@ -72,6 +72,13 @@
             <version>1.0.0</version>
             <scope>compile</scope>
         </dependency>
+
+        <!-- MCP 工具模块 -->
+        <dependency>
+            <groupId>com.alibaba.cloud.ai</groupId>
+            <artifactId>copilot-mcp</artifactId>
+            <version>${project.version}</version>
+        </dependency>
     </dependencies>
 
 </project>

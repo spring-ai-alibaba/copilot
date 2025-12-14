@@ -195,6 +195,60 @@ INSERT INTO `llm` (
 ('ALiBaiLian', 'qwen3-max-preview', 'CHAT', 64000, 'LLM,CHAT,128k', 1, 1, '2025-12-08 09:14:14', '2025-12-08 13:59:28');
 
 -- ============================================
+-- 表结构：mcp_tool_info (MCP 工具表)
+-- ============================================
+CREATE TABLE IF NOT EXISTS `mcp_tool_info` (
+    `id` BIGINT AUTO_INCREMENT COMMENT '主键ID',
+    `name` VARCHAR(200) NOT NULL COMMENT '工具名称',
+    `description` TEXT COMMENT '工具描述',
+    `type` VARCHAR(20) DEFAULT 'LOCAL' COMMENT '工具类型：LOCAL-本地, REMOTE-远程',
+    `status` VARCHAR(20) DEFAULT 'ENABLED' COMMENT '状态：ENABLED-启用, DISABLED-禁用',
+    `config_json` TEXT COMMENT '配置信息（JSON格式）',
+    `create_time` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    `update_time` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='MCP工具表';
+
+-- ============================================
+-- 表结构：mcp_market_info (MCP 市场表)
+-- ============================================
+CREATE TABLE IF NOT EXISTS `mcp_market_info` (
+    `id` BIGINT AUTO_INCREMENT COMMENT '主键ID',
+    `name` VARCHAR(200) NOT NULL COMMENT '市场名称',
+    `url` VARCHAR(500) NOT NULL COMMENT '市场URL',
+    `description` TEXT COMMENT '市场描述',
+    `auth_config` TEXT COMMENT '认证配置（JSON格式）',
+    `status` VARCHAR(20) DEFAULT 'ENABLED' COMMENT '状态：ENABLED-启用, DISABLED-禁用',
+    `create_time` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    `update_time` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='MCP市场表';
+
+-- ============================================
+-- 表结构：mcp_market_tool (MCP 市场工具关联表)
+-- ============================================
+CREATE TABLE IF NOT EXISTS `mcp_market_tool` (
+    `id` BIGINT AUTO_INCREMENT COMMENT '主键ID',
+    `market_id` BIGINT NOT NULL COMMENT '市场ID',
+    `tool_name` VARCHAR(200) NOT NULL COMMENT '工具名称',
+    `tool_description` TEXT COMMENT '工具描述',
+    `tool_version` VARCHAR(50) COMMENT '工具版本',
+    `tool_metadata` JSON COMMENT '工具元数据（JSON格式）',
+    `is_loaded` TINYINT(1) DEFAULT 0 COMMENT '是否已加载到本地：0-未加载, 1-已加载',
+    `local_tool_id` BIGINT COMMENT '关联的本地工具ID',
+    `create_time` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='MCP市场工具关联表';
+
+-- ============================================
+-- 插入 MCP 测试数据
+-- ============================================
+
+-- 插入一个示例 MCP 市场
+INSERT INTO `mcp_market_info` (`name`, `url`, `description`, `status`) VALUES
+('MCP Servers 官方市场', 'https://mcpservers.cn/api/servers/list', '官方 MCP 服务器市场，提供丰富的 MCP 工具', 'ENABLED');
+
+-- ============================================
 -- 恢复外键检查
 -- ============================================
 SET FOREIGN_KEY_CHECKS = 1;
