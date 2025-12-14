@@ -23,6 +23,7 @@
         <module>copilot-prompt</module>
         <module>copilot-error</module>
         <module>copilot-rag</module>
+        <module>copilot-mcp</module>
         <module>copilot-system</module>
         <module>copilot-memory</module>
         <module>copilot-model-provider</module>

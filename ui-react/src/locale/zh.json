@@ -104,7 +104,7 @@
     "themeMode": "主题模式",
     "themeModeLight": "明亮模式",
     "themeModeDark": "暗黑模型",
-    "MCPServer": "MCP服务器",
+    "MCPServer": "MCP服务",
     "InvalidProxyUrl": "无效的代理URL",
     "mcp": {
       "actions": "操作",
@@ -147,21 +147,6 @@
       "unavailable": "Web版本暂不支持MCP。尽情期待。",
       "invoke_tool": "调用工具",
       "invoke_tooling": "调用工具中",
-      "npx_list": {
-        "actions": "操作",
-        "desc": "搜索并添加 npm 包作为 MCP 服务",
-        "description": "描述",
-        "no_packages": "未找到包",
-        "npm": "NPM",
-        "package_name": "包名称",
-        "scope_placeholder": "输入 npm 作用域 (例如 @your-org)",
-        "scope_required": "请输入 npm 作用域",
-        "search": "搜索",
-        "search_error": "搜索失败",
-        "title": "NPX 包列表",
-        "usage": "用法",
-        "version": "版本"
-      },
       "serverPlural": "服务器",
       "serverSingular": "服务器",
       "title": "MCP 服务器",
@@ -170,7 +155,182 @@
       "updateError": "更新服务器失败",
       "updateSuccess": "服务器更新成功",
       "url": "URL",
-      "invalidMcpFormat": "无效的 MCP 配置格式"
+      "invalidMcpFormat": "无效的 MCP 配置格式",
+      "tools": {
+        "title": "MCP 工具",
+        "listTitle": "MCP 工具列表",
+        "add": "添加",
+        "edit": "编辑",
+        "delete": "删除",
+        "test": "测试",
+        "view": "查看详情",
+        "enable": "启用",
+        "disable": "禁用",
+        "refresh": "刷新",
+        "searchPlaceholder": "搜索工具名（模糊搜索）",
+        "columns": {
+          "name": "名称",
+          "type": "类型",
+          "status": "状态",
+          "actions": "操作"
+        },
+        "types": {
+          "remote": "远程",
+          "local": "本地"
+        },
+        "status": {
+          "enabled": "启用",
+          "disabled": "禁用"
+        },
+        "tooltips": {
+          "view": "查看详情",
+          "edit": "编辑",
+          "enable": "启用",
+          "disable": "禁用",
+          "test": "测试",
+          "delete": "删除",
+          "refresh": "刷新"
+        },
+        "detail": {
+          "title": "工具详情",
+          "name": "名称",
+          "type": "类型",
+          "description": "描述",
+          "status": "状态",
+          "config": "配置信息",
+          "noDescription": "无描述",
+          "noConfig": "无配置信息",
+          "close": "关闭"
+        },
+        "batch": {
+          "selected": "已选 {count} 项",
+          "cancel": "取消选择",
+          "delete": "批量删除",
+          "confirmDelete": "确定要删除选中的 {count} 条记录吗？"
+        },
+        "confirm": {
+          "delete": "确定要删除吗？",
+          "ok": "确定",
+          "cancel": "取消"
+        },
+        "messages": {
+          "deleteSuccess": "删除成功",
+          "deleteError": "删除失败",
+          "toggleSuccess": "状态已{status}",
+          "toggleError": "状态更新失败",
+          "testSuccess": "测试成功",
+          "testError": "测试失败",
+          "loadError": "加载失败",
+          "retry": "重试",
+          "empty": "暂无工具",
+          "selectAtLeastOne": "请至少选择一条记录",
+          "batchDeleteSuccess": "批量删除成功",
+          "batchDeleteError": "批量删除失败"
+        },
+        "pagination": {
+          "total": "共 {{total}} 条"
+        }
+      },
+      "markets": {
+        "title": "MCP 市场",
+        "listTitle": "MCP 市场列表",
+        "add": "添加市场",
+        "edit": "编辑",
+        "delete": "删除",
+        "viewTools": "查看工具",
+        "refreshTools": "刷新工具列表",
+        "enable": "启用",
+        "disable": "禁用",
+        "refresh": "刷新",
+        "searchPlaceholder": "搜索市场名称",
+        "columns": {
+          "name": "市场名称",
+          "url": "URL",
+          "description": "描述",
+          "status": "状态",
+          "actions": "操作"
+        },
+        "status": {
+          "enabled": "启用",
+          "disabled": "禁用"
+        },
+        "tooltips": {
+          "viewTools": "查看工具",
+          "refreshTools": "刷新工具列表",
+          "edit": "编辑",
+          "enable": "启用",
+          "disable": "禁用",
+          "delete": "删除",
+          "refresh": "刷新"
+        },
+        "form": {
+          "addTitle": "添加市场",
+          "editTitle": "编辑市场",
+          "name": "市场名称",
+          "nameRequired": "请输入市场名称",
+          "namePlaceholder": "例如：MCP Servers 官方市场",
+          "url": "市场 URL",
+          "urlRequired": "请输入市场 URL",
+          "urlInvalid": "请输入有效的 URL",
+          "urlPlaceholder": "例如：https://mcpservers.cn/api/servers/list",
+          "description": "描述",
+          "descriptionPlaceholder": "市场描述（可选）",
+          "authConfig": "认证配置",
+          "save": "保存",
+          "cancel": "取消"
+        },
+        "toolsModal": {
+          "title": "{{name}} - 工具列表",
+          "batchLoad": "批量加载到本地",
+          "refreshFromRemote": "从远程刷新",
+          "selected": "已选 {count} 项",
+          "columns": {
+            "toolName": "工具名称",
+            "toolDescription": "描述",
+            "status": "状态",
+            "actions": "操作"
+          },
+          "status": {
+            "loaded": "已加载",
+            "notLoaded": "未加载"
+          },
+          "actions": {
+            "load": "加载",
+            "loaded": "已加载"
+          },
+          "empty": "暂无工具，点击\"从远程刷新\"获取工具列表",
+          "pagination": {
+            "total": "共 {{total}} 条"
+          },
+          "messages": {
+            "selectTools": "请选择要加载的工具",
+            "allLoaded": "所选工具已全部加载",
+            "loadSuccess": "加载成功",
+            "loadError": "加载失败",
+            "batchLoadSuccess": "成功加载 {count} 个工具",
+            "batchLoadError": "批量加载失败",
+            "refreshSuccess": "刷新成功，正在重新获取工具列表...",
+            "refreshError": "刷新失败"
+          }
+        },
+        "messages": {
+          "addSuccess": "添加成功",
+          "updateSuccess": "更新成功",
+          "deleteSuccess": "删除成功",
+          "deleteError": "删除失败",
+          "toggleSuccess": "已{status}",
+          "toggleError": "状态更新失败",
+          "loadError": "获取市场列表失败",
+          "saveError": "保存失败",
+          "empty": "暂无市场，点击\"添加市场\"添加一个",
+          "confirmDelete": "确定要删除吗？删除后将无法恢复。",
+          "ok": "确定",
+          "cancel": "取消"
+        },
+        "pagination": {
+          "total": "共 {{total}} 条"
+        }
+      }
     },
     "proxy": "代理设置",
     "noProxy": "不使用代理",
