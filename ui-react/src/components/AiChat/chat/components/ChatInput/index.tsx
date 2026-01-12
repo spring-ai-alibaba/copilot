@@ -522,7 +522,8 @@ export const ChatInput: React.FC<ChatInputPropsType> = ({
                   className={classNames(
                     "p-2 rounded-md transition-colors",
                     "hover:bg-gray-700/30",
-                    "group relative"
+                    "group relative",
+                    "hidden" // 隐藏模式切换按钮
                   )}
                   onClick={() => {
                     setMode(

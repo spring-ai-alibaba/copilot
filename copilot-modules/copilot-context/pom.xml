@@ -16,35 +16,26 @@
     <description>上下文管理模块 - 管理会话状态、历史记录、上下文切换和持久化</description>
 
     <dependencies>
+
         <!-- 通用模块依赖 -->
         <dependency>
             <groupId>com.alibaba.cloud.ai</groupId>
             <artifactId>copilot-common-core</artifactId>
         </dependency>
+
         <dependency>
             <groupId>com.alibaba.cloud.ai</groupId>
             <artifactId>copilot-common-web</artifactId>
         </dependency>
+
+        <dependency>
+            <groupId>com.alibaba.cloud.ai</groupId>
+            <artifactId>copilot-common-redis</artifactId>
+        </dependency>
+
         <dependency>
             <groupId>com.alibaba.cloud.ai</groupId>
             <artifactId>copilot-common-mybatis</artifactId>
-        </dependency>
-
-        <!-- Spring Boot Starters -->
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-web</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-data-redis</artifactId>
-        </dependency>
-
-        <!-- Test Dependencies -->
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-test</artifactId>
-            <scope>test</scope>
         </dependency>
 
         <!-- Spring AI -->
@@ -59,26 +50,25 @@
             <artifactId>spring-ai-model-chat-memory-repository-jdbc</artifactId>
         </dependency>
 
-        <!-- 记忆系统模块（可选依赖） -->
+
+        <!-- Spring AI Alibaba Agent Framework -->
         <dependency>
             <groupId>com.alibaba.cloud.ai</groupId>
-            <artifactId>copilot-memory</artifactId>
-            <version>${project.version}</version>
-            <optional>true</optional>
-        </dependency>
-        <dependency>
-            <groupId>com.alibaba.cloud.ai</groupId>
-            <artifactId>copilot-model-provider</artifactId>
-            <version>1.0.0</version>
-            <scope>compile</scope>
+            <artifactId>spring-ai-alibaba-agent-framework</artifactId>
         </dependency>
 
-        <!-- MCP 工具模块 -->
+        <!-- DashScope ChatModel 支持（如果使用其他模型，请跳转 Spring AI 文档选择对应的 starter） -->
         <dependency>
             <groupId>com.alibaba.cloud.ai</groupId>
-            <artifactId>copilot-mcp</artifactId>
-            <version>${project.version}</version>
+            <artifactId>spring-ai-alibaba-starter-dashscope</artifactId>
         </dependency>
+
+        <!-- Diff Utils -->
+        <dependency>
+            <groupId>io.github.java-diff-utils</groupId>
+            <artifactId>java-diff-utils</artifactId>
+        </dependency>
+
     </dependencies>
 
 </project>

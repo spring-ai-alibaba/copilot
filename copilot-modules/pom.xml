@@ -7,7 +7,7 @@
 
     <parent>
         <groupId>com.alibaba.cloud.ai</groupId>
-        <artifactId>spring-ai-alibaba-copilot</artifactId>
+        <artifactId>copilot</artifactId>
         <version>1.0.0</version>
     </parent>
 
@@ -16,26 +16,9 @@
     <name>Copilot Business Modules</name>
     <description>业务模块组，包含核心业务功能模块</description>
 
-    <!-- 子模块定义 - 7个核心业务模块 -->
     <modules>
-        <module>copilot-conversation</module>
         <module>copilot-context</module>
-        <module>copilot-prompt</module>
-        <module>copilot-error</module>
-        <module>copilot-rag</module>
-        <module>copilot-mcp</module>
         <module>copilot-system</module>
-        <module>copilot-memory</module>
-        <module>copilot-model-provider</module>
     </modules>
-
-    <dependencies>
-        <!-- mybaits基础模块 -->
-        <dependency>
-            <groupId>com.alibaba.cloud.ai</groupId>
-            <artifactId>copilot-common-mybatis</artifactId>
-        </dependency>
-
-    </dependencies>
 
 </project>
