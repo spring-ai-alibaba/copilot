@@ -1,6 +1,5 @@
 package com.alibaba.cloud.ai.copilot.handler;
 
-import com.alibaba.cloud.ai.copilot.context.SseEmitterContext;
 import com.alibaba.cloud.ai.copilot.service.SseEventService;
 import com.alibaba.cloud.ai.graph.streaming.OutputType;
 import com.alibaba.cloud.ai.graph.streaming.StreamingOutput;
@@ -26,11 +25,10 @@ public class ModelFinishedHandler implements OutputTypeHandler {
     }
 
     @Override
-    public void handle(StreamingOutput output) {
+    public void handle(StreamingOutput output, SseEmitter emitter) {
         // 模型推理完成，可获取完整响应
         log.debug("模型输出完成");
 
-        SseEmitter emitter = SseEmitterContext.get();
         if (emitter != null) {
             try {
                 // 发送 OpenAI 兼容格式的完成信号给前端

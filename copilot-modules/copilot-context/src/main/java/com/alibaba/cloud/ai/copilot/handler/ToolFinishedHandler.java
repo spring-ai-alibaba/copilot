@@ -5,6 +5,7 @@ import com.alibaba.cloud.ai.graph.streaming.StreamingOutput;
 import org.springframework.ai.chat.messages.AssistantMessage;
 import org.springframework.ai.chat.messages.Message;
 import org.springframework.stereotype.Component;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 /**
  * 工具调用完成处理器
@@ -19,7 +20,7 @@ public class ToolFinishedHandler implements OutputTypeHandler {
     }
 
     @Override
-    public void handle(StreamingOutput output) {
+    public void handle(StreamingOutput output, SseEmitter emitter) {
         Message message = output.message();
         if (message instanceof AssistantMessage assistantMessage) {
             if (assistantMessage.hasToolCalls()) {

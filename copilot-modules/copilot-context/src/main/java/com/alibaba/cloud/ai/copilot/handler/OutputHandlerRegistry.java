@@ -4,6 +4,7 @@ import com.alibaba.cloud.ai.graph.streaming.OutputType;
 import com.alibaba.cloud.ai.graph.streaming.StreamingOutput;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.util.HashMap;
 import java.util.List;
@@ -39,14 +40,16 @@ public class OutputHandlerRegistry {
 
     /**
      * 处理流式输出
+     * @param output 流式输出对象
+     * @param emitter SSE 事件发射器
      */
-    public void handle(StreamingOutput output) {
+    public void handle(StreamingOutput output, SseEmitter emitter) {
         OutputType outputType = output.getOutputType();
         OutputTypeHandler handler = handlers.get(outputType);
 
         if (handler != null) {
             try {
-                handler.handle(output);
+                handler.handle(output, emitter);
             } catch (Exception e) {
                 log.error("处理输出类型 {} 时发生异常", outputType, e);
             }
