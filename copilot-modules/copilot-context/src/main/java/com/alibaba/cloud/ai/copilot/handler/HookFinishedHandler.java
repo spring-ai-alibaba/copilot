@@ -3,6 +3,7 @@ package com.alibaba.cloud.ai.copilot.handler;
 import com.alibaba.cloud.ai.graph.streaming.OutputType;
 import com.alibaba.cloud.ai.graph.streaming.StreamingOutput;
 import org.springframework.stereotype.Component;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 /**
  * Hook 执行完成处理器
@@ -17,7 +18,7 @@ public class HookFinishedHandler implements OutputTypeHandler {
     }
 
     @Override
-    public void handle(StreamingOutput output) {
+    public void handle(StreamingOutput output, SseEmitter emitter) {
         // 对于 Hook 节点，通常只关注完成事件（如果Hook没有有效输出可以忽略）
         System.out.println("Hook 执行完成: " + output.node());
 

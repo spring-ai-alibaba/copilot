@@ -1,6 +1,5 @@
 package com.alibaba.cloud.ai.copilot.handler;
 
-import com.alibaba.cloud.ai.copilot.context.SseEmitterContext;
 import com.alibaba.cloud.ai.copilot.service.SseEventService;
 import com.alibaba.cloud.ai.graph.streaming.OutputType;
 import com.alibaba.cloud.ai.graph.streaming.StreamingOutput;
@@ -26,11 +25,10 @@ public class ModelStreamingHandler implements OutputTypeHandler {
     }
 
     @Override
-    public void handle(StreamingOutput output) {
+    public void handle(StreamingOutput output, SseEmitter emitter) {
         // 流式增量内容，逐步显示
         log.debug("模型流式输出: {}", output.message().getText());
 
-        SseEmitter emitter = SseEmitterContext.get();
         if (emitter != null) {
             try {
                 // 发送 OpenAI 兼容格式的流式内容给前端
