@@ -12,12 +12,12 @@ import java.util.Map;
 /**
  * SSE事件服务实现类
  * 按照流式传输协议格式发送SSE事件
- *
+ * <p>
  * 协议格式：
  * event: xxx
  * data: {...}
+ * <p>
  *
- * (两个换行符分隔)
  */
 @Slf4j
 @Service
@@ -217,6 +217,63 @@ public class SseEventServiceImpl implements SseEventService {
             log.debug("SSE connection completed");
         } catch (Exception e) {
             log.error("Error completing SSE connection", e);
+        }
+    }
+
+    @Override
+    public void sendOpenAiCompatibleContent(SseEmitter emitter, String content) {
+        try {
+            // 生成 OpenAI 兼容格式的消息
+            // 前端期望的格式：{"choices":[{"delta":{"content":"..."},"finish_reason":null}]}
+            Map<String, Object> delta = new HashMap<>();
+            delta.put("content", content);
+
+            Map<String, Object> choice = new HashMap<>();
+            choice.put("delta", delta);
+            choice.put("finish_reason", null);
+
+            Map<String, Object> data = new HashMap<>();
+            data.put("choices", java.util.Arrays.asList(choice));
+
+            String dataJson = objectMapper.writeValueAsString(data);
+            SseEmitter.SseEventBuilder event = SseEmitter.event()
+                .data(dataJson);
+            emitter.send(event);
+            log.debug("Sent OpenAI compatible content: {}", content);
+        } catch (Exception e) {
+            log.error("Error sending OpenAI compatible content", e);
+            try {
+                emitter.completeWithError(e);
+            } catch (Exception ex) {
+                log.error("Error completing emitter with error", ex);
+            }
+        }
+    }
+
+    @Override
+    public void sendOpenAiCompatibleFinish(SseEmitter emitter) {
+        try {
+            // 发送完成信号
+            Map<String, Object> delta = new HashMap<>();
+            Map<String, Object> choice = new HashMap<>();
+            choice.put("delta", delta);
+            choice.put("finish_reason", "stop");
+
+            Map<String, Object> data = new HashMap<>();
+            data.put("choices", java.util.Arrays.asList(choice));
+
+            String dataJson = objectMapper.writeValueAsString(data);
+            SseEmitter.SseEventBuilder event = SseEmitter.event()
+                .data(dataJson);
+            emitter.send(event);
+            log.debug("Sent OpenAI compatible finish signal");
+        } catch (Exception e) {
+            log.error("Error sending OpenAI compatible finish", e);
+            try {
+                emitter.completeWithError(e);
+            } catch (Exception ex) {
+                log.error("Error completing emitter with error", ex);
+            }
         }
     }
 }

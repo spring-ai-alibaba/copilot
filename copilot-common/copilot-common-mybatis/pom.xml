@@ -43,11 +43,12 @@
             <groupId>p6spy</groupId>
             <artifactId>p6spy</artifactId>
         </dependency>
+
         <dependency>
             <groupId>com.alibaba.cloud.ai</groupId>
             <artifactId>copilot-common-satoken</artifactId>
-            <scope>compile</scope>
         </dependency>
+
     </dependencies>
 
 </project>

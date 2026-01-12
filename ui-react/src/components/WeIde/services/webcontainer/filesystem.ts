@@ -3,7 +3,7 @@ import {useFileStore} from '../../stores/fileStore';
 import {getWebContainerInstance} from './instance';
 import {debounce} from 'lodash';
 
-import {isHiddenNodeModules} from "../../../../../config/electronOrSrcCommonConfig"
+import {isHiddenNodeModules} from "../../../../../config/commonConfig"
 
 // Type definitions at the top of the file
 interface FileContent {

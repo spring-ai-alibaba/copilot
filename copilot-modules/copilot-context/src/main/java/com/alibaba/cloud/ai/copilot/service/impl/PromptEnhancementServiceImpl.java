@@ -1,7 +1,6 @@
 package com.alibaba.cloud.ai.copilot.service.impl;
 
-import com.alibaba.cloud.ai.copilot.model.entity.ModelConfigEntity;
-import com.alibaba.cloud.ai.copilot.model.service.ModelConfigService;
+import com.alibaba.cloud.ai.copilot.domain.entity.ModelConfigEntity;
 import com.alibaba.cloud.ai.copilot.service.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -10,7 +9,6 @@ import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.ai.chat.prompt.PromptTemplate;
 import org.springframework.ai.openai.OpenAiChatOptions;
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -26,10 +24,6 @@ public class PromptEnhancementServiceImpl implements PromptEnhancementService {
     private final DynamicModelService dynamicModelService;
     private final OpenAiModelFactory openAiModelFactory;
     private final ModelConfigService modelConfigService;
-
-    @Qualifier("promptTemplateServiceImpl")
-    private final PromptTemplateService promptTemplateService;
-
 
 
     @Override
@@ -49,7 +43,7 @@ public class PromptEnhancementServiceImpl implements PromptEnhancementService {
             ChatModel chatModel = dynamicModelService.getChatModel(modelName);
 
             // Create prompt template using template service
-            String enhancementPromptContent = promptTemplateService.buildPromptEnhancementTemplate(originalPrompt);
+            String enhancementPromptContent = "提示词增强！";
             PromptTemplate promptTemplate = new PromptTemplate(enhancementPromptContent);
             Prompt prompt = promptTemplate.create();
 

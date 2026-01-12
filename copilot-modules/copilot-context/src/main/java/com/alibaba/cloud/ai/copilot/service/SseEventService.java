@@ -79,4 +79,16 @@ public interface SseEventService {
      * 发送完成事件
      */
     void sendComplete(SseEmitter emitter);
+
+    /**
+     * 发送 OpenAI 兼容格式的流式内容
+     * 前端期望的格式，用于与 ai/react 库兼容
+     */
+    void sendOpenAiCompatibleContent(SseEmitter emitter, String content);
+
+    /**
+     * 发送 OpenAI 兼容格式的完成信号
+     */
+    void sendOpenAiCompatibleFinish(SseEmitter emitter);
+
 }
