@@ -89,6 +89,8 @@ public class SseEventServiceImpl implements SseEventService {
     @Override
     public void sendFileEditStart(SseEmitter emitter, String messageId, String operationId, String filePath) {
         Map<String, Object> data = new HashMap<>();
+        data.put("event", messageId);
+        // messageId 后端随机生成
         data.put("messageId", messageId);
         data.put("operationId", operationId);
         data.put("data", Map.of(
@@ -100,28 +102,28 @@ public class SseEventServiceImpl implements SseEventService {
 
     @Override
     public void sendFileEditProgress(SseEmitter emitter, String messageId, String operationId, String filePath, String oldStr, String newStr) {
+
+    }
+
+    @Override
+    public void sendFileEditEnd(SseEmitter emitter, String messageId, String operationId, String filePath, String content) {
+
+    }
+
+    @Override
+    public void sendFileEditProgress(SseEmitter emitter, String messageId, String operationId, String filePath, String content) {
         Map<String, Object> data = new HashMap<>();
+        data.put("event", "edit-progress");
+        // messageId - 当前对话id
         data.put("messageId", messageId);
+        // 每个工具都有不同的操作id
         data.put("operationId", operationId);
         data.put("data", Map.of(
             "type", "edit-progress",
             "filePath", filePath,
-            "oldStr", oldStr,
-            "newStr", newStr
+            "content", content
         ));
         sendSseEvent(emitter, "edit-progress", data);
-    }
-
-    @Override
-    public void sendFileEditEnd(SseEmitter emitter, String messageId, String operationId, String filePath) {
-        Map<String, Object> data = new HashMap<>();
-        data.put("messageId", messageId);
-        data.put("operationId", operationId);
-        data.put("data", Map.of(
-            "type", "edit-end",
-            "filePath", filePath
-        ));
-        sendSseEvent(emitter, "edit-end", data);
     }
 
     @Override
@@ -162,14 +164,32 @@ public class SseEventServiceImpl implements SseEventService {
     }
 
     @Override
-    public void sendChatContent(SseEmitter emitter, String messageId, String content) {
-        Map<String, Object> data = new HashMap<>();
-        data.put("messageId", messageId);
-        data.put("data", Map.of(
-            "type", "chat",
-            "content", content
-        ));
-        sendSseEvent(emitter, "chat", data);
+    public void sendChatContent(SseEmitter emitter,String content) {
+        try {
+            // 生成 OpenAI 兼容格式的消息
+            Map<String, Object> delta = new HashMap<>();
+            delta.put("content", content);
+
+            Map<String, Object> choice = new HashMap<>();
+            choice.put("delta", delta);
+            choice.put("finish_reason", null);
+
+            Map<String, Object> data = new HashMap<>();
+            data.put("choices", java.util.Arrays.asList(choice));
+
+            String dataJson = objectMapper.writeValueAsString(data);
+            SseEmitter.SseEventBuilder event = SseEmitter.event()
+                    .data(dataJson);
+            emitter.send(event);
+            log.debug("Sent OpenAI compatible content: {}", content);
+        } catch (Exception e) {
+            log.error("Error sending OpenAI compatible content", e);
+            try {
+                emitter.completeWithError(e);
+            } catch (Exception ex) {
+                log.error("Error completing emitter with error", ex);
+            }
+        }
     }
 
     @Override
@@ -220,60 +240,4 @@ public class SseEventServiceImpl implements SseEventService {
         }
     }
 
-    @Override
-    public void sendOpenAiCompatibleContent(SseEmitter emitter, String content) {
-        try {
-            // 生成 OpenAI 兼容格式的消息
-            // 前端期望的格式：{"choices":[{"delta":{"content":"..."},"finish_reason":null}]}
-            Map<String, Object> delta = new HashMap<>();
-            delta.put("content", content);
-
-            Map<String, Object> choice = new HashMap<>();
-            choice.put("delta", delta);
-            choice.put("finish_reason", null);
-
-            Map<String, Object> data = new HashMap<>();
-            data.put("choices", java.util.Arrays.asList(choice));
-
-            String dataJson = objectMapper.writeValueAsString(data);
-            SseEmitter.SseEventBuilder event = SseEmitter.event()
-                .data(dataJson);
-            emitter.send(event);
-            log.debug("Sent OpenAI compatible content: {}", content);
-        } catch (Exception e) {
-            log.error("Error sending OpenAI compatible content", e);
-            try {
-                emitter.completeWithError(e);
-            } catch (Exception ex) {
-                log.error("Error completing emitter with error", ex);
-            }
-        }
-    }
-
-    @Override
-    public void sendOpenAiCompatibleFinish(SseEmitter emitter) {
-        try {
-            // 发送完成信号
-            Map<String, Object> delta = new HashMap<>();
-            Map<String, Object> choice = new HashMap<>();
-            choice.put("delta", delta);
-            choice.put("finish_reason", "stop");
-
-            Map<String, Object> data = new HashMap<>();
-            data.put("choices", java.util.Arrays.asList(choice));
-
-            String dataJson = objectMapper.writeValueAsString(data);
-            SseEmitter.SseEventBuilder event = SseEmitter.event()
-                .data(dataJson);
-            emitter.send(event);
-            log.debug("Sent OpenAI compatible finish signal");
-        } catch (Exception e) {
-            log.error("Error sending OpenAI compatible finish", e);
-            try {
-                emitter.completeWithError(e);
-            } catch (Exception ex) {
-                log.error("Error completing emitter with error", ex);
-            }
-        }
-    }
 }

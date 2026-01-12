@@ -33,7 +33,7 @@ public class ModelStreamingHandler implements OutputTypeHandler {
             try {
                 // 发送 OpenAI 兼容格式的流式内容给前端
                 String content = output.message().getText();
-                sseEventService.sendOpenAiCompatibleContent(emitter, content);
+                sseEventService.sendChatContent(emitter, content);
             } catch (Exception e) {
                 log.error("发送模型流式内容失败", e);
             }

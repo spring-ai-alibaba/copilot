@@ -5,6 +5,7 @@ import com.alibaba.cloud.ai.copilot.domain.dto.ChatRequest;
 import com.alibaba.cloud.ai.copilot.handler.OutputHandlerRegistry;
 import com.alibaba.cloud.ai.copilot.service.ChatService;
 import com.alibaba.cloud.ai.copilot.service.DynamicModelService;
+import com.alibaba.cloud.ai.copilot.service.SseEventService;
 import com.alibaba.cloud.ai.copilot.tools.ListDirectoryTool;
 import com.alibaba.cloud.ai.graph.NodeOutput;
 import com.alibaba.cloud.ai.graph.agent.ReactAgent;
@@ -35,6 +36,8 @@ public class ChatServiceImpl implements ChatService {
     private final DynamicModelService dynamicModelService;
 
     private final OutputHandlerRegistry outputHandlerRegistry;
+
+    private final SseEventService sseEventService;
 
     @Override
     public void handleBuilderMode(ChatRequest request, String userId, SseEmitter emitter) {
@@ -68,6 +71,7 @@ public class ChatServiceImpl implements ChatService {
                     },
                     () -> {
                         System.out.println("Agent 执行完成");
+                        sseEventService.sendComplete(emitter);
                     }
             );
         } catch (GraphRunnerException e) {
