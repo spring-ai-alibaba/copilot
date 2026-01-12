@@ -1,63 +1,89 @@
 package com.alibaba.cloud.ai.copilot.service.impl;
 
-import com.alibaba.cloud.ai.copilot.dto.ChatRequest;
-import com.alibaba.cloud.ai.copilot.service.BuilderHandler;
-import com.alibaba.cloud.ai.copilot.service.ChatHandler;
+import com.alibaba.cloud.ai.copilot.config.AppProperties;
+import com.alibaba.cloud.ai.copilot.context.SseEmitterContext;
+import com.alibaba.cloud.ai.copilot.domain.dto.ChatRequest;
+import com.alibaba.cloud.ai.copilot.handler.OutputHandlerRegistry;
 import com.alibaba.cloud.ai.copilot.service.ChatService;
+import com.alibaba.cloud.ai.copilot.service.DynamicModelService;
+import com.alibaba.cloud.ai.copilot.tools.ListDirectoryTool;
+import com.alibaba.cloud.ai.graph.NodeOutput;
+import com.alibaba.cloud.ai.graph.agent.ReactAgent;
+import com.alibaba.cloud.ai.graph.agent.extension.tools.filesystem.EditFileTool;
+import com.alibaba.cloud.ai.graph.agent.extension.tools.filesystem.ReadFileTool;
+import com.alibaba.cloud.ai.graph.agent.extension.tools.filesystem.WriteFileTool;
+import com.alibaba.cloud.ai.graph.checkpoint.savers.MemorySaver;
+import com.alibaba.cloud.ai.graph.exception.GraphRunnerException;
+import com.alibaba.cloud.ai.graph.streaming.StreamingOutput;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.stereotype.Service;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
+import reactor.core.publisher.Flux;
+
 
 /**
- * Chat service implementation
  * 聊天服务实现
  */
 @Slf4j
 @Service
+@RequiredArgsConstructor
 public class ChatServiceImpl implements ChatService {
 
-    private final ChatHandler chatHandler;
-    private final BuilderHandler builderHandler;
+    private final AppProperties appProperties;
 
-    public ChatServiceImpl(ChatHandler chatHandler,
-                          BuilderHandler builderHandler) {
-        this.chatHandler = chatHandler;
-        this.builderHandler = builderHandler;
-    }
+    private final DynamicModelService dynamicModelService;
 
-    @Override
-    public void handleChatMode(ChatRequest request, String userId, SseEmitter emitter) {
-        try {
-            chatHandler.handle(request.getMessages(), request.getModelConfigId(), userId, request.getTools(), emitter);
-        } catch (Exception e) {
-            log.error("Error in chat mode", e);
-            try {
-                emitter.completeWithError(e);
-            } catch (Exception ex) {
-                log.error("Error completing emitter with error", ex);
-            }
-        }
-    }
+    private final OutputHandlerRegistry outputHandlerRegistry;
 
     @Override
     public void handleBuilderMode(ChatRequest request, String userId, SseEmitter emitter) {
         try {
-            builderHandler.handle(
-                request.getMessages(),
-                request.getModel(),
-                request.getModelConfigId(),
-                userId,
-                request.getOtherConfig(),
-                request.getTools(),
-                emitter
+            // 设置 SseEmitter 到 ThreadLocal 上下文
+            SseEmitterContext.set(emitter);
+
+            // 初始化 ChatModel
+            ChatModel chatModel = dynamicModelService.getChatModelWithConfigId(request.getModelConfigId());
+
+            ReactAgent agent = ReactAgent.builder()
+                    .name("copilot_agent")
+                    .model(chatModel)
+                    .tools(ListDirectoryTool.createListDirectoryToolCallback(ListDirectoryTool.DESCRIPTION),
+                            EditFileTool.createEditFileToolCallback(EditFileTool.DESCRIPTION),
+                            ReadFileTool.createReadFileToolCallback(ReadFileTool.DESCRIPTION),
+                            WriteFileTool.createWriteFileToolCallback(WriteFileTool.DESCRIPTION)
+                    )
+                    .systemPrompt("工作目录在:"+appProperties.getWorkspace().getRootDirectory()+"所有的文件操作请在这个目录下进行")
+                    .saver(new MemorySaver())
+                    .build();
+
+            Flux<NodeOutput> stream = agent.stream(request.getMessage().getContent());
+
+            stream.subscribe(
+                    output -> {
+                        // 使用处理器注册中心统一处理
+                        if (output instanceof StreamingOutput streamingOutput) {
+                            outputHandlerRegistry.handle(streamingOutput);
+                        }
+                    },
+                    error -> {
+                        System.err.println("错误: " + error);
+                        // 清理上下文
+                        SseEmitterContext.clear();
+                    },
+                    () -> {
+                        System.out.println("Agent 执行完成");
+                        // 清理上下文
+                        SseEmitterContext.clear();
+                    }
             );
-        } catch (Exception e) {
+        } catch (GraphRunnerException e) {
             log.error("Error in builder mode", e);
-            try {
-                emitter.completeWithError(e);
-            } catch (Exception ex) {
-                log.error("Error completing emitter with error", ex);
-            }
+            // 清理上下文
+            SseEmitterContext.clear();
+            throw new RuntimeException(e);
         }
     }
+
 }

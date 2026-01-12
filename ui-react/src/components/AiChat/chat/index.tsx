@@ -385,6 +385,31 @@ export const BaseChat = ({uuid: propUuid}: { uuid?: string }) => {
     // 自定义 fetch 函数来处理 SSE 流数据
     const customFetch = async (url: string, options: any) => {
         try {
+            // 解析原始请求体
+            let requestBody;
+            try {
+                requestBody = JSON.parse(options.body);
+            } catch (e) {
+                console.error("Failed to parse request body:", e);
+                requestBody = options.body;
+            }
+
+            // 如果有messages数组，只取最新一条
+            if (requestBody.messages && Array.isArray(requestBody.messages)) {
+                const latestMessage = requestBody.messages[requestBody.messages.length - 1];
+
+                // 修改请求体格式：用message替换messages数组
+                const modifiedBody = {
+                    ...requestBody,
+                    message: latestMessage, // 单个消息对象
+                    modelConfigId: (baseModal as any).modelConfigId, // 添加必需的modelConfigId参数
+                };
+                delete modifiedBody.messages; // 删除原来的messages数组
+
+                // 更新options中的body
+                options.body = JSON.stringify(modifiedBody);
+            }
+
             const response = await fetch(url, options);
 
             // 如果不是流式响应，直接返回
@@ -530,87 +555,10 @@ export const BaseChat = ({uuid: propUuid}: { uuid?: string }) => {
         headers: {
             ...(token && {Authorization: `Bearer ${token}`}),
         },
-        body: {
-            model: baseModal.key,
-            modelConfigId: (baseModal as any).modelConfigId,
-            mode: mode,
-            otherConfig: {
-                ...otherConfig,
-                extra: {
-                    ...otherConfig.extra,
-                    isBackEnd: otherConfig.isBackEnd,
-                    backendLanguage: otherConfig.backendLanguage
-                },
-            },
-            // 如果模型支持 function call 且有启用的 MCP 工具，则添加 tools 配置
-            ...(baseModal.functionCall && mcpTools.length > 0 && {
-                tools: mcpTools.map(tool => ({
-                    id: tool.id,
-                    name: `${tool.serverName}.${tool.name}`,
-                    description: tool.description || '',
-                    parameters: tool.inputSchema
-                }))
-            })
-
-        },
-
-
         id: chatUuid,
         onResponse: async (response) => {
-            // console.log("=== onResponse Debug ===");
-            // console.log("Response status:", response.status);
-            // console.log("Response headers:", Object.fromEntries(response.headers.entries()));
-            // console.log("Model from:", baseModal.from);
-
-            // if (baseModal.from === "ollama") {
-            //     // Ollama 特殊处理 - 需要手动处理流式响应
-            //     console.log("Processing Ollama response manually");
-            //     const reader = response.body?.getReader();
-            //     if (!reader) return;
-
-            //     while (true) {
-            //         const {done, value} = await reader.read();
-            //         if (done) break;
-
-            //         const text = new TextDecoder().decode(value);
-            //         const lines = text.split("\n").filter((line) => line.trim());
-
-            //         for (const line of lines) {
-            //             try {
-            //                 const data = JSON.parse(line);
-            //                 if (data.message?.content) {
-            //                     setMessages((messages) => {
-            //                         const lastMessage = messages[messages.length - 1];
-            //                         if (lastMessage && lastMessage.role === "assistant") {
-            //                             return [
-            //                                 ...messages.slice(0, -1),
-            //                                 {
-            //                                     ...lastMessage,
-            //                                     content: lastMessage.content + data.message.content,
-            //                                 },
-            //                             ];
-            //                         }
-            //                         return [
-            //                             ...messages,
-            //                             {
-            //                                 id: uuidv4(),
-            //                                 role: "assistant",
-            //                                 content: data.message.content,
-            //                             },
-            //                         ];
-            //                     });
-            //                 }
-            //             } catch (e) {
-            //                 console.warn("Failed to parse Ollama response line:", e);
-            //             }
-            //         }
-            //     }
-            // } else {
-            //     // 对于后端返回的 OpenAI 格式，让 customFetch 和 ai/react 库处理
-            //     // customFetch 已经将后端格式转换为 ai/react 期望的格式
-            //     console.log("Backend streaming response - letting customFetch and ai/react handle it");
-            //     console.log("Response will be processed by customFetch transformation");
-            // }
+            // 数据格式转换已由 customFetch 处理，这里无需额外处理
+            // customFetch 将后端的 OpenAI 兼容格式转换为 ai/react 期望的格式
         },
         onFinish: async (message) => {
             clearImages();

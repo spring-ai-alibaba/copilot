@@ -1,5 +1,7 @@
 package com.alibaba.cloud.ai.copilot.config;
 
+import lombok.Getter;
+import lombok.Setter;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.stereotype.Component;
 
@@ -9,6 +11,8 @@ import java.util.List;
 /**
  * 应用配置属性
  */
+@Setter
+@Getter
 @Component
 @ConfigurationProperties(prefix = "app")
 public class AppProperties {
@@ -16,20 +20,7 @@ public class AppProperties {
     private Workspace workspace = new Workspace();
     private Security security = new Security();
     private Tools tools = new Tools();
-    private Browser browser = new Browser();
 
-    // Getters and Setters
-    public Workspace getWorkspace() { return workspace; }
-    public void setWorkspace(Workspace workspace) { this.workspace = workspace; }
-
-    public Security getSecurity() { return security; }
-    public void setSecurity(Security security) { this.security = security; }
-
-    public Tools getTools() { return tools; }
-    public void setTools(Tools tools) { this.tools = tools; }
-
-    public Browser getBrowser() { return browser; }
-    public void setBrowser(Browser browser) { this.browser = browser; }
 
     /**
      * 工作空间配置
@@ -110,25 +101,6 @@ public class AppProperties {
 
         public boolean isEnabled() { return enabled; }
         public void setEnabled(boolean enabled) { this.enabled = enabled; }
-    }
-
-    /**
-     * 浏览器配置
-     */
-    public static class Browser {
-        private boolean autoOpen = true;
-        private String url = "http://localhost:8080";
-        private int delaySeconds = 2;
-
-        // Getters and Setters
-        public boolean isAutoOpen() { return autoOpen; }
-        public void setAutoOpen(boolean autoOpen) { this.autoOpen = autoOpen; }
-
-        public String getUrl() { return url; }
-        public void setUrl(String url) { this.url = url; }
-
-        public int getDelaySeconds() { return delaySeconds; }
-        public void setDelaySeconds(int delaySeconds) { this.delaySeconds = delaySeconds; }
     }
 
     /**

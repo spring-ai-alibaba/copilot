@@ -84,7 +84,7 @@ spring.data:
     # 数据库索引
     database: 2
     # 密码(如没有密码请注释掉)
-#    password: admin
+    password: 123456
     # 连接超时时间
     timeout: 10S
 
@@ -192,71 +192,6 @@ mybatis-encryptor:
   privateKey:
 
 # ===================================================================
-# RAG (检索增强生成) 配置
-# ===================================================================
-copilot:
-  rag:
-    embedding:
-      # 使用本地模型避免OpenAI API Key依赖
-      provider: local
-      model: all-MiniLM-L6-v2
-
-  memory:
-    # 短期记忆配置
-    short-term:
-      enabled: true
-      compression:
-        enabled: true
-        trigger-threshold: 0.1      # 10% Token 使用率触发（测试用，生产建议 0.7）
-        min-message-count: 3        # 最小消息数量触发（达到3条消息也会触发压缩，用于测试）
-        preserve-threshold: 0.3     # 保留 30%
-        boundary-strategy: USER_MESSAGE
-        # DeepSeek 模型名称（如果遇到 "Model Not Exist" 错误，请检查模型名称是否正确）
-        # 常见模型名称：deepseek-chat, deepseek-chat-v2, deepseek-chat-0324
-        compression-model: deepseek-chat
-        chat-model-bean-name: openAiChatModel  # DeepSeek 使用 OpenAI 兼容 API
-        summary-format: XML
-        async-compression: true
-        min-interval-seconds: 300   # 5分钟
-      token-cache:
-        hybrid-mode: false  # 启用混合缓存
-    # 长期记忆配置
-    long-term:
-      enabled: true
-      filename: COPILOT_MEMORY.md
-      global-directory: .copilot
-      max-search-depth: 3
-      max-search-dirs: 50
-      max-file-size: 51200  # 50KB
-      ignore-patterns:
-        - .git
-        - node_modules
-        - target
-        - build
-        - dist
-        - .idea
-        - .vscode
-
-    # Token 预算配置
-    token-budget:
-      system-prompt-ratio: 0.05      # 5%
-      long-term-memory-ratio: 0.05   # 5%
-      compressed-history-ratio: 0.10  # 10%
-      preserved-history-ratio: 0.30   # 30%
-      response-buffer-ratio: 0.50     # 50%
-
-    # 模型 Token 限制
-    model-limits:
-      gpt-4: 8192
-      gpt-4-turbo: 128000
-      gpt-4o: 128000
-      gpt-4o-mini: 128000
-      deepseek-chat: 32768
-      deepseek-coder: 32768
-      qwen-max: 8192
-      qwen-plus: 32768
-
-# ===================================================================
 # 用户安全配置
 # ===================================================================
 user:
@@ -294,11 +229,10 @@ sa-token:
 # ===================================================================
 logging:
   level:
-    org.springframework.ai: DEBUG
+    org.springframework.ai: info
     com.alibaba.cloud.ai.copilot: @logging.level@
-    org.springframework: DEBUG
-    org.mybatis.spring.mapper: DEBUG
-    com.alibaba.cloud.ai.copilot.memory: DEBUG  # 记忆系统使用 DEBUG
+    org.springframework: info
+    org.mybatis.spring.mapper: info
   config: classpath:logback-plus.xml
 
 # ===================================================================
@@ -324,7 +258,6 @@ app:
       - .html
       - .css
       - .sql
-
   # 安全配置
   security:
     approval-mode: DEFAULT  # DEFAULT, AUTO_EDIT, YOLO
@@ -335,66 +268,6 @@ app:
       - fdisk
       - mkfs
 
-  # 工具配置
-  tools:
-    read-file:
-      enabled: true
-      max-lines-per-read: 1000
-    write-file:
-      enabled: true
-      backup-enabled: true
-    edit-file:
-      enabled: true
-      diff-context-lines: 3
-    list-directory:
-      enabled: true
-      max-depth: 5
-    shell:
-      enabled: true
-      timeout-seconds: 30
-
-  # RAG配置
-  rag:
-    file-upload:
-      storage-root: ./data/rag/files
-      max-file-size: 10485760  # 10MB
-      supported-types:
-        - pdf
-        - docx
-        - doc
-        - txt
-        - md
-        - html
-        - rtf
-      enable-deduplication: true
-    document-processing:
-      default-chunk-size: 500
-      default-chunk-overlap: 50
-      enable-async-processing: true
-      processing-timeout-seconds: 300
-    vectorization:
-      default-embedding-model: text-embedding-v3
-      embedding-dimension: 1536
-      batch-size: 100
-    retrieval:
-      default-top-k: 5
-      max-top-k: 20
-      similarity-threshold: 0.7
-      enable-reranking: false
-
-  # 文件系统配置
-  file-system:
-    security:
-      enable-path-validation: true  # 启用路径验证
-      forbidden-paths:  # 禁止的路径
-        - ../
-        - /etc/
-        - /root/
-        - /usr/
-        - /var/
-# ===================================================================
-# AI Copilot 记忆系统配置
-# ===================================================================
 
 
 

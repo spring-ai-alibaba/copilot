@@ -27,18 +27,18 @@
         <dependency>
             <groupId>com.alibaba.cloud.ai</groupId>
             <artifactId>copilot-common-satoken</artifactId>
-            <scope>compile</scope>
         </dependency>
 
         <dependency>
             <groupId>com.alibaba.cloud.ai</groupId>
             <artifactId>copilot-common-redis</artifactId>
-            <scope>compile</scope>
         </dependency>
+
         <dependency>
-            <groupId>com.baomidou</groupId>
-            <artifactId>mybatis-plus-annotation</artifactId>
+            <groupId>com.alibaba.cloud.ai</groupId>
+            <artifactId>copilot-common-mybatis</artifactId>
         </dependency>
+
     </dependencies>
 
 </project>
