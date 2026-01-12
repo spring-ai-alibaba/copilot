@@ -452,7 +452,7 @@ export const BaseChat = ({uuid: propUuid}: { uuid?: string }) => {
                                         currentData = line.slice(5).trimStart();
 
                                         if (currentData === '[DONE]') {
-                                            transformedText += 'data: [DONE]\n\n';
+                                            // transformedText += 'data: [DONE]\n\n';
                                             continue;
                                         }
 
