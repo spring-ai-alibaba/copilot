@@ -44,7 +44,6 @@ type TextUIPart = {
      */
     text: string;
 };
-const ipcRenderer = window?.electron?.ipcRenderer;
 export const excludeFiles = [
     "components/weicon/base64.js",
     "components/weicon/icon.css",
@@ -293,7 +292,6 @@ export const BaseChat = ({uuid: propUuid}: { uuid?: string }) => {
                     const historyFiles = {};
                     const oldHistoryFiles = {};
                     // setEmptyFiles();
-                    ipcRenderer && ipcRenderer.invoke("node-container:set-now-path", "");
                     latestRecord.data.messages.forEach((message) => {
                         const {files: messageFiles} = parseMessage(message.content);
                         Object.assign(historyFiles, messageFiles);
@@ -357,15 +355,12 @@ export const BaseChat = ({uuid: propUuid}: { uuid?: string }) => {
                     clearImages();
                     setIsFirstSend();
                     setIsUpdateSend();
-                    if (ipcRenderer) {
-                        setEmptyFiles();
-                        ipcRenderer.invoke("node-container:set-now-path", "");
-                        setFiles({});
-                        clearImages();
-                        setIsFirstSend();
-                        setIsUpdateSend();
-                        resetTerminals();
-                    }
+                    setEmptyFiles();
+                    setFiles({});
+                    clearImages();
+                    setIsFirstSend();
+                    setIsUpdateSend();
+                    resetTerminals();
                 }
             } else {
                 console.log("Chat selection ignored - same chat UUID");
@@ -724,11 +719,9 @@ export const BaseChat = ({uuid: propUuid}: { uuid?: string }) => {
     useEffect(() => {
         const visibleFun = () => {
             if (isLoading) return;
-            else if (!isLoading && window.electron) {
-                setTimeout(() => {
-                    updateFileSystemNow();
-                }, 600);
-            }
+            setTimeout(() => {
+                updateFileSystemNow();
+            }, 600);
         };
         document.addEventListener("visibilitychange", visibleFun);
         return () => {
