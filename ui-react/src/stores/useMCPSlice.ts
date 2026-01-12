@@ -2,6 +2,33 @@ import {create} from 'zustand'
 import {persist} from 'zustand/middleware'
 import {MCPServer} from '@/types/mcp'
 
+type ElectronWindow = Window & {
+    electron?: {
+        ipcRenderer: {
+            on: (channel: string, listener: (...args: any[]) => void) => void
+        }
+    }
+}
+
+const normalizeServers = (maybeServers: unknown): MCPServer[] => {
+    if (Array.isArray(maybeServers)) {
+        return maybeServers.filter(Boolean) as MCPServer[]
+    }
+
+    if (maybeServers && typeof maybeServers === 'object') {
+        return Object.entries(maybeServers as Record<string, Partial<MCPServer>>).map(
+            ([name, data]) =>
+                ({
+                    ...(data ?? {}),
+                    name: data?.name ?? name,
+                    isActive: data?.isActive ?? false
+                } as MCPServer)
+        )
+    }
+
+    return []
+}
+
 export interface initialState {
     servers: MCPServer[]
 }
@@ -28,15 +55,15 @@ const useMCPStore = create<MCPState>()(
 
             // Set all servers
             setServers: (servers: MCPServer[]) => {
-                set({servers})
+                set({servers: normalizeServers(servers)})
             },
 
             // Add server
             addServer: async (server: MCPServer) => {
                 try {
                     set((state) => ({
-                        servers: [...state.servers, server]
-                      }))
+                        servers: normalizeServers([...state.servers, server])
+                    }))
                 } catch (error) {
                     console.error('Failed to add MCP server:', error)
                     throw error
@@ -47,9 +74,9 @@ const useMCPStore = create<MCPState>()(
             updateServer: async (server: MCPServer) => {
                 try {
                     set((state) => ({
-                        servers: state.servers.map((s) =>
+                        servers: normalizeServers(state.servers.map((s) =>
                             s.name === server.name ? server : s
-                        )
+                        ))
                     }))
                 } catch (error) {
                     console.error('Failed to update MCP server:', error)
@@ -61,7 +88,7 @@ const useMCPStore = create<MCPState>()(
             deleteServer: async (name: string) => {
                 try {
                     set((state) => ({
-                        servers: state.servers.filter((s) => s.name !== name)
+                        servers: normalizeServers(state.servers.filter((s) => s.name !== name))
                     }))
                 } catch (error) {
                     console.error('Failed to delete MCP server:', error)
@@ -73,9 +100,9 @@ const useMCPStore = create<MCPState>()(
             setServerActive: async (name: string, isActive: boolean) => {
                 try {
                     set((state) => ({
-                        servers: state.servers.map((s) =>
+                        servers: normalizeServers(state.servers.map((s) =>
                             s.name === name ? {...s, isActive} : s
-                        )
+                        ))
                     }))
                 } catch (error) {
                     console.error('Failed to set MCP server active status:', error)
@@ -96,16 +123,28 @@ const useMCPStore = create<MCPState>()(
         {
             name: 'mcp-storage',
             partialize: (state) => ({servers: state.servers}),
-            version: 1,
+            version: 2,
+            migrate: (persistedState?: MCPState) => {
+                if (!persistedState) {
+                    return {servers: []}
+                }
+                return {
+                    ...persistedState,
+                    servers: normalizeServers(persistedState.servers)
+                }
+            }
         }
     )
 )
 
 // Listen for server change events from main process
-if (typeof window !== 'undefined' && window.electron) {
-    window.electron.ipcRenderer.on('mcp:servers-changed', (servers: MCPServer[]) => {
-        useMCPStore.getState().setServers(servers)
-    })
+if (typeof window !== 'undefined') {
+    const electronWindow = window as ElectronWindow
+    if (electronWindow.electron) {
+        electronWindow.electron.ipcRenderer.on('mcp:servers-changed', (servers: MCPServer[]) => {
+            useMCPStore.getState().setServers(servers)
+        })
+    }
 }
 
 export default useMCPStore

@@ -22,6 +22,8 @@ public class ToolInfo {
     
     private ParametersSchema parameters;
 
+    private Map<String,Object> params;
+
     /**
      * Parameters schema for tool
      */

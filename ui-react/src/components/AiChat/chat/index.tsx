@@ -1,4 +1,4 @@
-import {useEffect, useMemo, useRef, useState} from "react";
+import {useEffect, useMemo, useRef, useState, useCallback} from "react";
 import {Message, useChat} from "ai/react";
 import {toast} from "react-toastify";
 import {uploadImage} from "@/api/chat";
@@ -73,8 +73,8 @@ enum ModelTypes {
 }
 
 export interface IModelOption {
-    value: string;
-    label: string;
+    key: string;
+    name: string;
     useImage: boolean;
     quota: number;
     from?: string;
@@ -101,8 +101,8 @@ export const BaseChat = ({uuid: propUuid}: { uuid?: string }) => {
     const [checkCount, setCheckCount] = useState(0);
 
     const [baseModal, setBaseModal] = useState<IModelOption>({
-        value: ModelTypes.Claude35sonnet,
-        label: "Claude 3.5 Sonnet",
+        key: ModelTypes.Claude35sonnet,
+        name: "Claude 3.5 Sonnet",
         useImage: true,
         from: "default",
         quota: 2,
@@ -129,6 +129,7 @@ export const BaseChat = ({uuid: propUuid}: { uuid?: string }) => {
         removeImage,
         clearImages,
         setModelOptions,
+        modelOptions,
     } = useChatStore();
     const {resetTerminals} = useTerminalStore();
     const filesInitObj = {} as Record<string, string>;
@@ -147,9 +148,25 @@ export const BaseChat = ({uuid: propUuid}: { uuid?: string }) => {
 
     const updateConvertToBoltAction = convertToBoltAction(filesUpdateObj);
 
-    // 获取模型列表（初始加载）
+    const fetchingRef = useRef(false);
+    const lastModeRef = useRef<ChatMode | null>(null);
+    const modeRef = useRef(mode);
+
     useEffect(() => {
-        fetch(apiUrl('/api/model/list'), {
+        modeRef.current = mode;
+    }, [mode]);
+
+    const fetchModelList = useCallback(() => {
+        if (fetchingRef.current) {
+            return;
+        }
+
+        fetchingRef.current = true;
+        const currentMode = modeRef.current;
+        const isBuilderMode = currentMode === ChatMode.Builder;
+        const url = apiUrl(`/api/model/list?buildMode=${isBuilderMode}`);
+
+        fetch(url, {
             method: "GET",
             headers: {
                 "Content-Type": "application/json",
@@ -174,8 +191,30 @@ export const BaseChat = ({uuid: propUuid}: { uuid?: string }) => {
             .catch((error) => {
                 console.error("Failed to fetch model list:", error);
                 setModelOptions([]);
+            })
+            .finally(() => {
+                fetchingRef.current = false;
             });
     }, []);
+
+    useEffect(() => {
+        if (lastModeRef.current === null || lastModeRef.current !== mode) {
+            lastModeRef.current = mode;
+            fetchModelList();
+        }
+    }, [mode, fetchModelList]);
+
+    // 监听模型状态变化事件，重新获取模型列表
+    useEffect(() => {
+        const unsubscribe = eventEmitter.on('model:status-changed', () => {
+            console.log('Model status changed, refreshing model list...');
+            fetchModelList();
+        });
+        
+        return () => {
+            unsubscribe();
+        };
+    }, [fetchModelList]);
 
 
 
@@ -474,7 +513,8 @@ export const BaseChat = ({uuid: propUuid}: { uuid?: string }) => {
             ...(token && {Authorization: `Bearer ${token}`}),
         },
         body: {
-            model: baseModal.value,
+            model: baseModal.key,
+            modelConfigId: (baseModal as any).modelConfigId,
             mode: mode,
             otherConfig: {
                 ...otherConfig,
@@ -796,6 +836,12 @@ export const BaseChat = ({uuid: propUuid}: { uuid?: string }) => {
         text?: string
     ) => {
         if (!text && !input.trim() && uploadedImages.length === 0) return;
+
+        // 检查模型列表是否为空
+        if (!modelOptions || modelOptions.length === 0) {
+            toast.error(t('models.errors.no_models_configured') || '请先配置模型，然后再发送消息');
+            return;
+        }
 
         try {
             // 处理文件引用

@@ -355,7 +355,7 @@ export const ChatInput: React.FC<ChatInputPropsType> = ({
     return () => {
       textarea.removeEventListener("paste", handlePaste);
     };
-  }, [isUploading, baseModal?.label]);
+  }, [isUploading, baseModal?.name]);
 
   useEffect(() => {
     if (showMentionMenu) {

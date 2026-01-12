@@ -159,21 +159,6 @@
       "unavailable": "The web version does not support MCP for now. Please stay tuned.",
       "invoke_tool": "Invoke tool",
       "invoke_tooling": "Invoke tooling",
-      "npx_list": {
-        "actions": "Actions",
-        "desc": "Search and add npm packages as MCP servers",
-        "description": "Description",
-        "no_packages": "No packages found",
-        "npm": "NPM",
-        "package_name": "Package Name",
-        "scope_placeholder": "Enter npm scope (e.g. @your-org)",
-        "scope_required": "Please enter npm scope",
-        "search": "Search",
-        "search_error": "Search error",
-        "title": "NPX Package List",
-        "usage": "Usage",
-        "version": "Version"
-      },
       "serverPlural": "servers",
       "serverSingular": "server",
       "title": "MCP Servers",
@@ -182,7 +167,182 @@
       "updateError": "Failed to update server",
       "updateSuccess": "Server updated successfully",
       "url": "URL",
-      "invalidMcpFormat": "Invalid MCP configuration format"
+      "invalidMcpFormat": "Invalid MCP configuration format",
+      "tools": {
+        "title": "MCP Tools",
+        "listTitle": "MCP Tools List",
+        "add": "Add",
+        "edit": "Edit",
+        "delete": "Delete",
+        "test": "Test",
+        "view": "View Details",
+        "enable": "Enable",
+        "disable": "Disable",
+        "refresh": "Refresh",
+        "searchPlaceholder": "Search tool name (fuzzy search)",
+        "columns": {
+          "name": "Name",
+          "type": "Type",
+          "status": "Status",
+          "actions": "Actions"
+        },
+        "types": {
+          "remote": "Remote",
+          "local": "Local"
+        },
+        "status": {
+          "enabled": "Enabled",
+          "disabled": "Disabled"
+        },
+        "tooltips": {
+          "view": "View Details",
+          "edit": "Edit",
+          "enable": "Enable",
+          "disable": "Disable",
+          "test": "Test",
+          "delete": "Delete",
+          "refresh": "Refresh"
+        },
+        "detail": {
+          "title": "Tool Details",
+          "name": "Name",
+          "type": "Type",
+          "description": "Description",
+          "status": "Status",
+          "config": "Configuration",
+          "noDescription": "No description",
+          "noConfig": "No configuration",
+          "close": "Close"
+        },
+        "batch": {
+          "selected": "{count} items selected",
+          "cancel": "Cancel Selection",
+          "delete": "Batch Delete",
+          "confirmDelete": "Are you sure you want to delete {count} selected records?"
+        },
+        "confirm": {
+          "delete": "Are you sure you want to delete?",
+          "ok": "OK",
+          "cancel": "Cancel"
+        },
+        "messages": {
+          "deleteSuccess": "Deleted successfully",
+          "deleteError": "Failed to delete",
+          "toggleSuccess": "Status {status}",
+          "toggleError": "Failed to update status",
+          "testSuccess": "Test successful",
+          "testError": "Test failed",
+          "loadError": "Failed to load",
+          "retry": "Retry",
+          "empty": "No tools available",
+          "selectAtLeastOne": "Please select at least one record",
+          "batchDeleteSuccess": "Batch delete successful",
+          "batchDeleteError": "Batch delete failed"
+        },
+        "pagination": {
+          "total": "Total {{total}} items"
+        }
+      },
+      "markets": {
+        "title": "MCP Markets",
+        "listTitle": "MCP Markets List",
+        "add": "Add Market",
+        "edit": "Edit",
+        "delete": "Delete",
+        "viewTools": "View Tools",
+        "refreshTools": "Refresh Tools List",
+        "enable": "Enable",
+        "disable": "Disable",
+        "refresh": "Refresh",
+        "searchPlaceholder": "Search market name",
+        "columns": {
+          "name": "Market Name",
+          "url": "URL",
+          "description": "Description",
+          "status": "Status",
+          "actions": "Actions"
+        },
+        "status": {
+          "enabled": "Enabled",
+          "disabled": "Disabled"
+        },
+        "tooltips": {
+          "viewTools": "View Tools",
+          "refreshTools": "Refresh Tools List",
+          "edit": "Edit",
+          "enable": "Enable",
+          "disable": "Disable",
+          "delete": "Delete",
+          "refresh": "Refresh"
+        },
+        "form": {
+          "addTitle": "Add Market",
+          "editTitle": "Edit Market",
+          "name": "Market Name",
+          "nameRequired": "Please enter market name",
+          "namePlaceholder": "e.g.: MCP Servers Official Market",
+          "url": "Market URL",
+          "urlRequired": "Please enter market URL",
+          "urlInvalid": "Please enter a valid URL",
+          "urlPlaceholder": "e.g.: https://mcpservers.cn/api/servers/list",
+          "description": "Description",
+          "descriptionPlaceholder": "Market description (optional)",
+          "authConfig": "Auth Configuration",
+          "save": "Save",
+          "cancel": "Cancel"
+        },
+        "toolsModal": {
+          "title": "{{name}} - Tools List",
+          "batchLoad": "Batch Load to Local",
+          "refreshFromRemote": "Refresh from Remote",
+          "selected": "{count} items selected",
+          "columns": {
+            "toolName": "Tool Name",
+            "toolDescription": "Description",
+            "status": "Status",
+            "actions": "Actions"
+          },
+          "status": {
+            "loaded": "Loaded",
+            "notLoaded": "Not Loaded"
+          },
+          "actions": {
+            "load": "Load",
+            "loaded": "Loaded"
+          },
+          "empty": "No tools available, click \"Refresh from Remote\" to get tools list",
+          "pagination": {
+            "total": "Total {{total}} items"
+          },
+          "messages": {
+            "selectTools": "Please select tools to load",
+            "allLoaded": "All selected tools are already loaded",
+            "loadSuccess": "Loaded successfully",
+            "loadError": "Failed to load",
+            "batchLoadSuccess": "Successfully loaded {count} tools",
+            "batchLoadError": "Batch load failed",
+            "refreshSuccess": "Refresh successful, reloading tools list...",
+            "refreshError": "Refresh failed"
+          }
+        },
+        "messages": {
+          "addSuccess": "Added successfully",
+          "updateSuccess": "Updated successfully",
+          "deleteSuccess": "Deleted successfully",
+          "deleteError": "Failed to delete",
+          "toggleSuccess": "{status}",
+          "toggleError": "Failed to update status",
+          "loadError": "Failed to load markets list",
+          "saveError": "Failed to save",
+          "empty": "No markets available, click \"Add Market\" to add one",
+          "confirmDelete": "Are you sure you want to delete? This action cannot be undone.",
+          "ok": "OK",
+          "cancel": "Cancel"
+        },
+        "pagination": {
+          "total": "Total {{total}} items"
+        }
+      }
     },
     "proxy": "Proxy Settings",
     "noProxy": "No Proxy",
@@ -509,7 +669,8 @@
     "warning": "Warning",
     "info": "Info",
     "create": "Create",
-    "update": "Update"
+    "update": "Update",
+    "detection": "Detection"
   },
   "models": {
     "title": "Model Management",

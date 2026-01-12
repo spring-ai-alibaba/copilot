@@ -43,6 +43,16 @@
             <artifactId>copilot-rag</artifactId>
             <version>${project.version}</version>
         </dependency>
+        <dependency>
+            <groupId>com.alibaba.cloud.ai</groupId>
+            <artifactId>copilot-memory</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.alibaba.cloud.ai</groupId>
+            <artifactId>copilot-mcp</artifactId>
+            <version>${project.version}</version>
+        </dependency>
 
         <!-- 通用模块依赖 -->
         <dependency>

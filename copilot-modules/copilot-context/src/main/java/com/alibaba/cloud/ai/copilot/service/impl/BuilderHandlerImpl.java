@@ -1,11 +1,15 @@
 package com.alibaba.cloud.ai.copilot.service.impl;
 
+import cn.hutool.core.collection.CollUtil;
+import com.alibaba.cloud.ai.copilot.memory.context.ContextAssembler;
 import com.alibaba.cloud.ai.copilot.model.Message;
 import com.alibaba.cloud.ai.copilot.model.PromptExtra;
 import com.alibaba.cloud.ai.copilot.model.ToolInfo;
 import com.alibaba.cloud.ai.copilot.service.*;
+import com.alibaba.cloud.ai.copilot.util.ChatMcpToolUtils;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.memory.ChatMemory;
 import org.springframework.ai.chat.messages.AssistantMessage;
 import org.springframework.ai.chat.messages.SystemMessage;
@@ -13,7 +17,9 @@ import org.springframework.ai.chat.messages.UserMessage;
 import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.ai.chat.prompt.Prompt;
-import org.springframework.ai.openai.OpenAiChatOptions;
+import org.springframework.ai.model.tool.ToolCallingChatOptions;
+import org.springframework.ai.tool.ToolCallback;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
@@ -40,6 +46,12 @@ public class BuilderHandlerImpl implements BuilderHandler {
     private final ChatMemory chatMemory;
     private final PromptTemplateService promptTemplateService;
     private final FileSystemService fileSystemService;
+    private final ToolOrchestrationService toolOrchestrationService;
+    private final ChatMcpToolUtils chatMcpToolUtils;
+
+    // 可选的记忆系统组件
+    @Autowired(required = false)
+    private ContextAssembler contextAssembler;
 
     public BuilderHandlerImpl(
             TokenService tokenService,
@@ -49,7 +61,8 @@ public class BuilderHandlerImpl implements BuilderHandler {
             @Qualifier("chatMemoryConversationService") ConversationService conversationService,
             ChatMemory chatMemory,
             @Qualifier("promptTemplateServiceImpl") PromptTemplateService promptTemplateService,
-            FileSystemService fileSystemService) {
+            FileSystemService fileSystemService,
+            ToolOrchestrationService toolOrchestrationService, ChatMcpToolUtils chatMcpToolUtils) {
         this.tokenService = tokenService;
         this.fileProcessorService = fileProcessorService;
         this.dynamicModelService = dynamicModelService;
@@ -58,16 +71,18 @@ public class BuilderHandlerImpl implements BuilderHandler {
         this.chatMemory = chatMemory;
         this.promptTemplateService = promptTemplateService;
         this.fileSystemService = fileSystemService;
+        this.toolOrchestrationService = toolOrchestrationService;
+        this.chatMcpToolUtils = chatMcpToolUtils;
     }
 
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     @Override
-    public void handle(List<Message> messages, String model, String userId, PromptExtra otherConfig,
+    public void handle(List<Message> messages,String model, String modelConfigId, String userId, PromptExtra otherConfig,
                       List<ToolInfo> tools, SseEmitter emitter) {
         CompletableFuture.runAsync(() -> {
             try {
-                processBuilder(messages, model, userId, otherConfig, tools, emitter);
+                processBuilder(messages, model, modelConfigId, userId, otherConfig, tools, emitter);
             } catch (Exception e) {
                 log.error("Error processing builder", e);
                 try {
@@ -79,7 +94,7 @@ public class BuilderHandlerImpl implements BuilderHandler {
         });
     }
 
-    private void processBuilder(List<Message> messages, String model, String userId, PromptExtra otherConfig,
+    private void processBuilder(List<Message> messages,String model, String modelConfigId, String userId, PromptExtra otherConfig,
                                List<ToolInfo> tools, SseEmitter emitter) {
         try {
             // Get or create conversation ID for this user session
@@ -129,38 +144,95 @@ public class BuilderHandlerImpl implements BuilderHandler {
             }
 
             // 使用动态模型服务获取对应的ChatModel
-            ChatModel chatModel = dynamicModelService.getChatModel(model, userId);
+            ChatModel chatModel = dynamicModelService.getChatModelWithConfigId(modelConfigId);
 
             try {
-                // 获取记忆中的对话历史
-                List<org.springframework.ai.chat.messages.Message> memoryMessages = chatMemory.get(conversationId);
-                boolean isFirstConversation = memoryMessages.isEmpty();
-
                 // 构建最终的消息列表
                 List<org.springframework.ai.chat.messages.Message> finalMessages = new ArrayList<>();
 
-                // 只在第一次对话时添加系统提示词到记忆中
-                if (isFirstConversation) {
-                    // 使用已经构建好的系统提示词（避免重复构建）
-                    SystemMessage systemMessage = new SystemMessage(systemPrompt);
-                    chatMemory.add(conversationId, systemMessage);
-                   // finalMessages.add(systemMessage);
+                // 如果启用了记忆系统，使用 ContextAssembler 组装上下文
+                if (contextAssembler != null) {
+                    log.info("Using ContextAssembler to assemble context for conversation {}", conversationId);
 
-                    log.debug("Added system prompt to memory for conversation {} (length: {})",
-                             conversationId, systemPrompt.length());
+                    // 转换用户消息为记忆系统的 Message 格式
+                    com.alibaba.cloud.ai.copilot.memory.domain.Message userMessage =
+                        new com.alibaba.cloud.ai.copilot.memory.domain.Message();
+                    userMessage.setId(java.util.UUID.randomUUID().toString());
+                    userMessage.setRole("user");
+                    userMessage.setContent(originalUserQuestion);
+                    userMessage.setTimestamp(java.time.LocalDateTime.now());
+
+                    // 使用 ContextAssembler 组装完整上下文（包含长期记忆、短期记忆、当前消息）
+                    java.nio.file.Path workspacePathObj = java.nio.file.Paths.get(workspacePath);
+                    List<com.alibaba.cloud.ai.copilot.memory.domain.Message> assembledMessages =
+                        contextAssembler.assembleContext(
+                            conversationId,
+                            userId,
+                            userMessage,
+                            workspacePathObj,
+                            model
+                    );
+
+                    // 转换为 Spring AI 的 Message 格式
+                    for (com.alibaba.cloud.ai.copilot.memory.domain.Message msg : assembledMessages) {
+                        if ("system".equals(msg.getRole())) {
+                            finalMessages.add(new SystemMessage(msg.getContent()));
+                        } else if ("user".equals(msg.getRole())) {
+                            finalMessages.add(new UserMessage(msg.getContent()));
+                        } else if ("assistant".equals(msg.getRole())) {
+                            finalMessages.add(new AssistantMessage(msg.getContent()));
+                        }
+                    }
+
+                    // 将用户消息添加到记忆（ContextAssembler 已经处理了历史，这里只添加当前消息）
+                    UserMessage springUserMessage = new UserMessage(originalUserQuestion);
+                    chatMemory.add(conversationId, springUserMessage);
+
+                } else {
+                    // 降级方案：使用原有的记忆管理方式
+                    log.debug("ContextAssembler not available, using fallback memory management");
+
+                    // 获取记忆中的对话历史
+                    List<org.springframework.ai.chat.messages.Message> memoryMessages = chatMemory.get(conversationId);
+                    boolean isFirstConversation = memoryMessages.isEmpty();
+
+                    // 只在第一次对话时添加系统提示词到记忆中
+                    if (isFirstConversation) {
+                        SystemMessage systemMessage = new SystemMessage(systemPrompt);
+                        chatMemory.add(conversationId, systemMessage);
+                        log.debug("Added system prompt to memory for conversation {} (length: {})",
+                                 conversationId, systemPrompt.length());
+                    }
+
+                    // 将当前用户消息添加到记忆中
+                    UserMessage userMessage = new UserMessage(originalUserQuestion);
+                    chatMemory.add(conversationId, userMessage);
+
+                    // 获取更新后的记忆消息
+                    memoryMessages = chatMemory.get(conversationId);
+                    finalMessages.addAll(memoryMessages);
                 }
 
-                // 将当前用户消息（原始的纯净问题）添加到记忆中
-                UserMessage userMessage = new UserMessage(originalUserQuestion);
-                chatMemory.add(conversationId, userMessage);
+                // 生成消息ID用于SSE事件追踪
+                String messageId = UUID.randomUUID().toString();
 
-                // 获取更新后的记忆消息
-                memoryMessages = chatMemory.get(conversationId);
-                finalMessages.addAll(memoryMessages);
+                // 创建 Prompt，如果有 MCP 工具则添加工具回调
+                Prompt prompt;
+                if (CollUtil.isNotEmpty(tools)) {
+                    // 将前端传来的 ToolInfo 转换为 Spring AI 的 ToolCallback
+                    List<ToolCallback> toolCallbacks = chatMcpToolUtils.convertToolsToCallbacks(tools);
+                    log.info("配置了 {} 个 MCP 工具用于聊天", toolCallbacks.size());
 
-                // 创建包含历史记忆的Prompt
-                OpenAiChatOptions chatOptions = openAiModelFactory.createDefaultChatOptions(model);
-                Prompt prompt = new Prompt(finalMessages, chatOptions);
+                    // 创建包含工具的选项
+                    ToolCallingChatOptions toolOptions = ToolCallingChatOptions.builder()
+                            .toolCallbacks(toolCallbacks)
+                            .build();
+
+                    prompt = new Prompt(finalMessages, toolOptions);
+                } else {
+                    // 没有工具时创建普通 Prompt
+                    prompt = new Prompt(finalMessages);
+                }
 
                 // 用于收集完整的AI响应
                 StringBuilder responseBuilder = new StringBuilder();
@@ -172,11 +244,11 @@ public class BuilderHandlerImpl implements BuilderHandler {
                        try {
                             // 获取当前块的内容
                             String content = chatResponse.getResult().getOutput().getText();
-                            if (content != null && !content.isEmpty()) {
-                                responseBuilder.append(content);
-                                // 发送流式数据块到前端
-                                sendStreamingChunk(emitter, content);
-                            }
+                           if (!content.isEmpty()) {
+                               responseBuilder.append(content);
+                               // 发送流式数据块到前端
+                               sendStreamingChunk(emitter, content);
+                           }
                        } catch (Exception e) {
                            log.error("Error processing streaming chunk", e);
                        }
