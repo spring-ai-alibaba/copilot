@@ -109,6 +109,10 @@ const messageParser = new SSEMessageParser({
       if (fileData.content !== undefined && fileData.filePath) {
         try {
           await createFileWithContent(fileData.filePath, fileData.content, true);
+          // 文件创建/更新后，选择当前文件并在预览区域展示
+          const { setSelectedPath } = useFileStore.getState();
+          setSelectedPath(fileData.filePath);
+          console.log('[SSE] 文件已选择并在预览区域展示:', fileData.filePath);
         } catch (error) {
           console.error('[SSE] 添加文件进度更新失败:', error);
         }
@@ -118,10 +122,14 @@ const messageParser = new SSEMessageParser({
     onAddEnd: async (data: OperationCallbackData) => {
       const fileData = data.data as FileOperationData;
       console.log('[SSE] 完成添加文件:', fileData.filePath);
-      
+
       if (fileData.content !== undefined && fileData.filePath) {
         try {
           await createFileWithContent(fileData.filePath, fileData.content, true);
+          // 文件创建完成，选择当前文件并在预览区域展示
+          const { setSelectedPath } = useFileStore.getState();
+          setSelectedPath(fileData.filePath);
+          console.log('[SSE] 文件已选择并在预览区域展示:', fileData.filePath);
         } catch (error) {
           console.error('[SSE] 创建文件失败:', error);
         }
@@ -140,6 +148,9 @@ const messageParser = new SSEMessageParser({
       if (fileData.content !== undefined && fileData.filePath) {
         try {
           await useFileStore.getState().updateContent(fileData.filePath, fileData.content, false, false);
+          // 文件编辑时，选择当前文件并在预览区域展示
+          const { setSelectedPath } = useFileStore.getState();
+          setSelectedPath(fileData.filePath);
         } catch (error) {
           console.error('[SSE] 编辑文件进度更新失败:', error);
         }
@@ -149,10 +160,14 @@ const messageParser = new SSEMessageParser({
     onEditEnd: async (data: OperationCallbackData) => {
       const fileData = data.data as FileOperationData;
       console.log('[SSE] 完成编辑文件:', fileData.filePath);
-      
+
       if (fileData.content !== undefined && fileData.filePath) {
         try {
           await useFileStore.getState().updateContent(fileData.filePath, fileData.content, false, true);
+          // 文件编辑完成，选择当前文件并在预览区域展示
+          const { setSelectedPath } = useFileStore.getState();
+          setSelectedPath(fileData.filePath);
+          console.log('[SSE] 文件已选择并在预览区域展示:', fileData.filePath);
         } catch (error) {
           console.error('[SSE] 编辑文件失败:', error);
         }
@@ -207,12 +222,15 @@ const messageParser = new SSEMessageParser({
  * 否则保持原有逻辑（用于向后兼容）
  */
 export const parseMessages = async (messages: Message[]) => {
+  console.log('[SSE] 解析消息11:', messages);
   for (let i = 0; i < messages.length; i++) {
     const message = messages[i];
     if (message.role === "assistant" && message.content) {
       try {
+        console.log('[SSE] 解析消息22:', message.content);
         // 尝试解析为 JSON 格式的 WebSocket 消息
         const jsonMessage = JSON.parse(message.content);
+        console.log('[SSE] 解析消息33:', jsonMessage);
         if (jsonMessage.event && jsonMessage.data) {
           // 这是 WebSocket 格式的消息
           messageParser.parse(message.id, jsonMessage);
@@ -234,6 +252,7 @@ export const parseMessages = async (messages: Message[]) => {
  * 用于直接处理 SSE 连接接收的消息
  */
 export const parseSSEMessage = (messageId: string, message: string | object): void => {
+  console.log('[SSE] 解析消息:', message);
   messageParser.parse(messageId, message);
 };
 

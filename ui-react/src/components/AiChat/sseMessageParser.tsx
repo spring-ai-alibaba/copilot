@@ -281,7 +281,7 @@ export class SSEMessageParser {
   parse(messageId: string, rawMessage: string | object): void {
     try {
       let message: SSEMessage;
-      
+      console.log('[SSEMessageParser] 解析消息33:', rawMessage);
       if (typeof rawMessage === 'string') {
         // 检查消息大小
         const messageSize = new Blob([rawMessage]).size;
@@ -375,7 +375,7 @@ export class SSEMessageParser {
       messageId,
       operationId,
     };
-
+    console.log('[SSEMessageParser] 回调数据:', callbackData);
     // 触发相应的回调
     this.triggerCallback(event, callbackData, operationState);
 
@@ -389,6 +389,7 @@ export class SSEMessageParser {
    * 触发回调
    */
   private triggerCallback(event: EventName, data: OperationCallbackData, operationState: OperationState): void {
+    console.log('[SSEMessageParser] 触发回调:', event, data, operationState);
     const callbackMap: Record<EventName, keyof ParserCallbacks> = {
       'add-start': 'onAddStart',
       'add-progress': 'onAddProgress',

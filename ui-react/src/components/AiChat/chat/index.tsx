@@ -394,6 +394,7 @@ export const BaseChat = ({uuid: propUuid}: { uuid?: string }) => {
 
             // 创建一个新的 ReadableStream 来拦截数据
             const originalStream = response.body;
+            console.log('[customFetch] 原始流:', originalStream);
             const reader = originalStream.getReader();
             let chunkCount = 0;
 
@@ -432,7 +433,7 @@ export const BaseChat = ({uuid: propUuid}: { uuid?: string }) => {
 
                                         try {
                                             const parsed = JSON.parse(currentData);
-
+                                            console.log('[customFetch] 解析消息:', parsed);
                                             // 处理 SSE 格式的消息
                                             if (parsed && parsed.event) {
                                                 const eventType = parsed.event;
