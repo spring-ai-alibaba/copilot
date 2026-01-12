@@ -1,7 +1,6 @@
 package com.alibaba.cloud.ai.copilot.service.impl;
 
 import com.alibaba.cloud.ai.copilot.config.AppProperties;
-import com.alibaba.cloud.ai.copilot.context.SseEmitterContext;
 import com.alibaba.cloud.ai.copilot.domain.dto.ChatRequest;
 import com.alibaba.cloud.ai.copilot.handler.OutputHandlerRegistry;
 import com.alibaba.cloud.ai.copilot.service.ChatService;
@@ -40,9 +39,6 @@ public class ChatServiceImpl implements ChatService {
     @Override
     public void handleBuilderMode(ChatRequest request, String userId, SseEmitter emitter) {
         try {
-            // 设置 SseEmitter 到 ThreadLocal 上下文
-            SseEmitterContext.set(emitter);
-
             // 初始化 ChatModel
             ChatModel chatModel = dynamicModelService.getChatModelWithConfigId(request.getModelConfigId());
 
@@ -62,26 +58,20 @@ public class ChatServiceImpl implements ChatService {
 
             stream.subscribe(
                     output -> {
-                        // 使用处理器注册中心统一处理
+                        // 使用处理器注册中心统一处理，直接传递 emitter
                         if (output instanceof StreamingOutput streamingOutput) {
-                            outputHandlerRegistry.handle(streamingOutput);
+                            outputHandlerRegistry.handle(streamingOutput, emitter);
                         }
                     },
                     error -> {
                         System.err.println("错误: " + error);
-                        // 清理上下文
-                        SseEmitterContext.clear();
                     },
                     () -> {
                         System.out.println("Agent 执行完成");
-                        // 清理上下文
-                        SseEmitterContext.clear();
                     }
             );
         } catch (GraphRunnerException e) {
             log.error("Error in builder mode", e);
-            // 清理上下文
-            SseEmitterContext.clear();
             throw new RuntimeException(e);
         }
     }
