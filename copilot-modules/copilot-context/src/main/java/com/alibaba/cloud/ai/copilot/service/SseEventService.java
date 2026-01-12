@@ -38,7 +38,9 @@ public interface SseEventService {
     /**
      * 发送文件编辑结束事件
      */
-    void sendFileEditEnd(SseEmitter emitter, String messageId, String operationId, String filePath);
+    void sendFileEditEnd(SseEmitter emitter, String messageId, String operationId, String filePath, String content);
+
+    void sendFileEditProgress(SseEmitter emitter, String messageId, String operationId, String filePath, String content);
 
     /**
      * 发送文件删除开始事件
@@ -58,7 +60,7 @@ public interface SseEventService {
     /**
      * 发送聊天内容事件
      */
-    void sendChatContent(SseEmitter emitter, String messageId, String content);
+    void sendChatContent(SseEmitter emitter, String content);
 
     /**
      * 发送展示开始事件
@@ -79,16 +81,5 @@ public interface SseEventService {
      * 发送完成事件
      */
     void sendComplete(SseEmitter emitter);
-
-    /**
-     * 发送 OpenAI 兼容格式的流式内容
-     * 前端期望的格式，用于与 ai/react 库兼容
-     */
-    void sendOpenAiCompatibleContent(SseEmitter emitter, String content);
-
-    /**
-     * 发送 OpenAI 兼容格式的完成信号
-     */
-    void sendOpenAiCompatibleFinish(SseEmitter emitter);
 
 }
