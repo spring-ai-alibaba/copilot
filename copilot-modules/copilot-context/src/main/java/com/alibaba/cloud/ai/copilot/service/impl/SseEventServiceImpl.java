@@ -8,6 +8,7 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.UUID;
 
 /**
  * SSE事件服务实现类
@@ -47,120 +48,19 @@ public class SseEventServiceImpl implements SseEventService {
     }
 
     @Override
-    public void sendFileAddStart(SseEmitter emitter, String messageId, String operationId, String filePath) {
-        Map<String, Object> data = new HashMap<>();
-        data.put("messageId", messageId);
-        data.put("operationId", operationId);
-        data.put("data", Map.of(
-            "type", "add-start",
-            "filePath", filePath
-        ));
-        sendSseEvent(emitter, "add-start", data);
-    }
-
-    @Override
-    public void sendFileAddProgress(SseEmitter emitter, String messageId, String operationId, String filePath, String content) {
-        Map<String, Object> data = new HashMap<>();
-        data.put("messageId", messageId);
-        data.put("operationId", operationId);
-        data.put("data", Map.of(
-            "type", "add-progress",
-            "filePath", filePath,
-            "content", content
-        ));
-        sendSseEvent(emitter, "add-progress", data);
-    }
-
-    @Override
-    public void sendFileAddEnd(SseEmitter emitter, String messageId, String operationId, String filePath, String content) {
-        Map<String, Object> data = new HashMap<>();
-        data.put("messageId", messageId);
-        data.put("operationId", operationId);
-        data.put("data", Map.of(
-            "type", "add-end",
-            "filePath", filePath,
-            "content", content,
-            "encoding", "utf-8",
-            "mode", "overwrite"
-        ));
-        sendSseEvent(emitter, "add-end", data);
-    }
-
-    @Override
-    public void sendFileEditStart(SseEmitter emitter, String messageId, String operationId, String filePath) {
-        Map<String, Object> data = new HashMap<>();
-        data.put("event", messageId);
-        // messageId 后端随机生成
-        data.put("messageId", messageId);
-        data.put("operationId", operationId);
-        data.put("data", Map.of(
-            "type", "edit-start",
-            "filePath", filePath
-        ));
-        sendSseEvent(emitter, "edit-start", data);
-    }
-
-    @Override
-    public void sendFileEditProgress(SseEmitter emitter, String messageId, String operationId, String filePath, String oldStr, String newStr) {
-
-    }
-
-    @Override
-    public void sendFileEditEnd(SseEmitter emitter, String messageId, String operationId, String filePath, String content) {
-
-    }
-
-    @Override
-    public void sendFileEditProgress(SseEmitter emitter, String messageId, String operationId, String filePath, String content) {
+    public void sendFileEditProgress(SseEmitter emitter, String filePath, String content) {
         Map<String, Object> data = new HashMap<>();
         data.put("event", "edit-progress");
         // messageId - 当前对话id
-        data.put("messageId", messageId);
+        data.put("messageId", UUID.randomUUID().toString());
         // 每个工具都有不同的操作id
-        data.put("operationId", operationId);
+        data.put("operationId", UUID.randomUUID().toString());
         data.put("data", Map.of(
             "type", "edit-progress",
             "filePath", filePath,
             "content", content
         ));
         sendSseEvent(emitter, "edit-progress", data);
-    }
-
-    @Override
-    public void sendFileDeleteStart(SseEmitter emitter, String messageId, String operationId, String filePath) {
-        Map<String, Object> data = new HashMap<>();
-        data.put("messageId", messageId);
-        data.put("operationId", operationId);
-        data.put("data", Map.of(
-            "type", "delete-start",
-            "filePath", filePath
-        ));
-        sendSseEvent(emitter, "delete-start", data);
-    }
-
-    @Override
-    public void sendFileDeleteEnd(SseEmitter emitter, String messageId, String operationId, String filePath) {
-        Map<String, Object> data = new HashMap<>();
-        data.put("messageId", messageId);
-        data.put("operationId", operationId);
-        data.put("data", Map.of(
-            "type", "delete-end",
-            "filePath", filePath
-        ));
-        sendSseEvent(emitter, "delete-end", data);
-    }
-
-    @Override
-    public void sendCommandEvent(SseEmitter emitter, String messageId, String operationId, String command, String output) {
-        Map<String, Object> data = new HashMap<>();
-        data.put("messageId", messageId);
-        data.put("operationId", operationId);
-        data.put("data", Map.of(
-            "type", "cmd",
-            "command", command,
-            "output", output
-        ));
-        sendSseEvent(emitter, "cmd", data);
     }
 
     @Override
@@ -190,40 +90,6 @@ public class SseEventServiceImpl implements SseEventService {
                 log.error("Error completing emitter with error", ex);
             }
         }
-    }
-
-    @Override
-    public void sendShowStart(SseEmitter emitter, String messageId, String filePath) {
-        Map<String, Object> data = new HashMap<>();
-        data.put("messageId", messageId);
-        data.put("data", Map.of(
-            "type", "show-start",
-            "filePath", filePath
-        ));
-        sendSseEvent(emitter, "chat", data);
-    }
-
-    @Override
-    public void sendShowEnd(SseEmitter emitter, String messageId, String filePath) {
-        Map<String, Object> data = new HashMap<>();
-        data.put("messageId", messageId);
-        data.put("data", Map.of(
-            "type", "show-end",
-            "filePath", filePath
-        ));
-        sendSseEvent(emitter, "chat", data);
-    }
-
-    @Override
-    public void sendError(SseEmitter emitter, String messageId, String operationId, String errorMessage) {
-        Map<String, Object> data = new HashMap<>();
-        data.put("messageId", messageId);
-        data.put("operationId", operationId);
-        data.put("error", Map.of(
-            "message", errorMessage,
-            "code", "EXECUTION_ERROR"
-        ));
-        sendSseEvent(emitter, "error", data);
     }
 
     @Override
