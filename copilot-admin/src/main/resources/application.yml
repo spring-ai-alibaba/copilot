@@ -12,6 +12,8 @@ server:
 spring:
   application:
     name: spring-ai-alibaba-copilot
+  profiles:
+    active: local
 
   # 国际化配置
   messages:
@@ -36,7 +38,7 @@ spring:
           driverClassName: com.mysql.cj.jdbc.Driver
           url: jdbc:mysql://127.0.0.1:3306/spring_ai_copilot?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai
           username: root
-          password: root
+          password: 123456
 
       # HikariCP 连接池配置
       hikari:
@@ -68,7 +70,7 @@ spring:
       # DeepSeek API Key（用于压缩功能）
       # 方式1：直接在这里配置（替换下面的 sk-your-deepseek-api-key 为你的实际 API Key）
       # 方式2：通过环境变量 OPENAI_API_KEY 设置（在 IDEA 运行配置中设置）
-      api-key: ${OPENAI_API_KEY:sk-5a2e7bf1ee7e4921bcbabbd7e86887c2}  # 请替换为你的实际 DeepSeek API Key
+      api-key: ${OPENAI_API_KEY:sk-your-deepseek-api-key}  # 请替换为你的实际 DeepSeek API Key
       # DeepSeek API 地址（DeepSeek 使用 OpenAI 兼容 API，但需要设置正确的 base URL）
       base-url: ${OPENAI_BASE_URL:https://api.deepseek.com}
 
