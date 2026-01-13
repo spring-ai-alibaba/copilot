@@ -3,6 +3,9 @@ target/
 dist/
 build/
 
+# 本地配置文件
+application-local.yml
+
 # 依赖目录
 node_modules/
 
