@@ -82,8 +82,15 @@ const LoginForm = ({ onSuccess, onTabChange }: LoginFormProps) => {
       setToken(token)
       // 持久化用户信息，便于 getUserInfo 回退读取
       if (userInfo) {
-        try { localStorage.setItem('user', JSON.stringify(userInfo)) } catch {}
-        setUser(userInfo)
+        console.log('Login userInfo:', userInfo)
+        // 处理字段映射：后端返回 userId，前端期望 id
+        const userInfoWithMappedFields = {
+          ...userInfo,
+          id: userInfo.id || userInfo.userId, // 如果没有 id，用 userId 代替
+          userType: userInfo.userType || 'sys_user' // 默认设置为 sys_user
+        };
+        try { localStorage.setItem('user', JSON.stringify(userInfoWithMappedFields)) } catch {}
+        setUser(userInfoWithMappedFields)
       }
 
       // 登录后主动刷新一次用户信息，保证配额等字段及时可用
