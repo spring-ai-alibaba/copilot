@@ -1,5 +1,6 @@
 package com.alibaba.cloud.ai.copilot.domain.dto;
 
+import com.fasterxml.jackson.annotation.JsonAnySetter;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -8,7 +9,9 @@ import lombok.Getter;
 import lombok.Setter;
 import lombok.ToString;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * 状态数据DTO类 - 只包含data部分
@@ -123,21 +126,69 @@ public class StateDataDTO {
     }
 
     /**
-     * ToolArguments DTO类 - 工具参数
+     * ToolArguments DTO类 - 工具参数（灵活支持所有工具参数）
+     * 使用 Map 存储所有参数，支持不同工具的不同参数结构
      */
-    @Data
+    @Getter
+    @Setter
+    @ToString
     public static class ToolArgumentsDTO {
-        @JsonProperty("file_path")
-        private String filePath;
+        private Map<String, Object> arguments = new HashMap<>();
 
-        @JsonProperty("content")
-        private String content;
+        @JsonAnySetter
+        public void setArgument(String key, Object value) {
+            arguments.put(key, value);
+        }
+
+        // 通用的 getter 方法，支持多种字段名
+        public String getFilePath() {
+            Object value = arguments.get("file_path");
+            return value != null ? value.toString() : null;
+        }
+
+        public String getPath() {
+            Object value = arguments.get("path");
+            return value != null ? value.toString() : null;
+        }
+
+        public String getContent() {
+            Object value = arguments.get("content");
+            return value != null ? value.toString() : null;
+        }
+
+        public String getOldString() {
+            Object value = arguments.get("old_string");
+            return value != null ? value.toString() : null;
+        }
+
+        public String getNewString() {
+            Object value = arguments.get("new_string");
+            return value != null ? value.toString() : null;
+        }
+
+        public String getCommand() {
+            Object value = arguments.get("command");
+            return value != null ? value.toString() : null;
+        }
+
+        public String getDescription() {
+            Object value = arguments.get("description");
+            return value != null ? value.toString() : null;
+        }
+
+        // 通用方法 - 获取任意参数
+        public Object getArgument(String key) {
+            return arguments.get(key);
+        }
+
+        public Map<String, Object> getAllArguments() {
+            return new HashMap<>(arguments);
+        }
 
         @Override
         public String toString() {
             return "ToolArgumentsDTO{" +
-                    "filePath='" + filePath + '\'' +
-                    ", content='" + (content != null ? content.length() + " chars" : "null") + '\'' +
+                    "arguments=" + arguments +
                     '}';
         }
     }

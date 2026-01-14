@@ -2,6 +2,7 @@ package com.alibaba.cloud.ai.copilot.handler;
 
 import com.alibaba.cloud.ai.copilot.domain.dto.StateDataDTO;
 import com.alibaba.cloud.ai.copilot.service.SseEventService;
+import com.alibaba.cloud.ai.copilot.tools.PathUtils;
 import com.alibaba.cloud.ai.graph.streaming.OutputType;
 import com.alibaba.cloud.ai.graph.streaming.StreamingOutput;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -47,8 +48,16 @@ public class ToolFinishedHandler implements OutputTypeHandler {
                             if (toolCall.getArguments() != null) {
                                 String filePath = toolCall.getArguments().getFilePath();
                                 String content = toolCall.getArguments().getContent();
-                                // 使用伪流式输出发送内容
-                                sendContentWithPseudoStreaming(emitter, "workspace/index.html", content);
+
+                                if (filePath != null && !filePath.isEmpty()) {
+                                    // 统一路径格式（转换为 workspace/xxx 的标准格式）
+                                    String normalizedPath = PathUtils.normalizeWorkspacePath(filePath);
+                                    log.info("原始路径: {}", filePath);
+                                    log.info("转换后路径: {}", normalizedPath);
+
+                                    // 使用伪流式输出发送内容
+                                    sendContentWithPseudoStreaming(emitter, normalizedPath, content);
+                                }
                             }
                         });
                     }
