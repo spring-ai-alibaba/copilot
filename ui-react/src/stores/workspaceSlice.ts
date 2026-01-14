@@ -35,17 +35,23 @@ const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
       const response = await getWorkspaceFiles(workspacePath);
 
       if (response.success && response.files) {
+        // Normalize file paths (convert backslashes to forward slashes) so IDE tree and editor use the same keys
+        const normalizedFiles: Record<string, string> = {};
+        Object.entries(response.files).forEach(([rawPath, content]) => {
+          const normalizedPath = rawPath.replace(/\\/g, '/');
+          normalizedFiles[normalizedPath] = content as string;
+        });
+
         // store in workspace store
-        set({ files: response.files, isLoading: false });
+        set({ files: normalizedFiles, isLoading: false });
         // also populate the IDE file store so FileExplorer / Editor can display them
         try {
           const fileStoreSetFiles = useFileStore.getState().setFiles;
           if (typeof fileStoreSetFiles === 'function') {
-            await fileStoreSetFiles(response.files);
-            // debug
+            await fileStoreSetFiles(normalizedFiles);
             try {
               // eslint-disable-next-line no-console
-              console.log('Workspace files synced to fileStore:', Object.keys(response.files).length);
+              console.log('Workspace files synced to fileStore:', Object.keys(normalizedFiles).length);
             } catch (e) {}
           }
         } catch (e) {
