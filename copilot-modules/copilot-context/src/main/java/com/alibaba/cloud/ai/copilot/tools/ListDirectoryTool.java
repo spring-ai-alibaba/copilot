@@ -56,16 +56,16 @@ public class ListDirectoryTool implements BiFunction<ListDirectoryTool.ListDirec
                 return "Error: " + validationError;
             }
 
-            Path dirPath = Paths.get(params.path);
+            Path dirPath = Paths.get(params.filePath);
 
             // 检查目录是否存在
             if (!Files.exists(dirPath)) {
-                return "Error: Directory not found: " + params.path;
+                return "Error: Directory not found: " + params.filePath;
             }
 
             // 检查是否为目录
             if (!Files.isDirectory(dirPath)) {
-                return "Error: Path is not a directory: " + params.path;
+                return "Error: Path is not a directory: " + params.filePath;
             }
 
             // 列出文件和目录
@@ -75,30 +75,30 @@ public class ListDirectoryTool implements BiFunction<ListDirectoryTool.ListDirec
             return formatFileList(fileInfos, params);
 
         } catch (IOException e) {
-            logger.error("Error listing directory: {}", params.path, e);
+            logger.error("Error listing directory: {}", params.filePath, e);
             return "Error: " + e.getMessage();
         } catch (Exception e) {
-            logger.error("Unexpected error listing directory: {}", params.path, e);
+            logger.error("Unexpected error listing directory: {}", params.filePath, e);
             return "Error: Unexpected error: " + e.getMessage();
         }
     }
 
     private String validateParams(ListDirectoryParams params) {
         // 验证路径
-        if (params.path == null || params.path.trim().isEmpty()) {
+        if (params.filePath == null || params.filePath.trim().isEmpty()) {
             return "Directory path cannot be empty";
         }
 
-        Path dirPath = Paths.get(params.path);
+        Path dirPath = Paths.get(params.filePath);
 
         // 验证是否为绝对路径
         if (!dirPath.isAbsolute()) {
-            return "Directory path must be absolute: " + params.path;
+            return "Directory path must be absolute: " + params.filePath;
         }
 
         // 验证是否在工作目录内
         if (!isWithinWorkspace(dirPath)) {
-            return "Directory path must be within the workspace directory (" + rootDirectory + "): " + params.path;
+            return "Directory path must be within the workspace directory (" + rootDirectory + "): " + params.filePath;
         }
 
         // 验证最大深度
@@ -152,7 +152,7 @@ public class ListDirectoryTool implements BiFunction<ListDirectoryTool.ListDirec
 
             for (Path path : paths) {
                 try {
-                    FileInfo fileInfo = createFileInfo(path, Paths.get(params.path));
+                    FileInfo fileInfo = createFileInfo(path, Paths.get(params.filePath));
                     fileInfos.add(fileInfo);
 
                     // 如果是目录，递归列出
@@ -187,7 +187,7 @@ public class ListDirectoryTool implements BiFunction<ListDirectoryTool.ListDirec
         }
 
         StringBuilder sb = new StringBuilder();
-        sb.append(String.format("Directory listing for: %s\n", getRelativePath(Paths.get(params.path))));
+        sb.append(String.format("Directory listing for: %s\n", getRelativePath(Paths.get(params.filePath))));
         sb.append(String.format("Total items: %d\n\n", fileInfos.size()));
 
         // 表头
@@ -258,16 +258,10 @@ public class ListDirectoryTool implements BiFunction<ListDirectoryTool.ListDirec
      * 列表目录参数
      */
     public static class ListDirectoryParams {
-        public String path;
+        @JsonProperty("file_path")
+        public String filePath;
         public Boolean recursive;
-
         @JsonProperty("max_depth")
         public Integer maxDepth;
-
-        @Override
-        public String toString() {
-            return String.format("ListDirectoryParams{path='%s', recursive=%s, maxDepth=%d}",
-                    path, recursive, maxDepth);
-        }
     }
 }

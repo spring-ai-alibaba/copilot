@@ -13,7 +13,7 @@ import java.time.LocalDateTime;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-@TableName("llm_factories")
+@TableName("model_llm_factories")
 public class LlmFactoriesEntity {
     
     /**

@@ -3,6 +3,7 @@ package com.alibaba.cloud.ai.copilot.service.impl;
 import com.alibaba.cloud.ai.copilot.config.AppProperties;
 import com.alibaba.cloud.ai.copilot.domain.dto.ChatRequest;
 import com.alibaba.cloud.ai.copilot.handler.OutputHandlerRegistry;
+import com.alibaba.cloud.ai.copilot.satoken.utils.LoginHelper;
 import com.alibaba.cloud.ai.copilot.service.ChatService;
 import com.alibaba.cloud.ai.copilot.service.DynamicModelService;
 import com.alibaba.cloud.ai.copilot.service.SseEventService;
@@ -53,7 +54,9 @@ public class ChatServiceImpl implements ChatService {
                             ReadFileTool.createReadFileToolCallback(ReadFileTool.DESCRIPTION),
                             WriteFileTool.createWriteFileToolCallback(WriteFileTool.DESCRIPTION)
                     )
-                    .systemPrompt("工作目录在:"+appProperties.getWorkspace().getRootDirectory()+"所有的文件操作请在这个目录下进行")
+                    .systemPrompt("工作目录在:"+appProperties.getWorkspace().getRootDirectory()+"\\"+
+                            LoginHelper.getLoginUser().getUserType()+"_"+LoginHelper.getLoginUser().getUserId()
+                            +"所有的文件操作请在这个目录下进行")
                     .saver(new MemorySaver())
                     .build();
 
@@ -63,14 +66,11 @@ public class ChatServiceImpl implements ChatService {
                     output -> {
                         // 使用处理器注册中心统一处理，直接传递 emitter
                         if (output instanceof StreamingOutput streamingOutput) {
-                            outputHandlerRegistry.handle(streamingOutput, emitter);
+                           outputHandlerRegistry.handle(streamingOutput, emitter);
                         }
                     },
-                    error -> {
-                        System.err.println("错误: " + error);
-                    },
+                    error -> {},
                     () -> {
-                        System.out.println("Agent 执行完成");
                         sseEventService.sendComplete(emitter);
                     }
             );

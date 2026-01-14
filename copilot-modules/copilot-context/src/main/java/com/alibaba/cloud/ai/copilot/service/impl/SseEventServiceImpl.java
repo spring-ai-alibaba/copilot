@@ -29,7 +29,8 @@ public class SseEventServiceImpl implements SseEventService {
     /**
      * 发送SSE事件的通用方法
      */
-    private void sendSseEvent(SseEmitter emitter, String eventType, Map<String, Object> data) {
+    @Override
+    public void sendSseEvent(SseEmitter emitter, String eventType, Map<String, Object> data) {
         try {
             String dataJson = objectMapper.writeValueAsString(data);
             SseEmitter.SseEventBuilder event = SseEmitter.event()

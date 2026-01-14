@@ -26,4 +26,12 @@ public interface SseEventService {
      */
     void sendComplete(SseEmitter emitter);
 
+    /**
+     * 发送通用 SSE 事件
+     * @param emitter SSE 发射器
+     * @param eventName 事件名称
+     * @param data 事件数据
+     */
+    void sendSseEvent(SseEmitter emitter, String eventName, Map<String, Object> data);
+
 }

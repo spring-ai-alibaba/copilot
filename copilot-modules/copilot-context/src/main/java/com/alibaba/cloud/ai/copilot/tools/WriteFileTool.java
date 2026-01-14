@@ -187,17 +187,5 @@ public class WriteFileTool implements BiFunction<WriteFileTool.WriteFileParams, 
 
         public String content;
 
-        public WriteFileParams() {}
-
-        public WriteFileParams(String filePath, String content) {
-            this.filePath = filePath;
-            this.content = content;
-        }
-
-        @Override
-        public String toString() {
-            return String.format("WriteFileParams{path='%s', contentLength=%d}",
-                    filePath, content != null ? content.length() : 0);
-        }
     }
 }
