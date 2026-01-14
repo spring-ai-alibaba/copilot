@@ -8,7 +8,9 @@ export function buildFileTree(paths: string[]): FileItem[] {
   const sortedPaths = [...paths].sort();
 
   sortedPaths.forEach(path => {
-    const parts = path.split('/');
+    // Normalize Windows backslashes to forward slashes to build a proper tree
+    const normalizedPath = path.replace(/\\/g, '/');
+    const parts = normalizedPath.split('/');
     let currentPath = '';
 
     parts.forEach((part, index) => {
