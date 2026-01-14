@@ -12,6 +12,8 @@ server:
 spring:
   application:
     name: spring-ai-alibaba-copilot
+  profiles:
+    active: local
 
   # 国际化配置
   messages:

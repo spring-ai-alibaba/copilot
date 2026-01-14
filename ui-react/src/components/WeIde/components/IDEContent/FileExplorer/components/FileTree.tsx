@@ -1,10 +1,11 @@
-import {useCallback, useState} from "react";
+import {useCallback, useState, useEffect} from "react";
 import {FileTreeItem} from "./FileTreeItem";
 import {CreateFileDialog} from "./CreateFileDialog";
 import {CreateFolderDialog} from "./CreateFolderDialog";
 import {createFile, createFolder} from "../utils/fileSystem";
 import {FileTreeProps} from "../types";
 import {cn} from "@/utils/cn";
+import {useFileStore} from "@/components/WeIde/stores/fileStore";
 
 export function FileTree({ items, onFileSelect }: FileTreeProps) {
   // 默认展开的文件夹
@@ -21,6 +22,17 @@ export function FileTree({ items, onFileSelect }: FileTreeProps) {
   const [selectedPath, setSelectedPath] = useState("");
   const [isDragging, setIsDragging] = useState(false);
   const [selectedFile, setSelectedFile] = useState<string | null>(null);
+
+  // 监听全局 selectedPath 变化
+  const { selectedPath: globalSelectedPath } = useFileStore();
+
+  useEffect(() => {
+    if (globalSelectedPath && globalSelectedPath !== selectedFile) {
+      setSelectedFile(globalSelectedPath);
+      // 当全局选择路径变化时，触发文件选择回调
+      onFileSelect(globalSelectedPath);
+    }
+  }, [globalSelectedPath, selectedFile, onFileSelect]);
 
   const toggleFolder = useCallback((path: string, isExpend?: boolean) => {
     setExpandedFolders((prev) => ({

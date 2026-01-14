@@ -14,7 +14,7 @@ import {parseMessage} from "../../../utils/messagepParseJson";
 import useUserStore from "../../../stores/userSlice";
 import {useLimitModalStore} from "../../UserModal";
 import {updateFileSystemNow} from "../../WeIde/services";
-import {parseMessages} from "../useMessageParser";
+import {parseMessages, parseSSEMessage} from "../useMessageParser";
 import {createMpIcon} from "@/utils/createWtrite";
 import {useTranslation} from "react-i18next";
 import { apiUrl } from "@/api/base";
@@ -44,7 +44,6 @@ type TextUIPart = {
      */
     text: string;
 };
-const ipcRenderer = window?.electron?.ipcRenderer;
 export const excludeFiles = [
     "components/weicon/base64.js",
     "components/weicon/icon.css",
@@ -293,7 +292,6 @@ export const BaseChat = ({uuid: propUuid}: { uuid?: string }) => {
                     const historyFiles = {};
                     const oldHistoryFiles = {};
                     // setEmptyFiles();
-                    ipcRenderer && ipcRenderer.invoke("node-container:set-now-path", "");
                     latestRecord.data.messages.forEach((message) => {
                         const {files: messageFiles} = parseMessage(message.content);
                         Object.assign(historyFiles, messageFiles);
@@ -357,15 +355,12 @@ export const BaseChat = ({uuid: propUuid}: { uuid?: string }) => {
                     clearImages();
                     setIsFirstSend();
                     setIsUpdateSend();
-                    if (ipcRenderer) {
-                        setEmptyFiles();
-                        ipcRenderer.invoke("node-container:set-now-path", "");
-                        setFiles({});
-                        clearImages();
-                        setIsFirstSend();
-                        setIsUpdateSend();
-                        resetTerminals();
-                    }
+                    setEmptyFiles();
+                    setFiles({});
+                    clearImages();
+                    setIsFirstSend();
+                    setIsUpdateSend();
+                    resetTerminals();
                 }
             } else {
                 console.log("Chat selection ignored - same chat UUID");
@@ -387,7 +382,7 @@ export const BaseChat = ({uuid: propUuid}: { uuid?: string }) => {
         setMcpTools([])
     }, [enabledMCPs])
 
-    // 自定义 fetch 函数来处理流数据
+    // 自定义 fetch 函数来处理 SSE 流数据
     const customFetch = async (url: string, options: any) => {
         try {
             // 解析原始请求体
@@ -424,6 +419,7 @@ export const BaseChat = ({uuid: propUuid}: { uuid?: string }) => {
 
             // 创建一个新的 ReadableStream 来拦截数据
             const originalStream = response.body;
+            console.log('[customFetch] 原始流:', originalStream);
             const reader = originalStream.getReader();
             let chunkCount = 0;
 
@@ -438,7 +434,7 @@ export const BaseChat = ({uuid: propUuid}: { uuid?: string }) => {
 
                             chunkCount++;
 
-                            // 转换 OpenAI SSE 格式为 AI SDK 期望的格式
+                            // 处理 SSE 格式的数据
                             const text = new TextDecoder().decode(value);
 
                             let transformedText = '';
@@ -446,50 +442,72 @@ export const BaseChat = ({uuid: propUuid}: { uuid?: string }) => {
                             if (text.trim()) {
                                 const lines = text.split('\n').filter(line => line.trim());
 
-                                for (const line of lines) {
-                                    if (line.startsWith('data:')) {
-                                        const dataContent = line.slice(5).trimStart();
+                                let currentEvent = '';
+                                let currentData = '';
 
-                                        if (dataContent === '[DONE]') {
-                                            transformedText += 'data: [DONE]\n\n';
+                                for (const line of lines) {
+                                    if (line.startsWith('event:')) {
+                                        currentEvent = line.slice(6).trim();
+                                    } else if (line.startsWith('data:')) {
+                                        currentData = line.slice(5).trimStart();
+
+                                        if (currentData === '[DONE]') {
+                                            // transformedText += 'data: [DONE]\n\n';
                                             continue;
                                         }
 
                                         try {
-                                            const parsed = JSON.parse(dataContent);
+                                            const parsed = JSON.parse(currentData);
+                                            console.log('[customFetch] 解析消息:', parsed);
+                                            // 处理 SSE 格式的消息
+                                            if (parsed && parsed.event) {
+                                                const eventType = parsed.event;
 
-                                            // 处理后端自定义的文件系统事件
-                                            if (parsed && parsed.type === 'fileSystem' && parsed.data && parsed.data.files) {
-                                                try {
-                                                    const files = parsed.data.files as Record<string, string>;
-                                                    for (const [filePath, fileContent] of Object.entries(files)) {
-                                                        // 将服务端文件内容同步到前端文件存储
-                                                        updateContent(filePath, fileContent);
+                                                // 对于文件操作和命令操作，使用 SSE 消息解析器
+                                                if (['add-start', 'add-progress', 'add-end',
+                                                     'edit-start', 'edit-progress', 'edit-end',
+                                                     'delete-start', 'delete-progress', 'delete-end',
+                                                     'cmd'].includes(eventType)) {
+                                                    // 异步处理文件/命令操作，不阻塞流处理
+                                                    setTimeout(() => {
+                                                        const messageId = parsed.messageId || `msg_${Date.now()}`;
+                                                        parseSSEMessage(messageId, parsed);
+                                                    }, 0);
+                                                    continue;
+                                                }
+
+                                                // 处理文本消息
+                                                if (eventType === 'text' && parsed.data && parsed.data.content) {
+                                                    // 转换为 AI SDK 期望的格式
+                                                    const content = parsed.data.content;
+                                                    if (content) {
+                                                        transformedText += content;
                                                     }
-                                                } catch (syncErr) {
-                                                    console.error('Failed to sync file system event:', syncErr);
-                                                }
-                                                // 不将文件系统事件内容注入到文本消息中
-                                                continue;
-                                            }
-
-                                            // 检查是否是 OpenAI 格式
-                                            if (parsed.choices && parsed.choices[0] && parsed.choices[0].delta) {
-                                                const content = parsed.choices[0].delta.content;
-                                                const finishReason = parsed.choices[0].finish_reason;
-
-                                                if (content) {
-                                                    // 转换为简单的文本格式，让 ai/react 自动处理
-                                                    transformedText += content;
                                                 }
 
-                                                if (finishReason === 'stop') {
-                                                    // 流结束
-                                                    break;
+                                                // 处理完成消息
+                                                if (eventType === 'done') {
+                                                    transformedText += 'data: [DONE]\n\n';
+                                                    continue;
+                                                }
+                                            } else {
+                                                // 兼容旧的 OpenAI 格式
+                                                if (parsed.choices && parsed.choices[0] && parsed.choices[0].delta) {
+                                                    const content = parsed.choices[0].delta.content;
+                                                    const finishReason = parsed.choices[0].finish_reason;
+
+                                                    if (content) {
+                                                        transformedText += content;
+                                                    }
+
+                                                    if (finishReason === 'stop') {
+                                                        break;
+                                                    }
                                                 }
                                             }
                                         } catch (e) {
                                             // 忽略解析错误
+                                            console.debug('Failed to parse SSE data:', e, currentData);
                                         }
                                     }
                                 }
@@ -650,11 +668,9 @@ export const BaseChat = ({uuid: propUuid}: { uuid?: string }) => {
     useEffect(() => {
         const visibleFun = () => {
             if (isLoading) return;
-            else if (!isLoading && window.electron) {
-                setTimeout(() => {
-                    updateFileSystemNow();
-                }, 600);
-            }
+            setTimeout(() => {
+                updateFileSystemNow();
+            }, 600);
         };
         document.addEventListener("visibilitychange", visibleFun);
         return () => {
