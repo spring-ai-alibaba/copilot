@@ -65,6 +65,21 @@ public class SseEventServiceImpl implements SseEventService {
     }
 
     @Override
+    public void sendThinkingContent(SseEmitter emitter, String thinkingContent) {
+        Map<String, Object> data = new HashMap<>();
+        data.put("event", "thinking");
+        // messageId - 当前对话id
+        data.put("messageId", UUID.randomUUID().toString());
+        // 每个工具都有不同的操作id
+        data.put("operationId", UUID.randomUUID().toString());
+        data.put("data", Map.of(
+            "type", "thinking",
+            "content", thinkingContent
+        ));
+        sendSseEvent(emitter, "thinking", data);
+    }
+
+    @Override
     public void sendChatContent(SseEmitter emitter,String content) {
         try {
             // 生成 OpenAI 兼容格式的消息

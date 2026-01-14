@@ -22,6 +22,11 @@ public interface SseEventService {
 
 
     /**
+     * 发送思考内容事件
+     */
+    void sendThinkingContent(SseEmitter emitter, String thinkingContent);
+
+    /**
      * 发送完成事件
      */
     void sendComplete(SseEmitter emitter);

@@ -71,6 +71,7 @@ public class ChatServiceImpl implements ChatService {
                     },
                     error -> {},
                     () -> {
+                        // 在流完成时，发送累积的reasoning内容
                         sseEventService.sendComplete(emitter);
                     }
             );
