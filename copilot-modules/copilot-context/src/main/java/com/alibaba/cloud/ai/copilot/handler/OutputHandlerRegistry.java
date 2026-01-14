@@ -46,7 +46,7 @@ public class OutputHandlerRegistry {
     public void handle(StreamingOutput output, SseEmitter emitter) {
         OutputType outputType = output.getOutputType();
         OutputTypeHandler handler = handlers.get(outputType);
-
+        System.out.println("当前输出类型："+outputType);
         if (handler != null) {
             try {
                 handler.handle(output, emitter);
