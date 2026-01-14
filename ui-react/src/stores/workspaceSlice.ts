@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { getWorkspaceFiles } from '@/api/filesystem';
+import { useFileStore } from '@/components/WeIde/stores/fileStore';
 
 export interface WorkspaceFile {
   [filePath: string]: string;
@@ -28,23 +29,34 @@ const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
   setError: (error) => set({ error }),
 
   fetchWorkspaceFiles: async (workspacePath: string) => {
-    console.log('Calling getWorkspaceFiles API with path:', workspacePath);
     set({ isLoading: true, error: null });
 
     try {
       const response = await getWorkspaceFiles(workspacePath);
-      console.log('getWorkspaceFiles response:', response);
 
       if (response.success && response.files) {
-        console.log('Successfully fetched workspace files:', Object.keys(response.files));
+        // store in workspace store
         set({ files: response.files, isLoading: false });
+        // also populate the IDE file store so FileExplorer / Editor can display them
+        try {
+          const fileStoreSetFiles = useFileStore.getState().setFiles;
+          if (typeof fileStoreSetFiles === 'function') {
+            await fileStoreSetFiles(response.files);
+            // debug
+            try {
+              // eslint-disable-next-line no-console
+              console.log('Workspace files synced to fileStore:', Object.keys(response.files).length);
+            } catch (e) {}
+          }
+        } catch (e) {
+          // swallow errors from file store sync to avoid breaking workspace fetch
+          console.warn('Failed to sync files to fileStore', e);
+        }
       } else {
-        console.log('Failed to fetch workspace files:', response.error);
         set({ error: response.error || 'Failed to fetch workspace files', isLoading: false });
       }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-      console.log('Error calling getWorkspaceFiles:', errorMessage);
       set({ error: errorMessage, isLoading: false });
     }
   },
