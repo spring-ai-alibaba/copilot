@@ -13,6 +13,7 @@ import "highlight.js/styles/github.css"; // 亮色主题
 import "highlight.js/styles/github-dark.css"; // 暗色主题
 import {message} from "antd";
 import {useTranslation} from 'react-i18next';
+import { safeJsonParse } from '@/utils/safeJsonParse';
 
 const codeStyles = `
   .hljs-attr {
@@ -636,7 +637,7 @@ export const MessageItem: React.FC<MessageItemProps> = ({
                 message={message}
                 isComplete={!isLoading}
                 conversationId={message.id?.split('-')[0]} // 从消息ID提取会话ID
-                userId={localStorage.getItem('user') ? JSON.parse(localStorage.getItem('user') || '{}').id || 'default-user' : 'default-user'} // 从本地存储获取用户ID
+                userId={localStorage.getItem('user') ? safeJsonParse(localStorage.getItem('user') || '{}').id || 'default-user' : 'default-user'} // 从本地存储获取用户ID
               />
             ) : (
               <div className="flex flex-col gap-1">
