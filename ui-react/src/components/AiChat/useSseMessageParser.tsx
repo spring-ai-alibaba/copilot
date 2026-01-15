@@ -5,10 +5,12 @@
  */
 
 import React from 'react';
-import { SSEMessageParser, OperationCallbackData, FileOperationData, CommandOperationData } from './sseMessageParser';
+import { SSEMessageParser, OperationCallbackData, FileOperationData, CommandOperationData, SSEEventType } from './sseMessageParser';
 import { SSEConnectionManager, SSEConnectionStatus } from './sseConnectionManager';
 import { createFileWithContent } from '../WeIde/components/IDEContent/FileExplorer/utils/fileSystem';
+import {useFileStore} from '../WeIde/stores/fileStore';
 import useTerminalStore from '@/stores/terminalSlice';
+import { eventEmitter } from './utils/EventEmitter';
 
 // 命令队列（复用现有实现）
 class Queue {
@@ -60,12 +62,21 @@ const sseMessageParser = new SSEMessageParser({
     onAddStart: async (data: OperationCallbackData) => {
       const fileData = data.data as FileOperationData;
       console.log('[SSE] 开始添加文件:', fileData.filePath);
+
+      // 创建空文件
+      await createFileWithContent(fileData.filePath, '', true);
     },
 
     onAddProgress: async (data: OperationCallbackData) => {
       const fileData = data.data as FileOperationData;
       console.log('[SSE] 文件添加进度:', fileData.filePath, fileData.content?.length);
-      // 可以在这里实现进度更新逻辑
+
+      // 获取当前文件内容并追加新内容
+      const currentContent = useFileStore.getState().files[fileData.filePath] || '';
+      const newContent = currentContent + (fileData.content || '');
+
+      // 更新文件内容
+      await useFileStore.getState().updateContent(fileData.filePath, newContent, false, true);
     },
 
     onAddEnd: async (data: OperationCallbackData) => {
@@ -89,12 +100,22 @@ const sseMessageParser = new SSEMessageParser({
     onEditStart: async (data: OperationCallbackData) => {
       const fileData = data.data as FileOperationData;
       console.log('[SSE] 开始编辑文件:', fileData.filePath);
+
+      // 删除现有文件并创建空文件
+      await useFileStore.getState().deleteFile(fileData.filePath);
+      await createFileWithContent(fileData.filePath, '', false);
     },
 
     onEditProgress: async (data: OperationCallbackData) => {
       const fileData = data.data as FileOperationData;
       console.log('[SSE] 文件编辑进度:', fileData.filePath);
-      // 可以在这里实现实时编辑预览
+
+      // 获取当前文件内容并追加新内容
+      const currentContent = useFileStore.getState().files[fileData.filePath] || '';
+      const newContent = currentContent + (fileData.content || '');
+
+      // 更新文件内容
+      await useFileStore.getState().updateContent(fileData.filePath, newContent, false, true);
     },
 
     onEditEnd: async (data: OperationCallbackData) => {
@@ -139,11 +160,25 @@ const sseMessageParser = new SSEMessageParser({
       }
     },
 
+    // 列表操作
+    onListProgress: async (data: OperationCallbackData) => {
+      const listData = data.data as FileOperationData;
+      console.log('[SSE] 列表进度:', listData.filePath, listData.content?.length);
+
+      // 发送事件更新列表进度状态
+      eventEmitter.emit('list-progress-update', {
+        operationId: data.operationId,
+        filePath: listData.filePath,
+        content: listData.content,
+        isLoading: true
+      });
+    },
+
     // 命令执行
     onCmd: async (data: OperationCallbackData) => {
       const cmdData = data.data as CommandOperationData;
       console.log('[SSE] 执行命令:', cmdData.command);
-      
+
       if (cmdData.command) {
         queue.push(cmdData.command);
       }

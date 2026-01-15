@@ -15,6 +15,7 @@ import useUserStore from "../../../stores/userSlice";
 import {useLimitModalStore} from "../../UserModal";
 import {updateFileSystemNow} from "../../WeIde/services";
 import {parseMessages, parseSSEMessage} from "../useMessageParser";
+import {SSEEventType} from "../sseMessageParser";
 import {createMpIcon} from "@/utils/createWtrite";
 import {useTranslation} from "react-i18next";
 import { apiUrl } from "@/api/base";
@@ -209,11 +210,40 @@ export const BaseChat = ({uuid: propUuid}: { uuid?: string }) => {
             console.log('Model status changed, refreshing model list...');
             fetchModelList();
         });
-        
+
         return () => {
             unsubscribe();
         };
     }, [fetchModelList]);
+
+    // 监听list-progress事件状态更新
+    useEffect(() => {
+        const unsubscribe = eventEmitter.on('list-progress-update', (data: { operationId: string; filePath: string; content?: string; isLoading: boolean }) => {
+            setListProgressStates(prev => ({
+                ...prev,
+                [data.operationId]: {
+                    filePath: data.filePath,
+                    content: data.content,
+                    isLoading: data.isLoading
+                }
+            }));
+
+            // 如果不是加载状态，延迟清除状态
+            if (!data.isLoading) {
+                setTimeout(() => {
+                    setListProgressStates(prev => {
+                        const newState = { ...prev };
+                        delete newState[data.operationId];
+                        return newState;
+                    });
+                }, 2000);
+            }
+        });
+
+        return () => {
+            unsubscribe();
+        };
+    }, []);
 
 
 
@@ -464,10 +494,11 @@ export const BaseChat = ({uuid: propUuid}: { uuid?: string }) => {
                                                 const eventType = parsed.event;
 
                                                 // 对于文件操作和命令操作，使用 SSE 消息解析器
-                                                if (['add-start', 'add-progress', 'add-end',
-                                                     'edit-start', 'edit-progress', 'edit-end',
-                                                     'delete-start', 'delete-progress', 'delete-end',
-                                                     'cmd'].includes(eventType)) {
+                                                if ([SSEEventType.ADD_START, SSEEventType.ADD_PROGRESS, SSEEventType.ADD_END,
+                                                     SSEEventType.EDIT_START, SSEEventType.EDIT_PROGRESS, SSEEventType.EDIT_END,
+                                                     SSEEventType.DELETE_START, SSEEventType.DELETE_PROGRESS, SSEEventType.DELETE_END,
+                                                     SSEEventType.LIST_PROGRESS,
+                                                     SSEEventType.CMD].includes(eventType)) {
                                                     // 异步处理文件/命令操作，不阻塞流处理
                                                     setTimeout(() => {
                                                         const messageId = parsed.messageId || `msg_${Date.now()}`;
@@ -743,6 +774,9 @@ export const BaseChat = ({uuid: propUuid}: { uuid?: string }) => {
 
     // 添加上传状态跟踪
     const [isUploading, setIsUploading] = useState(false);
+
+    // 跟踪list-progress事件的状态
+    const [listProgressStates, setListProgressStates] = useState<Record<string, { filePath: string; content?: string; isLoading: boolean }>>({});
     const filterMessages = messages.filter((e) => e.role !== "system");
     // 修改上传处理函数
     const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -987,6 +1021,7 @@ export const BaseChat = ({uuid: propUuid}: { uuid?: string }) => {
                                 filterMessages[filterMessages.length - 1].id === message.id
                             }
                             isLoading={isLoading}
+                            listProgressStates={listProgressStates}
                             onUpdateMessage={(messageId, content) => {
                                 append( {
                                     role: "user",
