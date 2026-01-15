@@ -22,6 +22,7 @@ export interface User {
   githubId: string
   wechatId: string
   avatar?: string
+  userType: string
   userQuota: {
     // 用户当前拥有的配额
     quota: number
@@ -97,6 +98,7 @@ const useUserStore = create<UserState>()(
           const token = localStorage.getItem("token")
           if (token) {
             const user = await authService.getUserInfo(token)
+            console.log('Fetched user info:', user)
             if (!user) {
               localStorage.removeItem("user")
               localStorage.removeItem("token")
@@ -120,7 +122,13 @@ const useUserStore = create<UserState>()(
                 rememberMe: false,
               }))
             } else {
-              get().setUser(user)
+              // 处理字段映射：后端返回 userId，前端期望 id
+              const userWithMappedFields = {
+                ...user,
+                id: user.id || user.userId, // 如果没有 id，用 userId 代替
+                userType: user.userType || 'sys_user' // 默认设置为 sys_user
+              };
+              get().setUser(userWithMappedFields)
             }
             return user
           }
