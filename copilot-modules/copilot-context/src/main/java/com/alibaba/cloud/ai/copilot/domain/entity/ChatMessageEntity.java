@@ -13,7 +13,7 @@ import java.time.LocalDateTime;
  * @author better
  */
 @Data
-@TableName("chat_messages")
+@TableName("chat_message")
 public class ChatMessageEntity {
 
     /**

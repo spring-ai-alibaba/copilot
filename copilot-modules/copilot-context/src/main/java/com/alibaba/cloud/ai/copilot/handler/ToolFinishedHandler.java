@@ -1,8 +1,9 @@
 package com.alibaba.cloud.ai.copilot.handler;
 
 import com.alibaba.cloud.ai.copilot.domain.dto.StateDataDTO;
+import com.alibaba.cloud.ai.copilot.enums.ToolType;
 import com.alibaba.cloud.ai.copilot.service.SseEventService;
-import com.alibaba.cloud.ai.copilot.tools.PathUtils;
+import com.alibaba.cloud.ai.copilot.utils.PathUtils;
 import com.alibaba.cloud.ai.graph.streaming.OutputType;
 import com.alibaba.cloud.ai.graph.streaming.StreamingOutput;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -11,7 +12,10 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
 /**
@@ -27,7 +31,7 @@ public class ToolFinishedHandler implements OutputTypeHandler {
 
     // 伪流式输出配置
     private static final int CHUNK_SIZE = 100; // 每次发送的字符数
-    private static final int DELAY_MS = 50; // 每次发送间隔毫秒数
+    private static final int DELAY_MS = 200; // 每次发送间隔毫秒数
 
     @Override
     public OutputType getOutputType() {
@@ -48,15 +52,21 @@ public class ToolFinishedHandler implements OutputTypeHandler {
                             if (toolCall.getArguments() != null) {
                                 String filePath = toolCall.getArguments().getFilePath();
                                 String content = toolCall.getArguments().getContent();
+                                String toolName = toolCall.getName();
 
                                 if (filePath != null && !filePath.isEmpty()) {
                                     // 统一路径格式（转换为 workspace/xxx 的标准格式）
                                     String normalizedPath = PathUtils.normalizeWorkspacePath(filePath);
-                                    log.info("原始路径: {}", filePath);
-                                    log.info("转换后路径: {}", normalizedPath);
-
-                                    // 使用伪流式输出发送内容
-                                    sendContentWithPseudoStreaming(emitter, normalizedPath, content);
+                                    log.info("Tool: {}, Original path: {}, Normalized path: {}", toolName, filePath, normalizedPath);
+                                    // 根据工具类型发送不同的事件
+                                    ToolType toolType = ToolType.fromToolName(toolName);
+                                    if (toolType != null) {
+                                        sendToolEvent(emitter, toolType, normalizedPath, content);
+                                    } else {
+                                        log.warn("Unknown tool type: {}", toolName);
+                                        // 如果工具类型未知，使用默认的伪流式输出
+                                        sendContentWithPseudoStreaming(emitter, normalizedPath, content);
+                                    }
                                 }
                             }
                         });
@@ -65,6 +75,36 @@ public class ToolFinishedHandler implements OutputTypeHandler {
             }
         } catch (Exception e) {
             log.error("[Error] Failed to convert state data to StateDataDTO: {}", e.getMessage(), e);
+        }
+    }
+
+    /**
+     * 根据工具类型发送相应的事件
+     *
+     * @param emitter SSE 发射器
+     * @param toolType 工具类型
+     * @param filePath 规范化后的文件路径
+     * @param content 内容
+     */
+    private void sendToolEvent(SseEmitter emitter, ToolType toolType, String filePath, String content) {
+        String messageId = UUID.randomUUID().toString();
+        String operationId = UUID.randomUUID().toString();
+
+        Map<String, Object> data = new HashMap<>();
+        data.put("event", toolType.getEventName());
+        data.put("messageId", messageId);
+        data.put("operationId", operationId);
+        data.put("data", Map.of(
+            "type", toolType.getDataType(),
+            "filePath", filePath,
+            "content", content != null ? content : ""
+        ));
+
+        try {
+            sseEventService.sendSseEvent(emitter, toolType.getEventName(), data);
+            log.info("Sent {} event for file: {}, operation: {}", toolType.getEventName(), filePath, operationId);
+        } catch (Exception e) {
+            log.error("Error sending {} event for file: {}", toolType.getEventName(), filePath, e);
         }
     }
 

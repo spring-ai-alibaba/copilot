@@ -1,5 +1,6 @@
 package com.alibaba.cloud.ai.copilot.handler;
 
+import com.alibaba.cloud.ai.copilot.core.utils.StringUtils;
 import com.alibaba.cloud.ai.copilot.service.SseEventService;
 import com.alibaba.cloud.ai.graph.streaming.OutputType;
 import com.alibaba.cloud.ai.graph.streaming.StreamingOutput;
@@ -19,24 +20,30 @@ public class ModelStreamingHandler implements OutputTypeHandler {
 
     private final SseEventService sseEventService;
 
+    private StringBuilder stringBuilder = new StringBuilder();
+
     @Override
     public OutputType getOutputType() {
         return OutputType.AGENT_MODEL_STREAMING;
     }
 
+    boolean isFastSend = true;
+
     @Override
     public void handle(StreamingOutput output, SseEmitter emitter) {
-        // 流式增量内容，逐步显示
-        log.debug("模型流式输出: {}", output.message().getText());
+        try {
+            String reasoningContent = output.message().getMetadata().get("reasoningContent").toString();
 
-        if (emitter != null) {
-            try {
-                // 发送 OpenAI 兼容格式的流式内容给前端
+            if (StringUtils.isNotEmpty(reasoningContent)) {
+                sseEventService.sendThinkingContent(emitter, reasoningContent);
+            } else {
                 String content = output.message().getText();
-                sseEventService.sendChatContent(emitter, content);
-            } catch (Exception e) {
-                log.error("发送模型流式内容失败", e);
+                if (StringUtils.isNotEmpty(content)) {
+                    sseEventService.sendChatContent(emitter, content);
+                }
             }
+        } catch (Exception e) {
+            log.error("发送模型流式内容失败", e);
         }
     }
 }

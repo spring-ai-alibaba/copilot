@@ -29,7 +29,8 @@ public class SseEventServiceImpl implements SseEventService {
     /**
      * 发送SSE事件的通用方法
      */
-    private void sendSseEvent(SseEmitter emitter, String eventType, Map<String, Object> data) {
+    @Override
+    public void sendSseEvent(SseEmitter emitter, String eventType, Map<String, Object> data) {
         try {
             String dataJson = objectMapper.writeValueAsString(data);
             SseEmitter.SseEventBuilder event = SseEmitter.event()
@@ -61,6 +62,21 @@ public class SseEventServiceImpl implements SseEventService {
             "content", content
         ));
         sendSseEvent(emitter, "edit-progress", data);
+    }
+
+    @Override
+    public void sendThinkingContent(SseEmitter emitter, String thinkingContent) {
+        Map<String, Object> data = new HashMap<>();
+        data.put("event", "thinking");
+        // messageId - 当前对话id
+        data.put("messageId", UUID.randomUUID().toString());
+        // 每个工具都有不同的操作id
+        data.put("operationId", UUID.randomUUID().toString());
+        data.put("data", Map.of(
+            "type", "thinking",
+            "content", thinkingContent
+        ));
+        sendSseEvent(emitter, "thinking", data);
     }
 
     @Override

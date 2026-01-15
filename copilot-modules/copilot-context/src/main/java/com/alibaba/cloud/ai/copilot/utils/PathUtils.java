@@ -1,4 +1,4 @@
-package com.alibaba.cloud.ai.copilot.tools;
+package com.alibaba.cloud.ai.copilot.utils;
 
 /**
  * 路径工具类 - 统一处理不同操作系统的文件路径

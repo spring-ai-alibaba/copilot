@@ -383,41 +383,38 @@ CodeBlock.displayName = "CodeBlock";
 
 // 添加检查是否是 think 内容的函数
 export const isThinkContent = (content: string) => {
-  return content.includes("<think>") || content.includes("</think>");
+  // 使用正则表达式检查完整的 <think>...</think> 标签对
+  return /<think>[\s\S]*?<\/think>/.test(content);
 };
 
 // 修改 processThinkContent 函数
 export const processThinkContent = (content: string) => {
-  let isInThinkBlock = false;
+  // 使用正则表达式直接提取 think 标签内的内容和外面的内容
+  const thinkRegex = /<think>([\s\S]*?)<\/think>/g;
+  let lastIndex = 0;
   let result = "";
 
-  // 按行处理内容
-  const lines = content.split("\n");
-  for (let line of lines) {
-    if (line.includes("<think>")) {
-      isInThinkBlock = true;
-      line = line.replace(/<think>/g, "").trim();
-      if (line) {
-        result += `> ${line}\n`;
-      }
-      continue;
+  let match;
+  while ((match = thinkRegex.exec(content)) !== null) {
+    // 处理标签前的文本
+    if (match.index > lastIndex) {
+      result += content.substring(lastIndex, match.index);
     }
 
-    if (line.includes("</think>")) {
-      isInThinkBlock = false;
-      line = line.replace(/<\/think>/g, "").trim();
-      if (line) {
-        result += `> ${line}\n`;
-      }
-      result += "\n"; // 在think块结束后添加空行
-      continue;
-    }
+    // 处理 think 标签内的内容，转换为引用格式
+    const thinkText = match[1];
+    result +=
+      thinkText
+        .split("\n")
+        .map((line) => `> ${line}`)
+        .join("\n") + "\n\n";
 
-    if (isInThinkBlock) {
-      result += line.trim() ? `> ${line}\n` : ">\n";
-    } else {
-      result += `${line}\n`;
-    }
+    lastIndex = match.index + match[0].length;
+  }
+
+  // 处理剩余的文本
+  if (lastIndex < content.length) {
+    result += content.substring(lastIndex);
   }
 
   return result.trim();
