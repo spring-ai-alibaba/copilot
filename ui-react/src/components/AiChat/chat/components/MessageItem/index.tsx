@@ -13,6 +13,7 @@ import "highlight.js/styles/github.css"; // 亮色主题
 import "highlight.js/styles/github-dark.css"; // 暗色主题
 import {message} from "antd";
 import {useTranslation} from 'react-i18next';
+import { safeJsonParse } from '@/utils/safeJsonParse';
 
 const codeStyles = `
   .hljs-attr {
@@ -118,6 +119,7 @@ interface MessageItemProps {
   isLoading: boolean;
   isEndMessage: boolean;
   handleRetry: () => void;
+  listProgressStates?: Record<string, { filePath: string; content?: string; isLoading: boolean }>;
   onUpdateMessage?: (messageId: string, content: {
     text: string;
     type: string;
@@ -517,11 +519,69 @@ const ToolInvocationCard = ({
   );
 };
 
+// 添加列表进度卡片组件
+const ListProgressCard = ({
+  filePath,
+  content,
+  isLoading
+}: {
+  filePath: string;
+  content?: string;
+  isLoading: boolean;
+}) => {
+  const { t } = useTranslation();
+
+  return (
+    <div className="flex flex-col gap-2 mb-4">
+      {/* 列表操作提示 */}
+      <div className="text-xs text-gray-500 dark:text-gray-400">
+        {t('chat.list_operation', 'List Operation')}: {filePath}
+      </div>
+
+      <div className="relative rounded-lg border dark:border-gray-700 bg-gray-50 dark:bg-[#1e1e1e] overflow-hidden">
+        <div className="flex items-center gap-2 px-3 py-2 border-b dark:border-gray-700 bg-white dark:bg-[#2d2d2d]">
+          <svg className="w-4 h-4 text-blue-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+          </svg>
+          <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+            {t('chat.list_progress', 'List Progress')}
+          </span>
+          {isLoading && (
+            <div className="ml-auto">
+              <svg className="w-4 h-4 animate-spin text-blue-500" viewBox="0 0 24 24" fill="none">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path
+                  className="opacity-75"
+                  fill="currentColor"
+                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                />
+              </svg>
+            </div>
+          )}
+        </div>
+        <div className="p-3">
+          {content ? (
+            <pre className="whitespace-pre-wrap text-sm text-gray-700 dark:text-gray-300 font-mono">
+              {content}
+            </pre>
+          ) : (
+            <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
+              <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse" />
+              <span>{t('chat.loading_list', 'Loading list content...')}</span>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
 export const MessageItem: React.FC<MessageItemProps> = ({
   message,
   isLoading,
   isEndMessage,
   handleRetry,
+  listProgressStates = {},
   onUpdateMessage,
 }) => {
   const { user } = useUserStore();
@@ -577,7 +637,7 @@ export const MessageItem: React.FC<MessageItemProps> = ({
                 message={message}
                 isComplete={!isLoading}
                 conversationId={message.id?.split('-')[0]} // 从消息ID提取会话ID
-                userId={localStorage.getItem('user') ? JSON.parse(localStorage.getItem('user') || '{}').id || 'default-user' : 'default-user'} // 从本地存储获取用户ID
+                userId={localStorage.getItem('user') ? safeJsonParse(localStorage.getItem('user') || '{}').id || 'default-user' : 'default-user'} // 从本地存储获取用户ID
               />
             ) : (
               <div className="flex flex-col gap-1">
@@ -793,6 +853,17 @@ export const MessageItem: React.FC<MessageItemProps> = ({
           onClose={() => setPreviewImage(null)}
         />
       )}
+
+      {/* 渲染list-progress卡片 */}
+      {Object.entries(listProgressStates).map(([operationId, state]) => (
+        <ListProgressCard
+          key={operationId}
+          filePath={state.filePath}
+          content={state.content}
+          isLoading={state.isLoading}
+        />
+      ))}
+
       <>
         {!isArtifactContent(message.content) ? (
           <div className="flex items-center justify-end ">

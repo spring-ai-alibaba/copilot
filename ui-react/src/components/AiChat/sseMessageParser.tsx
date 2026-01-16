@@ -11,19 +11,25 @@
  */
 
 // 复用 WebSocket 解析器的类型定义
-export type OperationType = 'add' | 'edit' | 'delete' | 'cmd';
+export type OperationType = 'add' | 'edit' | 'delete' | 'cmd' | 'list';
 export type EventPhase = 'start' | 'progress' | 'end';
-export type EventName = 
-  | 'add-start' 
-  | 'add-progress' 
-  | 'add-end'
-  | 'edit-start' 
-  | 'edit-progress' 
-  | 'edit-end'
-  | 'delete-start' 
-  | 'delete-progress' 
-  | 'delete-end'
-  | 'cmd';
+
+// 事件类型枚举
+export enum SSEEventType {
+  ADD_START = 'add-start',
+  ADD_PROGRESS = 'add-progress',
+  ADD_END = 'add-end',
+  EDIT_START = 'edit-start',
+  EDIT_PROGRESS = 'edit-progress',
+  EDIT_END = 'edit-end',
+  DELETE_START = 'delete-start',
+  DELETE_PROGRESS = 'delete-progress',
+  DELETE_END = 'delete-end',
+  LIST_PROGRESS = 'list-progress',
+  CMD = 'cmd'
+}
+
+export type EventName = SSEEventType;
 
 export interface BaseOperationData {
   content: string;
@@ -79,6 +85,7 @@ export interface ParserCallbacks {
   onDeleteStart?: OperationCallback;
   onDeleteProgress?: OperationCallback;
   onDeleteEnd?: OperationCallback;
+  onListProgress?: OperationCallback;
   onCmd?: OperationCallback;
   onError?: (error: Error, message?: SSEMessage) => void;
 }
@@ -207,10 +214,11 @@ function validateMessage(message: any, options: SSEMessageParserOptions): { vali
   }
 
   const validEvents: EventName[] = [
-    'add-start', 'add-progress', 'add-end',
-    'edit-start', 'edit-progress', 'edit-end',
-    'delete-start', 'delete-progress', 'delete-end',
-    'cmd'
+    SSEEventType.ADD_START, SSEEventType.ADD_PROGRESS, SSEEventType.ADD_END,
+    SSEEventType.EDIT_START, SSEEventType.EDIT_PROGRESS, SSEEventType.EDIT_END,
+    SSEEventType.DELETE_START, SSEEventType.DELETE_PROGRESS, SSEEventType.DELETE_END,
+    SSEEventType.LIST_PROGRESS,
+    SSEEventType.CMD
   ];
 
   if (!validEvents.includes(message.event)) {
@@ -218,8 +226,8 @@ function validateMessage(message: any, options: SSEMessageParserOptions): { vali
   }
 
   const data = message.data;
-  
-  if (['add', 'edit', 'delete'].includes(data.type)) {
+
+  if (['add', 'edit', 'delete', 'list'].includes(data.type)) {
     if (!data.filePath || typeof data.filePath !== 'string') {
       return { valid: false, error: '文件操作缺少 filePath' };
     }
@@ -391,16 +399,17 @@ export class SSEMessageParser {
   private triggerCallback(event: EventName, data: OperationCallbackData, operationState: OperationState): void {
     console.log('[SSEMessageParser] 触发回调:', event, data, operationState);
     const callbackMap: Record<EventName, keyof ParserCallbacks> = {
-      'add-start': 'onAddStart',
-      'add-progress': 'onAddProgress',
-      'add-end': 'onAddEnd',
-      'edit-start': 'onEditStart',
-      'edit-progress': 'onEditProgress',
-      'edit-end': 'onEditEnd',
-      'delete-start': 'onDeleteStart',
-      'delete-progress': 'onDeleteProgress',
-      'delete-end': 'onDeleteEnd',
-      'cmd': 'onCmd',
+      [SSEEventType.ADD_START]: 'onAddStart',
+      [SSEEventType.ADD_PROGRESS]: 'onAddProgress',
+      [SSEEventType.ADD_END]: 'onAddEnd',
+      [SSEEventType.EDIT_START]: 'onEditStart',
+      [SSEEventType.EDIT_PROGRESS]: 'onEditProgress',
+      [SSEEventType.EDIT_END]: 'onEditEnd',
+      [SSEEventType.DELETE_START]: 'onDeleteStart',
+      [SSEEventType.DELETE_PROGRESS]: 'onDeleteProgress',
+      [SSEEventType.DELETE_END]: 'onDeleteEnd',
+      [SSEEventType.LIST_PROGRESS]: 'onListProgress',
+      [SSEEventType.CMD]: 'onCmd',
     };
 
     const callbackName = callbackMap[event];
@@ -425,13 +434,14 @@ export class SSEMessageParser {
     if (event.startsWith('add')) return 'add';
     if (event.startsWith('edit')) return 'edit';
     if (event.startsWith('delete')) return 'delete';
-    if (event === 'cmd') return 'cmd';
+    if (event === SSEEventType.LIST_PROGRESS) return 'list';
+    if (event === SSEEventType.CMD) return 'cmd';
     return 'add';
   }
 
   private getEventPhase(event: EventName): EventPhase {
     if (event.endsWith('-start')) return 'start';
-    if (event.endsWith('-progress')) return 'progress';
+    if (event.endsWith('-progress') || event === SSEEventType.LIST_PROGRESS) return 'progress';
     if (event.endsWith('-end')) return 'end';
     return 'start';
   }

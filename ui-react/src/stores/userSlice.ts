@@ -2,6 +2,8 @@ import {authService} from "@/api/auth"
 import {create} from "zustand"
 import {persist} from "zustand/middleware"
 import { apiUrl } from "@/api/base"
+import { safeJsonParse, safeJsonStringify } from "@/utils/safeJsonParse"
+
 
 export enum TierType {
   FREE = "free",
@@ -186,7 +188,7 @@ const useUserStore = create<UserState>()(
       updateUser: (userData) =>
         set((state) => {
           const newUser = state.user ? { ...state.user, ...userData } : null
-          localStorage.setItem("user", JSON.stringify(newUser))
+          localStorage.setItem("user", safeJsonStringify(newUser))
 
           return { user: newUser }
         }),
@@ -210,13 +212,25 @@ const useUserStore = create<UserState>()(
         rememberMe: state.rememberMe,
       }),
       version: 1,
+      storage: {
+        getItem: (name) => {
+          const value = localStorage.getItem(name)
+          return value ? safeJsonParse(value) : null
+        },
+        setItem: (name, value) => {
+          localStorage.setItem(name, safeJsonStringify(value))
+        },
+        removeItem: (name) => {
+          localStorage.removeItem(name)
+        },
+      },
       onRehydrateStorage: () => (state) => {
         const rememberMe = localStorage.getItem("rememberMe") === "true"
         if (rememberMe) {
           const storedUser = localStorage.getItem("user")
           const storedToken = localStorage.getItem("token")
           if (storedUser && storedToken) {
-            state?.setUser(JSON.parse(storedUser))
+            state?.setUser(safeJsonParse(storedUser))
             state?.setToken(storedToken)
             state?.setRememberMe(true)
           }

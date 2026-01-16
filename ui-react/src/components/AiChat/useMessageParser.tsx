@@ -3,10 +3,37 @@ import { createFileWithContent } from "../WeIde/components/IDEContent/FileExplor
 import { deleteFile } from "../WeIde/components/IDEContent/FileExplorer/utils/fileSystem";
 import { useFileStore } from "../WeIde/stores/fileStore";
 import useTerminalStore from "@/stores/terminalSlice";
+import useUserStore from "@/stores/userSlice";
 import { Message } from "ai/react";
 import { WebSocketConnectionManager, ConnectionStatus } from "./websocketConnectionManager";
 import { SSEConnectionManager, SSEConnectionStatus } from "./sseConnectionManager";
 import { useEffect, useState, useCallback, useRef } from "react";
+
+// 路径处理工具函数
+function extractFilePath(fullPath: string): string | null {
+  const user = useUserStore.getState().user;
+  if (!user || !user.userType || !user.id) {
+    console.warn('[useMessageParser] 用户信息不完整，无法处理路径:', fullPath);
+    return null;
+  }
+
+  // 构建workspace前缀: workspace/{userType}_{userId}/
+  const workspacePrefix = `workspace/${user.userType}_${user.id}/`;
+
+  // 如果路径以workspace前缀开头，去掉前缀
+  if (fullPath.startsWith(workspacePrefix)) {
+    return fullPath.substring(workspacePrefix.length);
+  }
+
+  // 如果路径以workspace/开头但不是当前用户的workspace，不处理
+  if (fullPath.startsWith('workspace/')) {
+    console.log('[useMessageParser] 路径不属于当前用户workspace，跳过处理:', fullPath);
+    return null;
+  }
+
+  // 如果没有workspace前缀，直接返回原路径（向后兼容）
+  return fullPath;
+}
 
 class Queue {
   private queue: string[] = [];
@@ -101,18 +128,39 @@ const messageParser = new SSEMessageParser({
     onAddStart: async (data: OperationCallbackData) => {
       const fileData = data.data as FileOperationData;
       console.log('[SSE] 开始添加文件:', fileData.filePath);
+
+      // 检查路径是否属于当前用户
+      const processedPath = extractFilePath(fileData.filePath);
+      if (!processedPath) {
+        return; // 不是当前用户的文件，跳过处理
+      }
+
+      // 创建空文件
+      try {
+        await createFileWithContent(processedPath, '', true);
+      } catch (error) {
+        console.error('[SSE] 创建文件失败:', error);
+      }
     },
 
     onAddProgress: async (data: OperationCallbackData) => {
       const fileData = data.data as FileOperationData;
+      console.log('[SSE] 文件添加进度:', fileData.filePath, fileData.content?.length);
+
+      // 检查路径是否属于当前用户
+      const processedPath = extractFilePath(fileData.filePath);
+      if (!processedPath) {
+        return; // 不是当前用户的文件，跳过处理
+      }
+
       // 流式更新文件内容（匹配原有的 onActionStream 逻辑）
-      if (fileData.content !== undefined && fileData.filePath) {
+      if (fileData.content !== undefined) {
         try {
-          await createFileWithContent(fileData.filePath, fileData.content, true);
+          await createFileWithContent(processedPath, fileData.content, true);
           // 文件创建/更新后，选择当前文件并在预览区域展示
           const { setSelectedPath } = useFileStore.getState();
-          setSelectedPath(fileData.filePath);
-          console.log('[SSE] 文件已选择并在预览区域展示:', fileData.filePath);
+          setSelectedPath(processedPath);
+          console.log('[SSE] 文件已选择并在预览区域展示:', processedPath);
         } catch (error) {
           console.error('[SSE] 添加文件进度更新失败:', error);
         }
@@ -123,13 +171,19 @@ const messageParser = new SSEMessageParser({
       const fileData = data.data as FileOperationData;
       console.log('[SSE] 完成添加文件:', fileData.filePath);
 
-      if (fileData.content !== undefined && fileData.filePath) {
+      // 检查路径是否属于当前用户
+      const processedPath = extractFilePath(fileData.filePath);
+      if (!processedPath) {
+        return; // 不是当前用户的文件，跳过处理
+      }
+
+      if (fileData.content !== undefined) {
         try {
-          await createFileWithContent(fileData.filePath, fileData.content, true);
+          await createFileWithContent(processedPath, fileData.content, true);
           // 文件创建完成，选择当前文件并在预览区域展示
           const { setSelectedPath } = useFileStore.getState();
-          setSelectedPath(fileData.filePath);
-          console.log('[SSE] 文件已选择并在预览区域展示:', fileData.filePath);
+          setSelectedPath(processedPath);
+          console.log('[SSE] 文件已选择并在预览区域展示:', processedPath);
         } catch (error) {
           console.error('[SSE] 创建文件失败:', error);
         }
@@ -140,17 +194,39 @@ const messageParser = new SSEMessageParser({
     onEditStart: async (data: OperationCallbackData) => {
       const fileData = data.data as FileOperationData;
       console.log('[SSE] 开始编辑文件:', fileData.filePath);
+
+      // 检查路径是否属于当前用户
+      const processedPath = extractFilePath(fileData.filePath);
+      if (!processedPath) {
+        return; // 不是当前用户的文件，跳过处理
+      }
+
+      // 删除现有文件并创建空文件
+      try {
+        await useFileStore.getState().deleteFile(processedPath);
+        await createFileWithContent(processedPath, '', false);
+      } catch (error) {
+        console.error('[SSE] 编辑文件开始处理失败:', error);
+      }
     },
 
     onEditProgress: async (data: OperationCallbackData) => {
       const fileData = data.data as FileOperationData;
+      console.log('[SSE] 文件编辑进度:', fileData.filePath, fileData.content?.length);
+
+      // 检查路径是否属于当前用户
+      const processedPath = extractFilePath(fileData.filePath);
+      if (!processedPath) {
+        return; // 不是当前用户的文件，跳过处理
+      }
+
       // 流式更新文件内容
-      if (fileData.content !== undefined && fileData.filePath) {
+      if (fileData.content !== undefined) {
         try {
-          await useFileStore.getState().updateContent(fileData.filePath, fileData.content, false, false);
+          await useFileStore.getState().updateContent(processedPath, fileData.content, false, false);
           // 文件编辑时，选择当前文件并在预览区域展示
           const { setSelectedPath } = useFileStore.getState();
-          setSelectedPath(fileData.filePath);
+          setSelectedPath(processedPath);
         } catch (error) {
           console.error('[SSE] 编辑文件进度更新失败:', error);
         }
@@ -161,13 +237,19 @@ const messageParser = new SSEMessageParser({
       const fileData = data.data as FileOperationData;
       console.log('[SSE] 完成编辑文件:', fileData.filePath);
 
-      if (fileData.content !== undefined && fileData.filePath) {
+      // 检查路径是否属于当前用户
+      const processedPath = extractFilePath(fileData.filePath);
+      if (!processedPath) {
+        return; // 不是当前用户的文件，跳过处理
+      }
+
+      if (fileData.content !== undefined) {
         try {
-          await useFileStore.getState().updateContent(fileData.filePath, fileData.content, false, true);
+          await useFileStore.getState().updateContent(processedPath, fileData.content, false, true);
           // 文件编辑完成，选择当前文件并在预览区域展示
           const { setSelectedPath } = useFileStore.getState();
-          setSelectedPath(fileData.filePath);
-          console.log('[SSE] 文件已选择并在预览区域展示:', fileData.filePath);
+          setSelectedPath(processedPath);
+          console.log('[SSE] 文件已选择并在预览区域展示:', processedPath);
         } catch (error) {
           console.error('[SSE] 编辑文件失败:', error);
         }
@@ -178,23 +260,39 @@ const messageParser = new SSEMessageParser({
     onDeleteStart: async (data: OperationCallbackData) => {
       const fileData = data.data as FileOperationData;
       console.log('[SSE] 开始删除文件:', fileData.filePath);
+
+      // 检查路径是否属于当前用户
+      const processedPath = extractFilePath(fileData.filePath);
+      if (!processedPath) {
+        return; // 不是当前用户的文件，跳过处理
+      }
     },
 
     onDeleteProgress: async (data: OperationCallbackData) => {
       const fileData = data.data as FileOperationData;
       console.log('[SSE] 文件删除进度:', fileData.filePath);
+
+      // 检查路径是否属于当前用户
+      const processedPath = extractFilePath(fileData.filePath);
+      if (!processedPath) {
+        return; // 不是当前用户的文件，跳过处理
+      }
     },
 
     onDeleteEnd: async (data: OperationCallbackData) => {
       const fileData = data.data as FileOperationData;
       console.log('[SSE] 完成删除文件:', fileData.filePath);
-      
-      if (fileData.filePath) {
-        try {
-          deleteFile(fileData.filePath);
-        } catch (error) {
-          console.error('[SSE] 删除文件失败:', error);
-        }
+
+      // 检查路径是否属于当前用户
+      const processedPath = extractFilePath(fileData.filePath);
+      if (!processedPath) {
+        return; // 不是当前用户的文件，跳过处理
+      }
+
+      try {
+        deleteFile(processedPath);
+      } catch (error) {
+        console.error('[SSE] 删除文件失败:', error);
       }
     },
 
