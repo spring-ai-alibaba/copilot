@@ -12,6 +12,7 @@ import {useFileStore} from '../WeIde/stores/fileStore';
 import useTerminalStore from '@/stores/terminalSlice';
 import { eventEmitter } from './utils/EventEmitter';
 import useUserStore from '@/stores/userSlice';
+import { Message } from "ai/react";
 
 // 路径处理工具函数
 function extractFilePath(fullPath: string): string {
@@ -436,5 +437,36 @@ export const useSSEConnection = (
     disconnect: () => connectionManager?.close(),
     isConnected: () => connectionManager?.isConnected() ?? false,
   };
+};
+
+/**
+ * 解析消息数组（兼容原有接口）
+ * 如果消息内容包含 JSON 格式的 SSE 消息，则解析
+ * 否则保持原有逻辑（用于向后兼容）
+ */
+export const parseMessages = async (messages: Message[]) => {
+  console.log('[SSE] 解析消息数组:', messages);
+  for (let i = 0; i < messages.length; i++) {
+    const message = messages[i];
+    if (message.role === "assistant" && message.content) {
+      try {
+        console.log('[SSE] 解析消息内容:', message.content);
+        // 尝试解析为 JSON 格式的 SSE 消息
+        const jsonMessage = JSON.parse(message.content);
+        console.log('[SSE] 解析后的JSON消息:', jsonMessage);
+        if (jsonMessage.event && jsonMessage.data) {
+          // 这是 SSE 格式的消息
+          sseMessageParser.parse(message.id, jsonMessage);
+        } else {
+          // 不是 SSE 格式，可能是其他格式，跳过
+          console.warn('[SSE] 消息格式不匹配，跳过:', message.id);
+        }
+      } catch (e) {
+        // 不是 JSON 格式，可能是文本内容，跳过
+        // 保持向后兼容，不抛出错误
+        console.debug('[SSE] 消息不是 JSON 格式，跳过解析:', message.id);
+      }
+    }
+  }
 };
 

@@ -14,7 +14,7 @@ import {parseMessage} from "../../../utils/messagepParseJson";
 import useUserStore from "../../../stores/userSlice";
 import {useLimitModalStore} from "../../UserModal";
 import {updateFileSystemNow} from "../../WeIde/services";
-import {parseMessages, parseSSEMessage} from "../useMessageParser";
+import {parseMessages, parseSSEMessage} from "../useSseMessageParser";
 import {SSEEventType} from "../sseMessageParser";
 import {createMpIcon} from "@/utils/createWtrite";
 import {useTranslation} from "react-i18next";
