@@ -203,18 +203,18 @@ const sseMessageParser = new SSEMessageParser({
     },
 
     // 列表操作
-    onListProgress: async (data: OperationCallbackData) => {
-      const listData = data.data as FileOperationData;
-      console.log('[SSE] 列表进度:', listData.filePath, listData.content?.length);
+    // onListProgress: async (data: OperationCallbackData) => {
+    //   const listData = data.data as FileOperationData;
+    //   console.log('[SSE] 列表进度:', listData.filePath, listData.content?.length);
 
-      // 发送事件更新列表进度状态
-      // eventEmitter.emit('list-progress-update', {
-      //   operationId: data.operationId,
-      //   filePath: listData.filePath,
-      //   content: listData.content,
-      //   isLoading: true
-      // });
-    },
+    //   // 发送事件更新列表进度状态
+    //   eventEmitter.emit('list-progress-update', {
+    //     operationId: data.operationId,
+    //     filePath: listData.filePath,
+    //     content: listData.content,
+    //     isLoading: true
+    //   });
+    // },
 
     // 命令执行
     onCmd: async (data: OperationCallbackData) => {
