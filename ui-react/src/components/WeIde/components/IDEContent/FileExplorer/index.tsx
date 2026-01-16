@@ -12,6 +12,13 @@ export function FileExplorer({ onFileSelect }: FileExplorerProps) {
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
   const [createDialog, setCreateDialog] = useState<'file' | 'folder' | null>(null);
   const files = useFileStore();
+  // Debug: log current files in store to help diagnose UI not showing files
+  try {
+    // eslint-disable-next-line no-console
+    console.log('FileExplorer render - files count:', files.getFiles().length, files.getFiles());
+  } catch (e) {
+    // ignore
+  }
 
   const handleContextMenu = (e: React.MouseEvent) => {
     e.preventDefault();

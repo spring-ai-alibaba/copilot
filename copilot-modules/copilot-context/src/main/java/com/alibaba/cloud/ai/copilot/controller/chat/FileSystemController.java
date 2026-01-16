@@ -20,6 +20,7 @@ public class FileSystemController {
     @Autowired
     private FileSystemService fileSystemService;
 
+    private static final String WORKSPACE_PATH_ROOT = "workspace/";
     /**
      * 获取工作空间中的文件列表
      */
@@ -28,7 +29,7 @@ public class FileSystemController {
         try {
             // 解码路径参数
             String decodedPath = workspacePath.replace("|", "/");
-            Map<String, String> files = fileSystemService.getAllFiles(decodedPath);
+            Map<String, String> files = fileSystemService.getAllFiles(WORKSPACE_PATH_ROOT + decodedPath);
 
             return ResponseEntity.ok(Map.of(
                 "success", true,
