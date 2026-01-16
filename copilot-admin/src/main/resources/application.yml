@@ -86,7 +86,7 @@ spring.data:
     # 数据库索引
     database: 2
     # 密码(如没有密码请注释掉)
-    password: 123456
+#    password: 123456
     # 连接超时时间
     timeout: 10S
 
