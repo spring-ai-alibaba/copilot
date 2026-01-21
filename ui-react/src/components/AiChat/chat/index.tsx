@@ -26,6 +26,8 @@ import {MCPTool} from "@/types/mcp";
 import useMCPTools from "@/hooks/useMCPTools";
 import {FileSystemStatus} from "./components/FileSystemStatus";
 import {handleFileSystemEvent, isFileSystemEvent} from "../utils/fileSystemEventHandler";
+import {useConversationStore} from "@/stores/conversationSlice";
+import {getConversationMessages} from "@/api/conversation";
 
 type WeMessages = (Message & {
     experimental_attachments?: Array<{
@@ -98,6 +100,8 @@ export const BaseChat = ({uuid: propUuid}: { uuid?: string }) => {
     const {otherConfig} = useChatStore();
     const {t} = useTranslation();
     const [checkCount, setCheckCount] = useState(0);
+    // 切换会话/加载历史后，等消息真正渲染完成再滚动到底部（展示最新一条）
+    const pendingScrollToBottomRef = useRef(false);
 
     const [baseModal, setBaseModal] = useState<IModelOption>({
         key: ModelTypes.Claude35sonnet,
@@ -131,6 +135,7 @@ export const BaseChat = ({uuid: propUuid}: { uuid?: string }) => {
         modelOptions,
     } = useChatStore();
     const {resetTerminals} = useTerminalStore();
+    const {currentConversationId, setCurrentConversation} = useConversationStore();
     const filesInitObj = {} as Record<string, string>;
     const filesUpdateObj = {} as Record<string, string>;
     Object.keys(isFirstSend).forEach((key) => {
@@ -282,7 +287,7 @@ export const BaseChat = ({uuid: propUuid}: { uuid?: string }) => {
         }
     }, [checkCount]);
 
-    // 添加加载历史消息的函数
+    // 添加加载历史消息的函数（兼容旧版本）
     const loadChatHistory = async (uuid: string) => {
         try {
             const records = await db.getByUuid(uuid);
@@ -309,6 +314,7 @@ export const BaseChat = ({uuid: propUuid}: { uuid?: string }) => {
                             content: `<boltArtifact id="hello-js" title="the current file">\n${convertToBoltAction(historyFiles)}\n</boltArtifact>\n\n`,
                         });
                     }
+                    pendingScrollToBottomRef.current = true;
                     setMessages(latestRecord.data.messages);
                     setFiles(historyFiles);
                     setOldFiles(oldHistoryFiles);
@@ -330,7 +336,65 @@ export const BaseChat = ({uuid: propUuid}: { uuid?: string }) => {
         }
     };
 
-    // 监听聊天选择事件
+    // 加载会话历史消息（新版本）
+    const loadConversationHistory = async (conversationId: string) => {
+        try {
+            const historyMessages = await getConversationMessages(conversationId);
+            if (historyMessages.length > 0) {
+                // 转换为 useChat 期望的格式
+                const formattedMessages: WeMessages = historyMessages
+                    .filter((msg) => (msg.role === "user" || msg.role === "assistant") && !!msg.content?.trim())
+                    .map((msg) => ({
+                        id: uuidv4(),
+                        role: msg.role as "user" | "assistant",
+                        content: msg.content,
+                    }));
+
+                // 解析文件
+                const historyFiles = {};
+                formattedMessages.forEach((message) => {
+                    const {files: messageFiles} = parseMessage(message.content);
+                    Object.assign(historyFiles, messageFiles);
+                });
+
+                pendingScrollToBottomRef.current = true;
+                setMessages(formattedMessages);
+                setFiles(historyFiles);
+                clearImages();
+                setIsFirstSend();
+                setIsUpdateSend();
+                resetTerminals();
+            } else {
+                // 如果是新会话，清空所有状态
+                setMessages([]);
+                clearImages();
+                setIsFirstSend();
+                setIsUpdateSend();
+            }
+        } catch (error) {
+            console.error("加载会话历史失败:", error);
+            toast.error("加载会话历史失败");
+        }
+    };
+
+    // 监听会话切换事件
+    useEffect(() => {
+        if (currentConversationId) {
+            // 加载会话历史消息
+            loadConversationHistory(currentConversationId);
+            refUuidMessages.current = [];
+        } else {
+            // 如果没有选中会话，清空消息
+            setMessages([]);
+            setFiles({});
+            clearImages();
+            setIsFirstSend();
+            setIsUpdateSend();
+            resetTerminals();
+        }
+    }, [currentConversationId]);
+
+    // 监听聊天选择事件（兼容旧版本）
     useEffect(() => {
         const unsubscribe = eventEmitter.on("chat:select", (uuid: string) => {
             console.log("chat:select event received", { uuid, currentChatUuid: chatUuid });
@@ -403,6 +467,7 @@ export const BaseChat = ({uuid: propUuid}: { uuid?: string }) => {
                     ...requestBody,
                     message: latestMessage, // 单个消息对象
                     modelConfigId: (baseModal as any).modelConfigId, // 添加必需的modelConfigId参数
+                    conversationId: currentConversationId || undefined, // 添加会话ID
                 };
                 delete modifiedBody.messages; // 删除原来的messages数组
 
@@ -587,24 +652,30 @@ export const BaseChat = ({uuid: propUuid}: { uuid?: string }) => {
                 setIsFirstSend();
                 setIsUpdateSend();
 
-                let initMessage = [];
-                initMessage = [
-                    {
-                        id: uuidv4(),
-                        role: "user",
-                        content: input,
-                    },
-                ];
+                // 优化：已登录用户使用会话功能，消息已由后端自动保存，不需要保存到 IndexedDB
+                // 未登录用户继续使用 IndexedDB 作为本地存储
+                if (!currentConversationId) {
+                    // 未登录用户：保存到 IndexedDB（本地存储）
+                    let initMessage = [];
+                    initMessage = [
+                        {
+                            id: uuidv4(),
+                            role: "user",
+                            content: input,
+                        },
+                    ];
 
-                await db.insert(chatUuid, {
-                    messages: [...messages, ...initMessage, message],
-                    title:
-                        [...initMessage, ...messages]
-                            .find(
-                                (m) => m.role === "user" && !m.content.includes("<boltArtifact")
-                            )
-                            ?.content?.slice(0, 50) || "New Chat",
-                });
+                    await db.insert(chatUuid, {
+                        messages: [...messages, ...initMessage, message],
+                        title:
+                            [...initMessage, ...messages]
+                                .find(
+                                    (m) => m.role === "user" && !m.content.includes("<boltArtifact")
+                                )
+                                ?.content?.slice(0, 50) || "New Chat",
+                    });
+                }
+                // 已登录用户：消息已由后端 ConversationSaveHook 自动保存，无需额外操作
             } catch (error) {
                 // 静默处理错误
             }
@@ -695,6 +766,19 @@ export const BaseChat = ({uuid: propUuid}: { uuid?: string }) => {
         if (!isLoading) {
             setMessagesa(realMessages as WeMessages);
             createMpIcon(files);
+            // 非流式状态下（加载历史/切换会话后），确保默认展示最新一条
+            if (pendingScrollToBottomRef.current) {
+                pendingScrollToBottomRef.current = false;
+                // 等 DOM 更新后再滚动，避免只停在顶部显示第一条
+                requestAnimationFrame(() => {
+                    requestAnimationFrame(() => {
+                        const messageContainer = document.querySelector('.message-container') as HTMLDivElement | null;
+                        if (messageContainer) {
+                            messageContainer.scrollTop = messageContainer.scrollHeight;
+                        }
+                    });
+                });
+            }
         }
     }, [realMessages, isLoading]);
 
@@ -743,7 +827,10 @@ export const BaseChat = ({uuid: propUuid}: { uuid?: string }) => {
 
     // 添加上传状态跟踪
     const [isUploading, setIsUploading] = useState(false);
-    const filterMessages = messages.filter((e) => e.role !== "system");
+    // 仅展示 user/assistant，过滤 tool/system/空消息
+    const filterMessages = messages.filter(
+        (e) => (e.role === "user" || e.role === "assistant") && !!e.content?.trim()
+    );
     // 修改上传处理函数
     const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
         if (!e.target.files?.length || isUploading) return;
@@ -975,6 +1062,7 @@ export const BaseChat = ({uuid: propUuid}: { uuid?: string }) => {
             handleFileSelect={handleFileSelect}
           />
                 <div className="max-w-[640px] w-full mx-auto space-y-3">
+                    
                     {filterMessages.map((message, index) => (
                         <MessageItem
                             handleRetry={() => {

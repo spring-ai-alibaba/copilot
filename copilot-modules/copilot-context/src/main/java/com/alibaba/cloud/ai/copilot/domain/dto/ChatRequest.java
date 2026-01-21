@@ -18,6 +18,11 @@ public class ChatRequest {
      */
     private String modelConfigId;
 
+    /**
+     * 会话ID（可选，不传则创建新会话）
+     */
+    private String conversationId;
+
     private PromptExtra otherConfig;
     
     private List<ToolInfo> tools;

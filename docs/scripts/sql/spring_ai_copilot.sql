@@ -18,6 +18,27 @@ SET NAMES utf8mb4;
 SET FOREIGN_KEY_CHECKS = 0;
 
 -- ----------------------------
+-- Table structure for chat_conversation
+-- ----------------------------
+DROP TABLE IF EXISTS `chat_conversation`;
+CREATE TABLE `chat_conversation` (
+  `id` bigint NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+  `conversation_id` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '会话ID（UUID）',
+  `user_id` bigint NOT NULL COMMENT '用户ID',
+  `title` varchar(200) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL COMMENT '会话标题（自动生成）',
+  `model_config_id` bigint NULL DEFAULT NULL COMMENT '使用的模型配置ID',
+  `message_count` int NULL DEFAULT 0 COMMENT '消息数量',
+  `last_message_time` datetime NULL DEFAULT NULL COMMENT '最后一条消息时间',
+  `created_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `updated_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  `del_flag` tinyint(1) NOT NULL DEFAULT 0 COMMENT '删除标志（0-未删除，1-已删除）',
+  PRIMARY KEY (`id`) USING BTREE,
+  INDEX `idx_user_id` (`user_id`) USING BTREE,
+  INDEX `idx_user_updated` (`user_id`, `updated_time`) USING BTREE,
+  INDEX `idx_del_flag` (`del_flag`) USING BTREE
+) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT = '会话表';
+
+-- ----------------------------
 -- Table structure for chat_message
 -- ----------------------------
 DROP TABLE IF EXISTS `chat_message`;
@@ -36,7 +57,8 @@ CREATE TABLE `chat_message`  (
   PRIMARY KEY (`id`) USING BTREE,
   INDEX `idx_conversation_id`(`conversation_id` ASC) USING BTREE,
   INDEX `idx_conversation_compressed`(`conversation_id` ASC, `is_compressed` ASC) USING BTREE,
-  INDEX `idx_created_time`(`created_time` ASC) USING BTREE
+  INDEX `idx_created_time`(`created_time` ASC) USING BTREE,
+  INDEX `idx_conversation_time`(`conversation_id`, `created_time`) USING BTREE COMMENT '会话消息时间联合索引，优化历史消息查询'
 ) ENGINE = InnoDB AUTO_INCREMENT = 2010358791843348482 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT = '聊天消息表' ROW_FORMAT = Dynamic;
 
 -- ----------------------------

@@ -109,6 +109,14 @@ public class SseEventServiceImpl implements SseEventService {
     }
 
     @Override
+    public void sendConversationId(SseEmitter emitter, String conversationId) {
+        Map<String, Object> data = new HashMap<>();
+        data.put("conversationId", conversationId);
+        sendSseEvent(emitter, "conversation-id", data);
+        log.debug("Sent conversation ID: {}", conversationId);
+    }
+
+    @Override
     public void sendComplete(SseEmitter emitter) {
         try {
             SseEmitter.SseEventBuilder event = SseEmitter.event()
