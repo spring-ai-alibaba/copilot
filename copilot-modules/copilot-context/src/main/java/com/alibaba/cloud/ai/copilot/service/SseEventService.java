@@ -39,4 +39,11 @@ public interface SseEventService {
      */
     void sendSseEvent(SseEmitter emitter, String eventName, Map<String, Object> data);
 
+    /**
+     * 发送会话ID事件（在流开始时发送，供前端保存并复用）
+     * @param emitter SSE 发射器
+     * @param conversationId 会话ID
+     */
+    void sendConversationId(SseEmitter emitter, String conversationId);
+
 }

@@ -1,5 +1,6 @@
 package com.alibaba.cloud.ai.copilot.domain.dto;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonAnySetter;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -30,6 +31,7 @@ public class StateDataDTO {
      * Message DTO类 - 支持不同类型的消息
      */
     @Data
+    @JsonIgnoreProperties(ignoreUnknown = true)
     public static class MessageDTO {
         @JsonProperty("messageType")
         private String messageType;
@@ -54,6 +56,7 @@ public class StateDataDTO {
      * Metadata DTO类
      */
     @Data
+    @JsonIgnoreProperties(ignoreUnknown = true)
     public static class MetadataDTO {
         @JsonProperty("messageType")
         private String messageType;
