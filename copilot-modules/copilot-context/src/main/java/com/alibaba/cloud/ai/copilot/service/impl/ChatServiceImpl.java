@@ -210,7 +210,8 @@ public class ChatServiceImpl implements ChatService {
                 String title = firstMessage.length() > 50
                     ? firstMessage.substring(0, 50) + "..."
                     : firstMessage;
-                conversationService.updateConversationTitle(conversationId, title);
+                Long userId = LoginHelper.getUserId();
+                conversationService.updateConversationTitle(conversationId, title, userId);
                 log.debug("更新会话标题: conversationId={}, title={}", conversationId, title);
             }
         } catch (Exception e) {
