@@ -69,6 +69,12 @@
             <artifactId>java-diff-utils</artifactId>
         </dependency>
 
+        <!-- MCP Client Boot Starter - 用于连接外部 MCP 服务器 -->
+        <dependency>
+            <groupId>org.springframework.ai</groupId>
+            <artifactId>spring-ai-starter-mcp-client</artifactId>
+        </dependency>
+
     </dependencies>
 
 </project>

@@ -175,8 +175,9 @@
           "actions": "操作"
         },
         "types": {
-          "remote": "远程",
-          "local": "本地"
+          "builtin": "内置",
+          "local": "本地",
+          "remote": "远程"
         },
         "status": {
           "enabled": "启用",
@@ -216,7 +217,7 @@
         "messages": {
           "deleteSuccess": "删除成功",
           "deleteError": "删除失败",
-          "toggleSuccess": "状态已{status}",
+          "toggleSuccess": "状态已{{status}}",
           "toggleError": "状态更新失败",
           "testSuccess": "测试成功",
           "testError": "测试失败",
@@ -318,7 +319,7 @@
           "updateSuccess": "更新成功",
           "deleteSuccess": "删除成功",
           "deleteError": "删除失败",
-          "toggleSuccess": "已{status}",
+          "toggleSuccess": "已{{status}}",
           "toggleError": "状态更新失败",
           "loadError": "获取市场列表失败",
           "saveError": "保存失败",
