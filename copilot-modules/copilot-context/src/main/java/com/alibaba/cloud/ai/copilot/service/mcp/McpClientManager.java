@@ -1,4 +1,4 @@
-package com.alibaba.cloud.ai.copilot.mcp;
+package com.alibaba.cloud.ai.copilot.service.mcp;
 
 import com.alibaba.cloud.ai.copilot.config.McpProperties;
 import com.alibaba.cloud.ai.copilot.domain.dto.McpToolTestResult;

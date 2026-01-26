@@ -1,6 +1,6 @@
 package com.alibaba.cloud.ai.copilot.tools;
 
-import com.alibaba.cloud.ai.copilot.mcp.BuiltinToolProvider;
+import com.alibaba.cloud.ai.copilot.service.mcp.BuiltinToolProvider;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.github.difflib.DiffUtils;
 import com.github.difflib.UnifiedDiffUtils;

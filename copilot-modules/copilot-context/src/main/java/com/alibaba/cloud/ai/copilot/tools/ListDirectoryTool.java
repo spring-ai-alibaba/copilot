@@ -1,6 +1,6 @@
 package com.alibaba.cloud.ai.copilot.tools;
 
-import com.alibaba.cloud.ai.copilot.mcp.BuiltinToolProvider;
+import com.alibaba.cloud.ai.copilot.service.mcp.BuiltinToolProvider;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import org.springframework.ai.chat.model.ToolContext;
 import org.springframework.ai.tool.ToolCallback;

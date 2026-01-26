@@ -1,4 +1,4 @@
-package com.alibaba.cloud.ai.copilot.mcp;
+package com.alibaba.cloud.ai.copilot.service.mcp;
 
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;

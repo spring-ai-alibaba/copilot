@@ -1,6 +1,6 @@
 package com.alibaba.cloud.ai.copilot.tools;
 
-import com.alibaba.cloud.ai.copilot.mcp.BuiltinToolProvider;
+import com.alibaba.cloud.ai.copilot.service.mcp.BuiltinToolProvider;
 import com.alibaba.cloud.ai.graph.agent.extension.tools.filesystem.EditFileTool;
 import org.springframework.ai.tool.ToolCallback;
 import org.springframework.stereotype.Component;
