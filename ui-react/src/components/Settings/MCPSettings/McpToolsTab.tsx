@@ -12,6 +12,8 @@ import {
     PlusOutlined,
     ReloadOutlined
 } from '@ant-design/icons'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 import {AddMcpServerModal} from './AddMcpServerModal'
 import useThemeStore from "@/stores/themeSlice"
 import useMCPStore from "@/stores/useMCPSlice"
@@ -239,15 +241,20 @@ const McpToolsTab: FC = () => {
             width: 100,
             align: 'center',
             filters: [
-                {text: t('settings.mcp.tools.types.remote'), value: 'REMOTE'},
+                {text: t('settings.mcp.tools.types.builtin'), value: 'BUILTIN'},
                 {text: t('settings.mcp.tools.types.local'), value: 'LOCAL'},
+                {text: t('settings.mcp.tools.types.remote'), value: 'REMOTE'},
             ],
             onFilter: (value, record) => record.type === value,
-            render: (type: string) => (
-                <Tag color={type === 'REMOTE' ? 'blue' : 'cyan'}>
-                    {type === 'REMOTE' ? t('settings.mcp.tools.types.remote') : t('settings.mcp.tools.types.local')}
-                </Tag>
-            ),
+            render: (type: string) => {
+                const typeConfig: Record<string, { color: string; label: string }> = {
+                    BUILTIN: { color: 'purple', label: t('settings.mcp.tools.types.builtin') },
+                    LOCAL: { color: 'cyan', label: t('settings.mcp.tools.types.local') },
+                    REMOTE: { color: 'blue', label: t('settings.mcp.tools.types.remote') },
+                }
+                const config = typeConfig[type] || { color: 'default', label: type }
+                return <Tag color={config.color}>{config.label}</Tag>
+            },
         },
         {
             title: t('settings.mcp.tools.columns.status'),
@@ -277,6 +284,7 @@ const McpToolsTab: FC = () => {
                     ? record.status as 'ENABLED' | 'DISABLED'
                     : 'ENABLED'
                 const isEnabled = currentStatus === 'ENABLED'
+                const isBuiltin = record.type === 'BUILTIN'
                 return (
                     <Space size="small">
                         <Tooltip title={t('settings.mcp.tools.tooltips.view')}>
@@ -290,17 +298,20 @@ const McpToolsTab: FC = () => {
                                 }}
                             />
                         </Tooltip>
-                        <Tooltip title={t('settings.mcp.tools.tooltips.edit')}>
-                            <Button
-                                type="link"
-                                size="small"
-                                icon={<EditOutlined/>}
-                                onClick={() => {
-                                    setEditingServer(record)
-                                    setAddModalVisible(true)
-                                }}
-                            />
-                        </Tooltip>
+                        {/* 内置工具不显示编辑按钮 */}
+                        {!isBuiltin && (
+                            <Tooltip title={t('settings.mcp.tools.tooltips.edit')}>
+                                <Button
+                                    type="link"
+                                    size="small"
+                                    icon={<EditOutlined/>}
+                                    onClick={() => {
+                                        setEditingServer(record)
+                                        setAddModalVisible(true)
+                                    }}
+                                />
+                            </Tooltip>
+                        )}
                         <Tooltip
                             title={isEnabled ? t('settings.mcp.tools.tooltips.disable') : t('settings.mcp.tools.tooltips.enable')}>
                             <Button
@@ -320,26 +331,29 @@ const McpToolsTab: FC = () => {
                                 onClick={() => handleTest(record.id)}
                             />
                         </Tooltip>
-                        <Popconfirm
-                            title={t('settings.mcp.tools.confirm.delete')}
-                            onConfirm={() => handleDelete(record.id)}
-                            okText={t('settings.mcp.tools.confirm.ok')}
-                            cancelText={t('settings.mcp.tools.confirm.cancel')}
-                        >
-                            <Tooltip title={t('settings.mcp.tools.tooltips.delete')}>
-                                <Button
-                                    type="link"
-                                    size="small"
-                                    danger
-                                    icon={<DeleteOutlined/>}
-                                />
-                            </Tooltip>
-                        </Popconfirm>
+                        {/* 内置工具不显示删除按钮 */}
+                        {!isBuiltin && (
+                            <Popconfirm
+                                title={t('settings.mcp.tools.confirm.delete')}
+                                onConfirm={() => handleDelete(record.id)}
+                                okText={t('settings.mcp.tools.confirm.ok')}
+                                cancelText={t('settings.mcp.tools.confirm.cancel')}
+                            >
+                                <Tooltip title={t('settings.mcp.tools.tooltips.delete')}>
+                                    <Button
+                                        type="link"
+                                        size="small"
+                                        danger
+                                        icon={<DeleteOutlined/>}
+                                    />
+                                </Tooltip>
+                            </Popconfirm>
+                        )}
                     </Space>
                 )
             },
         },
-    ], [loadingStates, handleToggleActive, handleDelete, setServers, t])
+    ], [loadingStates, handleToggleActive, handleDelete, t])
 
     const handleTableChange = (newPagination: TablePaginationConfig) => {
         setPagination(newPagination)
@@ -433,13 +447,16 @@ const McpToolsTab: FC = () => {
                 rowSelection={{
                     selectedRowKeys,
                     onChange: (keys) => setSelectedRowKeys(keys),
+                    // 内置工具不允许选择（禁止批量删除）
+                    getCheckboxProps: (record) => ({
+                        disabled: record.type === 'BUILTIN',
+                    }),
                 }}
-                scroll={{x: 'max-content', y: 'calc(100vh - 520px)'}}
+                // scroll={{x: 600}}
                 rowClassName={(record) =>
                     record.status === 'DISABLED' ? 'opacity-70' : ''
                 }
                 locale={{emptyText: t('settings.mcp.tools.messages.empty')}}
-                size="middle"
             />
 
             {/* 详情弹框 */}
@@ -459,13 +476,26 @@ const McpToolsTab: FC = () => {
                         <Descriptions.Item
                             label={t('settings.mcp.tools.detail.name')}>{detailRecord.name}</Descriptions.Item>
                         <Descriptions.Item label={t('settings.mcp.tools.detail.type')}>
-                            <Tag color={detailRecord.type === 'REMOTE' ? 'blue' : 'cyan'}>
-                                {detailRecord.type === 'REMOTE' ? t('settings.mcp.tools.types.remote') : t('settings.mcp.tools.types.local')}
-                            </Tag>
+                            {(() => {
+                                const typeConfig: Record<string, { color: string; label: string }> = {
+                                    BUILTIN: { color: 'purple', label: t('settings.mcp.tools.types.builtin') },
+                                    LOCAL: { color: 'cyan', label: t('settings.mcp.tools.types.local') },
+                                    REMOTE: { color: 'blue', label: t('settings.mcp.tools.types.remote') },
+                                }
+                                const config = typeConfig[detailRecord.type] || { color: 'default', label: detailRecord.type }
+                                return <Tag color={config.color}>{config.label}</Tag>
+                            })()}
                         </Descriptions.Item>
                         <Descriptions.Item label={t('settings.mcp.tools.detail.description')}>
-                            {detailRecord.description || <span
-                                className="italic text-gray-400">{t('settings.mcp.tools.detail.noDescription')}</span>}
+                            {detailRecord.description ? (
+                                <div className="prose prose-sm dark:prose-invert max-w-none">
+                                    <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                                        {detailRecord.description}
+                                    </ReactMarkdown>
+                                </div>
+                            ) : (
+                                <span className="italic text-gray-400">{t('settings.mcp.tools.detail.noDescription')}</span>
+                            )}
                         </Descriptions.Item>
                         <Descriptions.Item label={t('settings.mcp.tools.detail.status')}>
                             <Tag color={detailRecord.status === 'ENABLED' ? 'green' : 'default'}>

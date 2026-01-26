@@ -36,9 +36,9 @@ spring:
         master:
           type: ${spring.datasource.type}
           driverClassName: com.mysql.cj.jdbc.Driver
-          url: jdbc:mysql://127.0.0.1:3609/spring_ai_copilot?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai
+          url: jdbc:mysql://127.0.0.1:3306/spring_ai_copilot?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai
           username: root
-          password: root
+          password: 123456
 
       # HikariCP 连接池配置
       hikari:
@@ -86,7 +86,7 @@ spring.data:
     # 数据库索引
     database: 0
     # 密码(如没有密码请注释掉)
-    password:
+#    password:
     # 连接超时时间
     timeout: 10S
 
@@ -176,6 +176,8 @@ security:
     - /**/*.html
     - /**/*.css
     - /**/*.js
+    # MCP 相关接口（可选：如需公开访问可添加）
+    # - /api/mcp/**
 
 # ===================================================================
 # 数据加密配置
@@ -277,6 +279,17 @@ app:
       max-tokens-before-summary: 4000
       # 压缩后保留最近多少条消息（默认：20）
       messages-to-keep: 20
+
+  # MCP 配置
+  mcp:
+    # 客户端配置
+    client:
+      # 请求超时时间（秒）
+      request-timeout: 30
+      # 连接超时时间（秒）
+      connection-timeout: 10
+      # 最大重试次数
+      max-retries: 3
 
 
 

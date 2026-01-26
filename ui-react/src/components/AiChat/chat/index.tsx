@@ -462,17 +462,30 @@ export const BaseChat = ({uuid: propUuid}: { uuid?: string }) => {
             if (requestBody.messages && Array.isArray(requestBody.messages)) {
                 const latestMessage = requestBody.messages[requestBody.messages.length - 1];
 
+                // 构建工具列表 - 将启用的 MCP 工具发送到后端
+                const toolsForBackend = enabledMCPs
+                    .filter(mcp => mcp.id) // 只发送有 ID 的工具
+                    .map(mcp => ({
+                        id: String(mcp.id), // 确保 ID 是字符串
+                        name: mcp.name,
+                    }));
+
                 // 修改请求体格式：用message替换messages数组
                 const modifiedBody = {
                     ...requestBody,
                     message: latestMessage, // 单个消息对象
                     modelConfigId: (baseModal as any).modelConfigId, // 添加必需的modelConfigId参数
                     conversationId: currentConversationId || undefined, // 添加会话ID
+                    tools: toolsForBackend, // 添加启用的 MCP 工具
                 };
                 delete modifiedBody.messages; // 删除原来的messages数组
 
                 // 更新options中的body
                 options.body = JSON.stringify(modifiedBody);
+                
+                if (toolsForBackend.length > 0) {
+                    console.log('[customFetch] 发送 MCP 工具到后端:', toolsForBackend);
+                }
             }
 
             const response = await fetch(url, options);

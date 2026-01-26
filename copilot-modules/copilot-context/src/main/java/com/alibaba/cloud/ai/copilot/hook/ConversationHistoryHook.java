@@ -23,8 +23,10 @@ import org.springframework.stereotype.Component;
 import java.lang.reflect.Constructor;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * 会话历史加载 Hook
@@ -148,7 +150,88 @@ public class ConversationHistoryHook extends MessagesModelHook {
                 entities.size(), messages.size(), restoredToolCount);
         }
 
-        return messages;
+        // 验证并修复工具调用链的完整性
+        return validateAndFixToolCallChain(messages);
+    }
+
+    /**
+     * 验证并修复工具调用链的完整性
+     * DeepSeek API 要求：如果助手消息包含 tool_calls，后面必须有对应的 tool 响应消息
+     *
+     * @param messages 消息列表
+     * @return 修复后的消息列表
+     */
+    private List<Message> validateAndFixToolCallChain(List<Message> messages) {
+        List<Message> fixedMessages = new ArrayList<>();
+        int i = 0;
+        while (i < messages.size()) {
+            Message msg = messages.get(i);
+
+            if (msg instanceof AssistantMessage assistantMsg
+                && assistantMsg.getToolCalls() != null
+                && !assistantMsg.getToolCalls().isEmpty()) {
+
+                // 检查是否有关联的 tool 响应消息
+                List<AssistantMessage.ToolCall> toolCalls = assistantMsg.getToolCalls();
+                Set<String> expectedToolCallIds = new HashSet<>();
+                for (AssistantMessage.ToolCall tc : toolCalls) {
+                    expectedToolCallIds.add(tc.id());
+                }
+
+                // 查找对应的 tool 响应消息
+                boolean hasToolResponse = false;
+                int j = i + 1;
+                while (j < messages.size()) {
+                    Message nextMsg = messages.get(j);
+                    if (nextMsg instanceof ToolResponseMessage toolRespMsg) {
+                        for (ToolResponseMessage.ToolResponse resp : toolRespMsg.getResponses()) {
+                            if (expectedToolCallIds.contains(resp.id())) {
+                                hasToolResponse = true;
+                                expectedToolCallIds.remove(resp.id());
+                            }
+                        }
+                        if (expectedToolCallIds.isEmpty()) {
+                            break;
+                        }
+                    }
+                    j++;
+                }
+
+                if (hasToolResponse && expectedToolCallIds.isEmpty()) {
+                    // 工具调用链完整，保留助手消息和后续的 tool 消息
+                    fixedMessages.add(assistantMsg);
+                    for (int k = i + 1; k <= j && k < messages.size(); k++) {
+                        fixedMessages.add(messages.get(k));
+                    }
+                    i = j + 1;
+                } else {
+                    // 工具调用链不完整，移除 tool_calls 只保留内容
+                    log.warn("检测到不完整的工具调用链，移除 tool_calls");
+                    // 使用反射创建不带 tool_calls 的 AssistantMessage
+                    // 构造函数签名: AssistantMessage(String content, Map<String, Object> properties, List<ToolCall> toolCalls, List<Media> media)
+                    try {
+                        Constructor<AssistantMessage> constructor = AssistantMessage.class
+                            .getDeclaredConstructor(String.class, Map.class, List.class, List.class);
+                        constructor.setAccessible(true);
+
+                        String content = assistantMsg.getText() != null ? assistantMsg.getText() : "";
+                        Map<String, Object> properties = new HashMap<>();
+
+                        AssistantMessage fixedAssistant = constructor.newInstance(content, properties, new ArrayList<>(), new ArrayList<>());
+                        fixedMessages.add(fixedAssistant);
+                    } catch (Exception e) {
+                        log.error("使用反射创建修复的 AssistantMessage 失败，回退到普通消息", e);
+                        fixedMessages.add(new AssistantMessage(
+                            assistantMsg.getText() != null ? assistantMsg.getText() : ""));
+                    }
+                    i++;
+                }
+            } else {
+                fixedMessages.add(msg);
+                i++;
+            }
+        }
+        return fixedMessages;
     }
 
     /**
