@@ -1,9 +1,12 @@
 package com.alibaba.cloud.ai.copilot.service.impl;
 
+import com.alibaba.cloud.ai.copilot.domain.dto.ChatMessage;
 import com.alibaba.cloud.ai.copilot.domain.dto.ConversationDTO;
 import com.alibaba.cloud.ai.copilot.domain.dto.CreateConversationRequest;
 import com.alibaba.cloud.ai.copilot.domain.dto.PageResult;
+import com.alibaba.cloud.ai.copilot.domain.entity.ChatMessageEntity;
 import com.alibaba.cloud.ai.copilot.domain.entity.ConversationEntity;
+import com.alibaba.cloud.ai.copilot.mapper.ChatMessageMapper;
 import com.alibaba.cloud.ai.copilot.mapper.ConversationMapper;
 import com.alibaba.cloud.ai.copilot.service.ConversationService;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
@@ -17,6 +20,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -30,6 +35,8 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class ConversationServiceImpl extends ServiceImpl<ConversationMapper, ConversationEntity> 
         implements ConversationService {
+
+    private final ChatMessageMapper chatMessageMapper;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -90,8 +97,43 @@ public class ConversationServiceImpl extends ServiceImpl<ConversationMapper, Con
     }
 
     @Override
+    public List<ChatMessage> getConversationMessages(String conversationId, Long userId) {
+        // 验证权限
+        checkConversationPermission(conversationId, userId);
+
+        // 从数据库读取历史消息（已在SQL中过滤tool/system角色和空内容）
+        List<ChatMessageEntity> entities = chatMessageMapper.selectByConversationIdForDisplay(conversationId);
+
+        // 转换为 DTO
+        return entities.stream()
+            .map(entity -> {
+                ChatMessage dto = new ChatMessage();
+                dto.setRole(entity.getRole());
+                dto.setContent(entity.getContent());
+                dto.setConversationId(conversationId);
+                dto.setCreatedAt(entity.getCreatedTime());
+                return dto;
+            })
+            .collect(Collectors.toList());
+    }
+
+    @Override
+    public void checkConversationPermission(String conversationId, Long userId) {
+        ConversationDTO conversation = getConversation(conversationId);
+        if (conversation == null) {
+            throw new IllegalArgumentException("会话不存在");
+        }
+        if (!conversation.getUserId().equals(userId)) {
+            throw new IllegalArgumentException("无权访问该会话");
+        }
+    }
+
+    @Override
     @Transactional(rollbackFor = Exception.class)
-    public void updateConversationTitle(String conversationId, String title) {
+    public void updateConversationTitle(String conversationId, String title, Long userId) {
+        // 验证权限
+        checkConversationPermission(conversationId, userId);
+
         update(new LambdaUpdateWrapper<ConversationEntity>()
             .eq(ConversationEntity::getConversationId, conversationId)
             .set(ConversationEntity::getTitle, title)
@@ -100,7 +142,10 @@ public class ConversationServiceImpl extends ServiceImpl<ConversationMapper, Con
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public void deleteConversation(String conversationId) {
+    public void deleteConversation(String conversationId, Long userId) {
+        // 验证权限
+        checkConversationPermission(conversationId, userId);
+
         // 软删除
         update(new LambdaUpdateWrapper<ConversationEntity>()
             .eq(ConversationEntity::getConversationId, conversationId)

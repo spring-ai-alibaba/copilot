@@ -252,9 +252,10 @@ public class ChatServiceImpl implements ChatService {
                     ("新对话".equals(conversation.getTitle()) || conversation.getTitle() == null)) {
                 // 生成标题（取前50个字符）
                 String title = firstMessage.length() > 50
-                        ? firstMessage.substring(0, 50) + "..."
-                        : firstMessage;
-                conversationService.updateConversationTitle(conversationId, title);
+                    ? firstMessage.substring(0, 50) + "..."
+                    : firstMessage;
+                Long userId = LoginHelper.getUserId();
+                conversationService.updateConversationTitle(conversationId, title, userId);
                 log.debug("更新会话标题: conversationId={}, title={}", conversationId, title);
             }
         } catch (Exception e) {
