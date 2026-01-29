@@ -1,5 +1,6 @@
 package com.alibaba.cloud.ai.copilot.tools;
 
+import com.alibaba.cloud.ai.copilot.service.mcp.BuiltinToolProvider;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.github.difflib.DiffUtils;
 import com.github.difflib.UnifiedDiffUtils;
@@ -25,7 +26,8 @@ import java.util.function.BiFunction;
  * 支持创建新文件或覆盖现有文件，自动显示差异
  */
 @Component
-public class WriteFileTool implements BiFunction<WriteFileTool.WriteFileParams, ToolContext, String> {
+public class WriteFileTool
+        implements BiFunction<WriteFileTool.WriteFileParams, ToolContext, String>, BuiltinToolProvider {
 
     private final String rootDirectory;
     private final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(getClass());
@@ -51,8 +53,6 @@ public class WriteFileTool implements BiFunction<WriteFileTool.WriteFileParams, 
             WriteFileParams params,
             ToolContext toolContext) {
         try {
-            System.out.println("params==="+params.content);
-
             // 验证参数
             String validationError = validateParams(params);
             if (validationError != null) {
@@ -187,5 +187,27 @@ public class WriteFileTool implements BiFunction<WriteFileTool.WriteFileParams, 
 
         public String content;
 
+    }
+
+    // ==================== BuiltinToolProvider 接口实现 ====================
+
+    @Override
+    public String getToolName() {
+        return "write_file";
+    }
+
+    @Override
+    public String getDisplayName() {
+        return "写入文件";
+    }
+
+    @Override
+    public String getDescription() {
+        return DESCRIPTION;
+    }
+
+    @Override
+    public ToolCallback createToolCallback() {
+        return createWriteFileToolCallback(DESCRIPTION);
     }
 }

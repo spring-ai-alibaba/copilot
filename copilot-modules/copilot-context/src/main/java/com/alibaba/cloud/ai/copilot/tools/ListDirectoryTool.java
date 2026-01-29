@@ -1,5 +1,6 @@
 package com.alibaba.cloud.ai.copilot.tools;
 
+import com.alibaba.cloud.ai.copilot.service.mcp.BuiltinToolProvider;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import org.springframework.ai.chat.model.ToolContext;
 import org.springframework.ai.tool.ToolCallback;
@@ -14,7 +15,9 @@ import java.nio.file.Paths;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.List;
 import java.util.function.BiFunction;
 import java.util.stream.Stream;
 
@@ -23,7 +26,8 @@ import java.util.stream.Stream;
  * 列出指定目录的文件和子目录，支持递归列表
  */
 @Component
-public class ListDirectoryTool implements BiFunction<ListDirectoryTool.ListDirectoryParams, ToolContext, String> {
+public class ListDirectoryTool
+        implements BiFunction<ListDirectoryTool.ListDirectoryParams, ToolContext, String>, BuiltinToolProvider {
 
     private final String rootDirectory;
     private final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(getClass());
@@ -34,7 +38,7 @@ public class ListDirectoryTool implements BiFunction<ListDirectoryTool.ListDirec
             "Use absolute paths within the workspace directory.";
 
     public ListDirectoryTool() {
-        this.rootDirectory = Paths.get(System.getProperty("user.dir"), "workspace").toString();;
+        this.rootDirectory = Paths.get(System.getProperty("user.dir"), "workspace").toString();
     }
 
     public static ToolCallback createListDirectoryToolCallback(String description) {
@@ -263,5 +267,27 @@ public class ListDirectoryTool implements BiFunction<ListDirectoryTool.ListDirec
         public Boolean recursive;
         @JsonProperty("max_depth")
         public Integer maxDepth;
+    }
+
+    // ==================== BuiltinToolProvider 接口实现 ====================
+
+    @Override
+    public String getToolName() {
+        return "list_directory";
+    }
+
+    @Override
+    public String getDisplayName() {
+        return "列出目录";
+    }
+
+    @Override
+    public String getDescription() {
+        return DESCRIPTION;
+    }
+
+    @Override
+    public ToolCallback createToolCallback() {
+        return createListDirectoryToolCallback(DESCRIPTION);
     }
 }

@@ -4,34 +4,36 @@ import com.alibaba.cloud.ai.copilot.config.AppProperties;
 import com.alibaba.cloud.ai.copilot.domain.dto.ChatRequest;
 import com.alibaba.cloud.ai.copilot.domain.dto.CreateConversationRequest;
 import com.alibaba.cloud.ai.copilot.domain.entity.ChatMessageEntity;
-import com.alibaba.cloud.ai.copilot.domain.entity.ModelConfigEntity;
+import com.alibaba.cloud.ai.copilot.domain.entity.McpToolInfo;
 import com.alibaba.cloud.ai.copilot.handler.OutputHandlerRegistry;
 import com.alibaba.cloud.ai.copilot.hook.ConversationHistoryHook;
 import com.alibaba.cloud.ai.copilot.hook.ConversationSaveHook;
 import com.alibaba.cloud.ai.copilot.interceptor.DynamicSystemPromptInterceptor;
 import com.alibaba.cloud.ai.copilot.mapper.ChatMessageMapper;
+import com.alibaba.cloud.ai.copilot.mapper.McpToolInfoMapper;
 import com.alibaba.cloud.ai.copilot.mapper.ModelConfigMapper;
+import com.alibaba.cloud.ai.copilot.enums.ToolStatus;
+import com.alibaba.cloud.ai.copilot.service.mcp.BuiltinToolRegistry;
+import com.alibaba.cloud.ai.copilot.service.mcp.McpClientManager;
 import com.alibaba.cloud.ai.copilot.satoken.utils.LoginHelper;
 import com.alibaba.cloud.ai.copilot.service.ChatService;
 import com.alibaba.cloud.ai.copilot.service.ConversationService;
 import com.alibaba.cloud.ai.copilot.service.DynamicModelService;
 import com.alibaba.cloud.ai.copilot.service.SseEventService;
-import com.alibaba.cloud.ai.copilot.tools.ListDirectoryTool;
-import com.alibaba.cloud.ai.copilot.tools.WriteFileTool;
 import com.alibaba.cloud.ai.graph.NodeOutput;
 import com.alibaba.cloud.ai.graph.RunnableConfig;
 import com.alibaba.cloud.ai.graph.agent.ReactAgent;
-import com.alibaba.cloud.ai.graph.agent.extension.tools.filesystem.EditFileTool;
-import com.alibaba.cloud.ai.graph.agent.extension.tools.filesystem.ReadFileTool;
 import com.alibaba.cloud.ai.graph.agent.hook.Hook;
 import com.alibaba.cloud.ai.graph.agent.hook.summarization.SummarizationHook;
 import com.alibaba.cloud.ai.graph.agent.interceptor.ModelInterceptor;
 import com.alibaba.cloud.ai.graph.checkpoint.savers.MemorySaver;
 import com.alibaba.cloud.ai.graph.exception.GraphRunnerException;
 import com.alibaba.cloud.ai.graph.streaming.StreamingOutput;
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.model.ChatModel;
+import org.springframework.ai.tool.ToolCallback;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
@@ -62,6 +64,9 @@ public class ChatServiceImpl implements ChatService {
     private final ConversationSaveHook conversationSaveHook;
     private final DynamicSystemPromptInterceptor dynamicSystemPromptInterceptor;
     private final com.alibaba.cloud.ai.copilot.hook.MessageTraceHook messageTraceHook;
+    private final McpClientManager mcpClientManager;
+    private final BuiltinToolRegistry builtinToolRegistry;
+    private final McpToolInfoMapper mcpToolInfoMapper;
 
     @Override
     public void handleBuilderMode(ChatRequest request, String userId, SseEmitter emitter) {
@@ -69,7 +74,7 @@ public class ChatServiceImpl implements ChatService {
             // 1. 获取或创建会话
             String conversationId = request.getConversationId();
             log.debug("收到聊天请求: conversationId={}, userId={}, message={}",
-                conversationId, userId, request.getMessage() != null ? request.getMessage().getContent() : "null");
+                    conversationId, userId, request.getMessage() != null ? request.getMessage().getContent() : "null");
 
             if (conversationId == null || conversationId.isEmpty()) {
                 // 创建新会话
@@ -117,23 +122,19 @@ public class ChatServiceImpl implements ChatService {
             // 5.1 动态系统提示
             interceptors.add(dynamicSystemPromptInterceptor);
 
-            // 6. 创建 ReactAgent
+            // 6. 加载工具
+            List<ToolCallback> allTools = loadToolCallback();
+            log.info("共加载 {} 个工具", allTools.size());
+
+            // 6.3 构建 Agent
             var agentBuilder = ReactAgent.builder()
-                .name("copilot_agent")
-                .model(chatModel)
-                .systemPrompt("工作目录在:" + appProperties.getWorkspace().getRootDirectory() +
-                    "\\" + LoginHelper.getLoginUser().getUserType() + "_" +
-                    LoginHelper.getLoginUser().getUserId() +
-                    "所有的文件操作请在这个目录下进行")
-                .hooks(hooks.toArray(new Hook[0]))
-                .interceptors(interceptors.toArray(new ModelInterceptor[0]))
-                .saver(new MemorySaver())
-                .tools(
-                    ListDirectoryTool.createListDirectoryToolCallback(ListDirectoryTool.DESCRIPTION),
-                    EditFileTool.createEditFileToolCallback(EditFileTool.DESCRIPTION),
-                    ReadFileTool.createReadFileToolCallback(ReadFileTool.DESCRIPTION),
-                    WriteFileTool.createWriteFileToolCallback(WriteFileTool.DESCRIPTION)
-                );
+                    .name("copilot_agent")
+                    .model(chatModel)
+                    .systemPrompt(buildSystemPrompt())
+                    .hooks(hooks.toArray(new Hook[0]))
+                    .interceptors(interceptors.toArray(new ModelInterceptor[0]))
+                    .saver(new MemorySaver())
+                    .tools(allTools.toArray(new ToolCallback[0]));
 
             ReactAgent agent = agentBuilder.build();
 
@@ -199,13 +200,56 @@ public class ChatServiceImpl implements ChatService {
     }
 
     /**
+     * 加载工具
+     *
+     * @return
+     */
+    private List<ToolCallback> loadToolCallback() {
+        LambdaQueryWrapper<McpToolInfo> queryWrapper = new LambdaQueryWrapper<>();
+        queryWrapper.eq(McpToolInfo::getStatus, ToolStatus.ENABLED.getValue());
+        List<McpToolInfo> enabledTools = mcpToolInfoMapper.selectList(queryWrapper);
+        List<ToolCallback> allTools = new ArrayList<>();
+        for (McpToolInfo tool : enabledTools) {
+            try {
+                if (BuiltinToolRegistry.TYPE_BUILTIN.equals(tool.getType())) {
+                    // 内置工具 - 从注册表获取
+                    ToolCallback callback = builtinToolRegistry.createToolCallback(tool.getName());
+                    if (callback != null) {
+                        allTools.add(callback);
+                        log.debug("加载内置工具: {}", tool.getName());
+                    }
+                } else {
+                    // MCP 工具 (LOCAL/REMOTE) - 从 McpClientManager 获取
+                    List<ToolCallback> mcpCallbacks = mcpClientManager.getToolCallbacks(List.of(tool.getId()));
+                    allTools.addAll(mcpCallbacks);
+                    log.debug("加载 MCP 工具: {}", tool.getName());
+                }
+            } catch (Exception e) {
+                log.error("加载工具失败: {} - {}", tool.getName(), e.getMessage());
+                // 继续加载其他工具，不阻断
+            }
+        }
+        return allTools;
+    }
+
+    /**
+     * 构建系统提示词
+     */
+    private String buildSystemPrompt() {
+        return "工作目录在:" + appProperties.getWorkspace().getRootDirectory() +
+                java.io.File.separator + LoginHelper.getLoginUser().getUserType() + "_" +
+                LoginHelper.getLoginUser().getUserId() +
+                "\n所有的文件操作请在这个目录下进行";
+    }
+
+    /**
      * 更新会话标题（如果是新会话且标题为默认值）
      */
     private void updateConversationTitleIfNeeded(String conversationId, String firstMessage) {
         try {
             var conversation = conversationService.getConversation(conversationId);
             if (conversation != null &&
-                ("新对话".equals(conversation.getTitle()) || conversation.getTitle() == null)) {
+                    ("新对话".equals(conversation.getTitle()) || conversation.getTitle() == null)) {
                 // 生成标题（取前50个字符）
                 String title = firstMessage.length() > 50
                     ? firstMessage.substring(0, 50) + "..."

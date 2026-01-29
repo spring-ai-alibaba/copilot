@@ -187,8 +187,9 @@
           "actions": "Actions"
         },
         "types": {
-          "remote": "Remote",
-          "local": "Local"
+          "builtin": "Built-in",
+          "local": "Local",
+          "remote": "Remote"
         },
         "status": {
           "enabled": "Enabled",
@@ -228,7 +229,7 @@
         "messages": {
           "deleteSuccess": "Deleted successfully",
           "deleteError": "Failed to delete",
-          "toggleSuccess": "Status {status}",
+          "toggleSuccess": "Status {{status}}",
           "toggleError": "Failed to update status",
           "testSuccess": "Test successful",
           "testError": "Test failed",
@@ -330,7 +331,7 @@
           "updateSuccess": "Updated successfully",
           "deleteSuccess": "Deleted successfully",
           "deleteError": "Failed to delete",
-          "toggleSuccess": "{status}",
+          "toggleSuccess": "{{status}}",
           "toggleError": "Failed to update status",
           "loadError": "Failed to load markets list",
           "saveError": "Failed to save",
