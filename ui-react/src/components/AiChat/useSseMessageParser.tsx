@@ -111,6 +111,10 @@ const sseMessageParser = new SSEMessageParser({
 
       // 更新文件内容
       await useFileStore.getState().updateContent(processedPath, newContent, false, true);
+
+      // 选中文件展示到预览区域
+      const { setSelectedPath } = useFileStore.getState();
+      setSelectedPath(processedPath);
     },
 
     onAddEnd: async (data: OperationCallbackData) => {
@@ -157,6 +161,10 @@ const sseMessageParser = new SSEMessageParser({
 
       // 更新文件内容
       await useFileStore.getState().updateContent(processedPath, newContent, false, true);
+
+      // 选中文件展示到预览区域
+      const { setSelectedPath } = useFileStore.getState();
+      setSelectedPath(processedPath);
     },
 
     onEditEnd: async (data: OperationCallbackData) => {
