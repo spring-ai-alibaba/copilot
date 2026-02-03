@@ -16,18 +16,18 @@ public interface LlmFactoriesMapper extends BaseMapper<LlmFactoriesEntity> {
     /**
      * 查询所有启用的供应商
      */
-    @Select("SELECT * FROM llm_factories WHERE status = 1 ORDER BY `rank` ASC")
+    @Select("SELECT * FROM model_llm_factories WHERE status = 1 ORDER BY `rank` ASC")
     List<LlmFactoriesEntity> selectEnabledProviders();
     
     /**
      * 根据供应商名称查询供应商
      */
-    @Select("SELECT * FROM llm_factories WHERE name = #{name}")
+    @Select("SELECT * FROM model_llm_factories WHERE name = #{name}")
     LlmFactoriesEntity selectByFactoriesName(String name);
     
     /**
      * 根据供应商代码查询供应商
      */
-    @Select("SELECT * FROM llm_factories WHERE provider_code = #{providerCode}")
+    @Select("SELECT * FROM model_llm_factories WHERE provider_code = #{providerCode}")
     LlmFactoriesEntity selectByProviderCode(String providerCode);
 }

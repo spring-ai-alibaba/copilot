@@ -65,7 +65,8 @@ const McpMarketsTab: FC = () => {
         try {
             const response = await fetchMcpMarkets(params)
             if (!mountedRef.current) return
-            const data = response.data || []
+            // 过滤掉 null 值，确保数据完整性
+            const data = (response.data || []).filter(item => item != null)
             setMarkets(data)
             setMarketsTotal(response.total || 0)
         } catch (error: any) {
@@ -222,7 +223,7 @@ const McpMarketsTab: FC = () => {
             title: t('settings.mcp.markets.columns.name'),
             dataIndex: 'name',
             key: 'name',
-            width: 180,
+            width: 100,
             ellipsis: true,
             render: (name: string) => (
                 <Space>
@@ -235,7 +236,7 @@ const McpMarketsTab: FC = () => {
             title: t('settings.mcp.markets.columns.url'),
             dataIndex: 'url',
             key: 'url',
-            width: 300,
+            width: 200,
             ellipsis: true,
             render: (url: string) => (
                 <a href={url} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline">
@@ -247,7 +248,7 @@ const McpMarketsTab: FC = () => {
             title: t('settings.mcp.markets.columns.description'),
             dataIndex: 'description',
             key: 'description',
-            width: 200,
+            width: 100,
             ellipsis: true,
             render: (desc: string | null) => desc || <span className="text-gray-400">-</span>,
         },
@@ -257,11 +258,14 @@ const McpMarketsTab: FC = () => {
             key: 'status',
             width: 100,
             align: 'center',
-            render: (status: string) => (
-                <Tag color={status === 'ENABLED' ? 'green' : 'default'}>
-                    {status === 'ENABLED' ? t('settings.mcp.markets.status.enabled') : t('settings.mcp.markets.status.disabled')}
-                </Tag>
-            ),
+            render: (status: string | null | undefined) => {
+                const statusValue = status || 'DISABLED'
+                return (
+                    <Tag color={statusValue === 'ENABLED' ? 'green' : 'default'}>
+                        {statusValue === 'ENABLED' ? t('settings.mcp.markets.status.enabled') : t('settings.mcp.markets.status.disabled')}
+                    </Tag>
+                )
+            },
         },
         {
             title: t('settings.mcp.markets.columns.actions'),
@@ -270,6 +274,7 @@ const McpMarketsTab: FC = () => {
             align: 'center',
             fixed: 'right',
             render: (_, record) => {
+                if (!record) return null
                 const isEnabled = record.status === 'ENABLED'
                 const isRefreshing = refreshingMarketId === record.id
                 return (
@@ -425,9 +430,8 @@ const McpMarketsTab: FC = () => {
                     total: marketsTotal,
                     showTotal: (total) => t('settings.mcp.markets.pagination.total', {total}),
                 }}
-                scroll={{x: 'max-content'}}
+                // scroll={{x: 1000}}
                 locale={{emptyText: t('settings.mcp.markets.messages.empty')}}
-                size="middle"
             />
 
             {/* 新增/编辑市场弹窗 - 使用 AddMarketModal */}
@@ -439,14 +443,30 @@ const McpMarketsTab: FC = () => {
                     setEditingMarket(null)
                 }}
                 onOk={(savedMarket) => {
+                    // 确保 savedMarket 不为 null
+                    if (!savedMarket) {
+                        console.warn('savedMarket is null, refreshing list')
+                        fetchData(undefined, true)
+                        setFormModalVisible(false)
+                        setEditingMarket(null)
+                        return
+                    }
                     if (editingMarket && editingMarket.id) {
-                        // 更新
-                        setMarkets(prev => prev.map(m =>
-                            m.id === editingMarket.id ? savedMarket : m
-                        ))
+                        // 更新 - 使用原 ID 替换，确保 ID 一致性（避免 Long 精度问题）
+                        const updatedMarket: McpMarketInfo = {
+                            ...savedMarket,
+                            id: editingMarket.id  // 强制使用原 ID
+                        }
+                        setMarkets(prev => {
+                            const newList = prev.map(m =>
+                                m.id === editingMarket.id ? updatedMarket : m
+                            )
+                            console.log('Updated market list:', newList)
+                            return newList
+                        })
                     } else {
-                        // 新增
-                        setMarkets(prev => [...prev, savedMarket])
+                        // 新增 - 刷新列表确保获取正确的 ID
+                        fetchData(undefined, true)
                     }
                     setFormModalVisible(false)
                     setEditingMarket(null)
@@ -527,7 +547,7 @@ const McpMarketsTab: FC = () => {
                             }
                         },
                     }}
-                    scroll={{y: 400}}
+                    // scroll={{y: 400}}
                     locale={{emptyText: t('settings.mcp.markets.toolsModal.empty')}}
                     size="small"
                 />

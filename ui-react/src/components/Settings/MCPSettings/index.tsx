@@ -1,8 +1,7 @@
-import React, {FC, useCallback, useState} from 'react'
+import React, {FC, useState} from 'react'
 import {useTranslation} from 'react-i18next'
 import {ConfigProvider, Tabs} from 'antd'
 import {ShopOutlined, ToolOutlined} from '@ant-design/icons'
-import {SettingContainer, SettingGroup} from '..'
 import InstallNpxUv from './InstallNpxUv'
 import McpToolsTab from './McpToolsTab'
 import McpMarketsTab from './McpMarketsTab'
@@ -69,17 +68,15 @@ const MCPSettings: FC<MCPSettingsProps> = ({isActive = false}) => {
                 },
             }}
         >
-            <SettingContainer theme={isDarkMode ? 'dark' : 'light'}>
+            <div className="flex flex-col h-full">
                 <InstallNpxUv/>
-                <SettingGroup theme={isDarkMode ? 'dark' : 'light'}>
-                    <Tabs
-                        activeKey={activeKey}
-                        onChange={setActiveKey}
-                        items={tabItems}
-                        className="mcp-tabs"
-                    />
-                </SettingGroup>
-            </SettingContainer>
+                <Tabs
+                    activeKey={activeKey}
+                    onChange={setActiveKey}
+                    items={tabItems}
+                    className="mcp-tabs flex-1"
+                />
+            </div>
         </ConfigProvider>
     )
 }

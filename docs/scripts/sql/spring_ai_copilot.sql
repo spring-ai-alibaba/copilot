@@ -18,6 +18,27 @@ SET NAMES utf8mb4;
 SET FOREIGN_KEY_CHECKS = 0;
 
 -- ----------------------------
+-- Table structure for chat_conversation
+-- ----------------------------
+DROP TABLE IF EXISTS `chat_conversation`;
+CREATE TABLE `chat_conversation` (
+  `id` bigint NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+  `conversation_id` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '会话ID（UUID）',
+  `user_id` bigint NOT NULL COMMENT '用户ID',
+  `title` varchar(200) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL COMMENT '会话标题（自动生成）',
+  `model_config_id` bigint NULL DEFAULT NULL COMMENT '使用的模型配置ID',
+  `message_count` int NULL DEFAULT 0 COMMENT '消息数量',
+  `last_message_time` datetime NULL DEFAULT NULL COMMENT '最后一条消息时间',
+  `created_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `updated_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  `del_flag` tinyint(1) NOT NULL DEFAULT 0 COMMENT '删除标志（0-未删除，1-已删除）',
+  PRIMARY KEY (`id`) USING BTREE,
+  INDEX `idx_user_id` (`user_id`) USING BTREE,
+  INDEX `idx_user_updated` (`user_id`, `updated_time`) USING BTREE,
+  INDEX `idx_del_flag` (`del_flag`) USING BTREE
+) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT = '会话表';
+
+-- ----------------------------
 -- Table structure for chat_message
 -- ----------------------------
 DROP TABLE IF EXISTS `chat_message`;
@@ -36,7 +57,8 @@ CREATE TABLE `chat_message`  (
   PRIMARY KEY (`id`) USING BTREE,
   INDEX `idx_conversation_id`(`conversation_id` ASC) USING BTREE,
   INDEX `idx_conversation_compressed`(`conversation_id` ASC, `is_compressed` ASC) USING BTREE,
-  INDEX `idx_created_time`(`created_time` ASC) USING BTREE
+  INDEX `idx_created_time`(`created_time` ASC) USING BTREE,
+  INDEX `idx_conversation_time`(`conversation_id`, `created_time`) USING BTREE COMMENT '会话消息时间联合索引，优化历史消息查询'
 ) ENGINE = InnoDB AUTO_INCREMENT = 2010358791843348482 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT = '聊天消息表' ROW_FORMAT = Dynamic;
 
 -- ----------------------------
@@ -171,10 +193,10 @@ INSERT INTO `model_llm_factories` VALUES (9, '硅基流动', 'SILICONFLOW', NULL
 INSERT INTO `model_llm_factories` VALUES (10, '自定义供应商', 'OpenAiCompatible', NULL, 'LLM,Text Embedding,Image2Text,ASR,Chat', 40, 0, '2026-01-11 21:46:52', '2026-01-11 21:46:52');
 
 -- ----------------------------
--- Table structure for modell_llm
+-- Table structure for model_llm
 -- ----------------------------
-DROP TABLE IF EXISTS `modell_llm`;
-CREATE TABLE `modell_llm`  (
+DROP TABLE IF EXISTS `model_llm`;
+CREATE TABLE `model_llm`  (
   `id` bigint NOT NULL AUTO_INCREMENT COMMENT 'LLM模型ID',
   `fid` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL COMMENT '厂商ID（引用 llm_factories.name）',
   `llm_name` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL COMMENT '模型名称',
@@ -195,57 +217,57 @@ CREATE TABLE `modell_llm`  (
 ) ENGINE = InnoDB AUTO_INCREMENT = 116 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci COMMENT = '厂商模型信息' ROW_FORMAT = DYNAMIC;
 
 -- ----------------------------
--- Records of modell_llm
+-- Records of model_llm
 -- ----------------------------
-INSERT INTO `modell_llm` VALUES (67, 'OpenAI', 'gpt-3.5-turbo', 'CHAT', 4096, 'LLM,CHAT,4K', 0, 1, '2025-12-03 16:37:44', '2025-12-03 16:37:44');
-INSERT INTO `modell_llm` VALUES (68, 'OpenAI', 'gpt-3.5-turbo-16k-0613', 'CHAT', 16385, 'LLM,CHAT,16k', 0, 1, '2025-12-03 16:37:44', '2025-12-03 16:37:44');
-INSERT INTO `modell_llm` VALUES (69, 'OpenAI', 'gpt-4', 'CHAT', 8191, 'LLM,CHAT,8K', 0, 1, '2025-12-03 16:37:44', '2025-12-03 16:37:44');
-INSERT INTO `modell_llm` VALUES (70, 'OpenAI', 'gpt-4-32k', 'CHAT', 32768, 'LLM,CHAT,32K', 0, 1, '2025-12-03 16:37:44', '2025-12-03 16:37:44');
-INSERT INTO `modell_llm` VALUES (71, 'OpenAI', 'gpt-4-turbo', 'CHAT', 8191, 'LLM,CHAT,8K', 1, 1, '2025-12-03 16:37:44', '2025-12-03 16:37:44');
-INSERT INTO `modell_llm` VALUES (72, 'OpenAI', 'gpt-4.1', 'CHAT', 1047576, 'LLM,CHAT,1M,IMAGE2TEXT', 1, 1, '2025-12-03 16:37:44', '2025-12-03 16:37:44');
-INSERT INTO `modell_llm` VALUES (73, 'OpenAI', 'gpt-4.1-mini', 'CHAT', 1047576, 'LLM,CHAT,1M,IMAGE2TEXT', 1, 1, '2025-12-03 16:37:44', '2025-12-03 16:37:44');
-INSERT INTO `modell_llm` VALUES (74, 'OpenAI', 'gpt-4.1-nano', 'CHAT', 1047576, 'LLM,CHAT,1M,IMAGE2TEXT', 1, 1, '2025-12-03 16:37:44', '2025-12-03 16:37:44');
-INSERT INTO `modell_llm` VALUES (75, 'OpenAI', 'gpt-4.5-preview', 'CHAT', 128000, 'LLM,CHAT,128K', 1, 1, '2025-12-03 16:37:44', '2025-12-03 16:37:44');
-INSERT INTO `modell_llm` VALUES (76, 'OpenAI', 'gpt-4o', 'CHAT', 128000, 'LLM,CHAT,128K,IMAGE2TEXT', 1, 1, '2025-12-03 16:37:44', '2025-12-03 16:37:44');
-INSERT INTO `modell_llm` VALUES (77, 'OpenAI', 'gpt-4o-mini', 'CHAT', 128000, 'LLM,CHAT,128K,IMAGE2TEXT', 1, 1, '2025-12-03 16:37:44', '2025-12-03 16:37:44');
-INSERT INTO `modell_llm` VALUES (78, 'OpenAI', 'gpt-5', 'CHAT', 400000, 'LLM,CHAT,400k,IMAGE2TEXT', 1, 1, '2025-12-03 16:37:44', '2025-12-03 16:37:44');
-INSERT INTO `modell_llm` VALUES (79, 'OpenAI', 'gpt-5-chat-latest', 'CHAT', 400000, 'LLM,CHAT,400k,IMAGE2TEXT', 0, 1, '2025-12-03 16:37:44', '2025-12-03 16:37:44');
-INSERT INTO `modell_llm` VALUES (80, 'OpenAI', 'gpt-5-mini', 'CHAT', 400000, 'LLM,CHAT,400k,IMAGE2TEXT', 1, 1, '2025-12-03 16:37:44', '2025-12-03 16:37:44');
-INSERT INTO `modell_llm` VALUES (81, 'OpenAI', 'gpt-5-nano', 'CHAT', 400000, 'LLM,CHAT,400k,IMAGE2TEXT', 1, 1, '2025-12-03 16:37:44', '2025-12-03 16:37:44');
-INSERT INTO `modell_llm` VALUES (82, 'OpenAI', 'o3', 'CHAT', 200000, 'LLM,CHAT,200K,IMAGE2TEXT', 1, 1, '2025-12-03 16:37:44', '2025-12-03 16:37:44');
-INSERT INTO `modell_llm` VALUES (83, 'OpenAI', 'o4-mini', 'CHAT', 200000, 'LLM,CHAT,200K,IMAGE2TEXT', 1, 1, '2025-12-03 16:37:44', '2025-12-03 16:37:44');
-INSERT INTO `modell_llm` VALUES (84, 'OpenAI', 'o4-mini-high', 'CHAT', 200000, 'LLM,CHAT,200K,IMAGE2TEXT', 1, 1, '2025-12-03 16:37:44', '2025-12-03 16:37:44');
-INSERT INTO `modell_llm` VALUES (85, 'SILICONFLOW', 'deepseek-ai/DeepSeek-R1', 'CHAT', 64000, 'LLM,CHAT,64k', 1, 1, '2025-12-03 16:37:44', '2025-12-03 16:37:44');
-INSERT INTO `modell_llm` VALUES (86, 'SILICONFLOW', 'deepseek-ai/DeepSeek-R1-Distill-Qwen-14B', 'CHAT', 32000, 'LLM,CHAT,32k', 1, 1, '2025-12-03 16:37:44', '2025-12-03 16:37:44');
-INSERT INTO `modell_llm` VALUES (87, 'SILICONFLOW', 'deepseek-ai/DeepSeek-R1-Distill-Qwen-32B', 'CHAT', 32000, 'LLM,CHAT,32k', 1, 1, '2025-12-03 16:37:44', '2025-12-03 16:37:44');
-INSERT INTO `modell_llm` VALUES (88, 'SILICONFLOW', 'deepseek-ai/DeepSeek-R1-Distill-Qwen-7B', 'CHAT', 32000, 'LLM,CHAT,32k', 1, 1, '2025-12-03 16:37:44', '2025-12-03 16:37:44');
-INSERT INTO `modell_llm` VALUES (89, 'SILICONFLOW', 'deepseek-ai/DeepSeek-V2.5', 'CHAT', 32000, 'LLM,CHAT,32k', 1, 1, '2025-12-03 16:37:44', '2025-12-03 16:37:44');
-INSERT INTO `modell_llm` VALUES (90, 'SILICONFLOW', 'deepseek-ai/DeepSeek-V3', 'CHAT', 64000, 'LLM,CHAT,64k', 1, 1, '2025-12-03 16:37:44', '2025-12-03 16:37:44');
-INSERT INTO `modell_llm` VALUES (91, 'SILICONFLOW', 'deepseek-ai/DeepSeek-V3.1', 'CHAT', 160000, 'LLM,CHAT,160', 1, 1, '2025-12-03 16:37:44', '2025-12-03 16:37:44');
-INSERT INTO `modell_llm` VALUES (92, 'SILICONFLOW', 'internlm/internlm2_5-7b-chat', 'CHAT', 32000, 'LLM,CHAT,32k', 1, 1, '2025-12-03 16:37:44', '2025-12-03 16:37:44');
-INSERT INTO `modell_llm` VALUES (93, 'SILICONFLOW', 'Pro/deepseek-ai/DeepSeek-R1', 'CHAT', 64000, 'LLM,CHAT,64k', 1, 1, '2025-12-03 16:37:44', '2025-12-03 16:37:44');
-INSERT INTO `modell_llm` VALUES (94, 'SILICONFLOW', 'Pro/deepseek-ai/DeepSeek-R1-Distill-Qwen-7B', 'CHAT', 32000, 'LLM,CHAT,32k', 1, 1, '2025-12-03 16:37:44', '2025-12-03 16:37:44');
-INSERT INTO `modell_llm` VALUES (95, 'SILICONFLOW', 'Pro/deepseek-ai/DeepSeek-V3', 'CHAT', 64000, 'LLM,CHAT,64k', 1, 1, '2025-12-03 16:37:44', '2025-12-03 16:37:44');
-INSERT INTO `modell_llm` VALUES (96, 'SILICONFLOW', 'Pro/deepseek-ai/DeepSeek-V3.1', 'CHAT', 160000, 'LLM,CHAT,160k', 1, 1, '2025-12-03 16:37:44', '2025-12-03 16:37:44');
-INSERT INTO `modell_llm` VALUES (97, 'SILICONFLOW', 'Pro/Qwen/Qwen2-7B-Instruct', 'CHAT', 32000, 'LLM,CHAT,32k', 0, 1, '2025-12-03 16:37:44', '2025-12-03 16:37:44');
-INSERT INTO `modell_llm` VALUES (98, 'SILICONFLOW', 'Pro/Qwen/Qwen2.5-7B-Instruct', 'CHAT', 32000, 'LLM,CHAT,32k', 1, 1, '2025-12-03 16:37:44', '2025-12-03 16:37:44');
-INSERT INTO `modell_llm` VALUES (99, 'SILICONFLOW', 'Pro/Qwen/Qwen2.5-Coder-7B-Instruct', 'CHAT', 32000, 'LLM,CHAT,32k', 0, 1, '2025-12-03 16:37:44', '2025-12-03 16:37:44');
-INSERT INTO `modell_llm` VALUES (100, 'SILICONFLOW', 'Pro/THUDM/glm-4-9b-chat', 'CHAT', 128000, 'LLM,CHAT,128k', 0, 1, '2025-12-03 16:37:44', '2025-12-03 16:37:44');
-INSERT INTO `modell_llm` VALUES (101, 'SILICONFLOW', 'Qwen/Qwen2-7B-Instruct', 'CHAT', 32000, 'LLM,CHAT,32k', 1, 1, '2025-12-03 16:37:44', '2025-12-03 16:37:44');
-INSERT INTO `modell_llm` VALUES (102, 'SILICONFLOW', 'Qwen/Qwen2.5-14B-Instruct', 'CHAT', 32000, 'LLM,CHAT,32k', 1, 1, '2025-12-03 16:37:44', '2025-12-03 16:37:44');
-INSERT INTO `modell_llm` VALUES (103, 'SILICONFLOW', 'Qwen/Qwen2.5-32B-Instruct', 'CHAT', 32000, 'LLM,CHAT,32k', 1, 1, '2025-12-03 16:37:44', '2025-12-03 16:37:44');
-INSERT INTO `modell_llm` VALUES (104, 'SILICONFLOW', 'Qwen/Qwen2.5-72B-Instruct', 'CHAT', 32000, 'LLM,CHAT,32k', 1, 1, '2025-12-03 16:37:44', '2025-12-03 16:37:44');
-INSERT INTO `modell_llm` VALUES (105, 'SILICONFLOW', 'Qwen/Qwen2.5-7B-Instruct', 'CHAT', 32000, 'LLM,CHAT,32k', 1, 1, '2025-12-03 16:37:44', '2025-12-03 16:37:44');
-INSERT INTO `modell_llm` VALUES (106, 'SILICONFLOW', 'Qwen/Qwen2.5-Coder-32B-Instruct', 'CHAT', 32000, 'LLM,CHAT,32k', 0, 1, '2025-12-03 16:37:44', '2025-12-03 16:37:44');
-INSERT INTO `modell_llm` VALUES (107, 'SILICONFLOW', 'Qwen/Qwen2.5-Coder-7B-Instruct', 'CHAT', 32000, 'LLM,CHAT,32k', 1, 1, '2025-12-03 16:37:44', '2025-12-03 16:37:44');
-INSERT INTO `modell_llm` VALUES (108, 'SILICONFLOW', 'Qwen/Qwen3-14B', 'CHAT', 128000, 'LLM,CHAT,128k', 1, 1, '2025-12-03 16:37:44', '2025-12-03 16:37:44');
-INSERT INTO `modell_llm` VALUES (109, 'SILICONFLOW', 'Qwen/Qwen3-235B-A22B', 'CHAT', 128000, 'LLM,CHAT,128k', 1, 1, '2025-12-03 16:37:44', '2025-12-03 16:37:44');
-INSERT INTO `modell_llm` VALUES (110, 'SILICONFLOW', 'Qwen/Qwen3-30B-A3B', 'CHAT', 128000, 'LLM,CHAT,128k', 1, 1, '2025-12-03 16:37:44', '2025-12-03 16:37:44');
-INSERT INTO `modell_llm` VALUES (111, 'SILICONFLOW', 'Qwen/Qwen3-32B', 'CHAT', 128000, 'LLM,CHAT,128k', 1, 1, '2025-12-03 16:37:44', '2025-12-03 16:37:44');
-INSERT INTO `modell_llm` VALUES (112, 'SILICONFLOW', 'Qwen/Qwen3-8B', 'CHAT', 64000, 'LLM,CHAT,64k', 1, 1, '2025-12-03 16:37:44', '2025-12-03 16:37:44');
-INSERT INTO `modell_llm` VALUES (113, 'DeepSeek', 'deepseek-chat', 'CHAT', 8191, 'LLM,CHAT', 1, 1, '2025-12-05 17:25:47', '2025-12-05 17:25:50');
-INSERT INTO `modell_llm` VALUES (114, 'DeepSeek', 'deepseek-reasoner', 'CHAT', 64000, 'LLM,CHAT', 1, 1, '2025-12-05 17:26:44', '2025-12-05 17:26:47');
-INSERT INTO `modell_llm` VALUES (115, 'ALiBaiLian', 'qwen3-max-preview', 'CHAT', 64000, 'LLM,CHAT,128k', 1, 1, '2025-12-08 09:14:14', '2025-12-08 13:59:28');
+INSERT INTO `model_llm` VALUES (67, 'OpenAI', 'gpt-3.5-turbo', 'CHAT', 4096, 'LLM,CHAT,4K', 0, 1, '2025-12-03 16:37:44', '2025-12-03 16:37:44');
+INSERT INTO `model_llm` VALUES (68, 'OpenAI', 'gpt-3.5-turbo-16k-0613', 'CHAT', 16385, 'LLM,CHAT,16k', 0, 1, '2025-12-03 16:37:44', '2025-12-03 16:37:44');
+INSERT INTO `model_llm` VALUES (69, 'OpenAI', 'gpt-4', 'CHAT', 8191, 'LLM,CHAT,8K', 0, 1, '2025-12-03 16:37:44', '2025-12-03 16:37:44');
+INSERT INTO `model_llm` VALUES (70, 'OpenAI', 'gpt-4-32k', 'CHAT', 32768, 'LLM,CHAT,32K', 0, 1, '2025-12-03 16:37:44', '2025-12-03 16:37:44');
+INSERT INTO `model_llm` VALUES (71, 'OpenAI', 'gpt-4-turbo', 'CHAT', 8191, 'LLM,CHAT,8K', 1, 1, '2025-12-03 16:37:44', '2025-12-03 16:37:44');
+INSERT INTO `model_llm` VALUES (72, 'OpenAI', 'gpt-4.1', 'CHAT', 1047576, 'LLM,CHAT,1M,IMAGE2TEXT', 1, 1, '2025-12-03 16:37:44', '2025-12-03 16:37:44');
+INSERT INTO `model_llm` VALUES (73, 'OpenAI', 'gpt-4.1-mini', 'CHAT', 1047576, 'LLM,CHAT,1M,IMAGE2TEXT', 1, 1, '2025-12-03 16:37:44', '2025-12-03 16:37:44');
+INSERT INTO `model_llm` VALUES (74, 'OpenAI', 'gpt-4.1-nano', 'CHAT', 1047576, 'LLM,CHAT,1M,IMAGE2TEXT', 1, 1, '2025-12-03 16:37:44', '2025-12-03 16:37:44');
+INSERT INTO `model_llm` VALUES (75, 'OpenAI', 'gpt-4.5-preview', 'CHAT', 128000, 'LLM,CHAT,128K', 1, 1, '2025-12-03 16:37:44', '2025-12-03 16:37:44');
+INSERT INTO `model_llm` VALUES (76, 'OpenAI', 'gpt-4o', 'CHAT', 128000, 'LLM,CHAT,128K,IMAGE2TEXT', 1, 1, '2025-12-03 16:37:44', '2025-12-03 16:37:44');
+INSERT INTO `model_llm` VALUES (77, 'OpenAI', 'gpt-4o-mini', 'CHAT', 128000, 'LLM,CHAT,128K,IMAGE2TEXT', 1, 1, '2025-12-03 16:37:44', '2025-12-03 16:37:44');
+INSERT INTO `model_llm` VALUES (78, 'OpenAI', 'gpt-5', 'CHAT', 400000, 'LLM,CHAT,400k,IMAGE2TEXT', 1, 1, '2025-12-03 16:37:44', '2025-12-03 16:37:44');
+INSERT INTO `model_llm` VALUES (79, 'OpenAI', 'gpt-5-chat-latest', 'CHAT', 400000, 'LLM,CHAT,400k,IMAGE2TEXT', 0, 1, '2025-12-03 16:37:44', '2025-12-03 16:37:44');
+INSERT INTO `model_llm` VALUES (80, 'OpenAI', 'gpt-5-mini', 'CHAT', 400000, 'LLM,CHAT,400k,IMAGE2TEXT', 1, 1, '2025-12-03 16:37:44', '2025-12-03 16:37:44');
+INSERT INTO `model_llm` VALUES (81, 'OpenAI', 'gpt-5-nano', 'CHAT', 400000, 'LLM,CHAT,400k,IMAGE2TEXT', 1, 1, '2025-12-03 16:37:44', '2025-12-03 16:37:44');
+INSERT INTO `model_llm` VALUES (82, 'OpenAI', 'o3', 'CHAT', 200000, 'LLM,CHAT,200K,IMAGE2TEXT', 1, 1, '2025-12-03 16:37:44', '2025-12-03 16:37:44');
+INSERT INTO `model_llm` VALUES (83, 'OpenAI', 'o4-mini', 'CHAT', 200000, 'LLM,CHAT,200K,IMAGE2TEXT', 1, 1, '2025-12-03 16:37:44', '2025-12-03 16:37:44');
+INSERT INTO `model_llm` VALUES (84, 'OpenAI', 'o4-mini-high', 'CHAT', 200000, 'LLM,CHAT,200K,IMAGE2TEXT', 1, 1, '2025-12-03 16:37:44', '2025-12-03 16:37:44');
+INSERT INTO `model_llm` VALUES (85, 'SILICONFLOW', 'deepseek-ai/DeepSeek-R1', 'CHAT', 64000, 'LLM,CHAT,64k', 1, 1, '2025-12-03 16:37:44', '2025-12-03 16:37:44');
+INSERT INTO `model_llm` VALUES (86, 'SILICONFLOW', 'deepseek-ai/DeepSeek-R1-Distill-Qwen-14B', 'CHAT', 32000, 'LLM,CHAT,32k', 1, 1, '2025-12-03 16:37:44', '2025-12-03 16:37:44');
+INSERT INTO `model_llm` VALUES (87, 'SILICONFLOW', 'deepseek-ai/DeepSeek-R1-Distill-Qwen-32B', 'CHAT', 32000, 'LLM,CHAT,32k', 1, 1, '2025-12-03 16:37:44', '2025-12-03 16:37:44');
+INSERT INTO `model_llm` VALUES (88, 'SILICONFLOW', 'deepseek-ai/DeepSeek-R1-Distill-Qwen-7B', 'CHAT', 32000, 'LLM,CHAT,32k', 1, 1, '2025-12-03 16:37:44', '2025-12-03 16:37:44');
+INSERT INTO `model_llm` VALUES (89, 'SILICONFLOW', 'deepseek-ai/DeepSeek-V2.5', 'CHAT', 32000, 'LLM,CHAT,32k', 1, 1, '2025-12-03 16:37:44', '2025-12-03 16:37:44');
+INSERT INTO `model_llm` VALUES (90, 'SILICONFLOW', 'deepseek-ai/DeepSeek-V3', 'CHAT', 64000, 'LLM,CHAT,64k', 1, 1, '2025-12-03 16:37:44', '2025-12-03 16:37:44');
+INSERT INTO `model_llm` VALUES (91, 'SILICONFLOW', 'deepseek-ai/DeepSeek-V3.1', 'CHAT', 160000, 'LLM,CHAT,160', 1, 1, '2025-12-03 16:37:44', '2025-12-03 16:37:44');
+INSERT INTO `model_llm` VALUES (92, 'SILICONFLOW', 'internlm/internlm2_5-7b-chat', 'CHAT', 32000, 'LLM,CHAT,32k', 1, 1, '2025-12-03 16:37:44', '2025-12-03 16:37:44');
+INSERT INTO `model_llm` VALUES (93, 'SILICONFLOW', 'Pro/deepseek-ai/DeepSeek-R1', 'CHAT', 64000, 'LLM,CHAT,64k', 1, 1, '2025-12-03 16:37:44', '2025-12-03 16:37:44');
+INSERT INTO `model_llm` VALUES (94, 'SILICONFLOW', 'Pro/deepseek-ai/DeepSeek-R1-Distill-Qwen-7B', 'CHAT', 32000, 'LLM,CHAT,32k', 1, 1, '2025-12-03 16:37:44', '2025-12-03 16:37:44');
+INSERT INTO `model_llm` VALUES (95, 'SILICONFLOW', 'Pro/deepseek-ai/DeepSeek-V3', 'CHAT', 64000, 'LLM,CHAT,64k', 1, 1, '2025-12-03 16:37:44', '2025-12-03 16:37:44');
+INSERT INTO `model_llm` VALUES (96, 'SILICONFLOW', 'Pro/deepseek-ai/DeepSeek-V3.1', 'CHAT', 160000, 'LLM,CHAT,160k', 1, 1, '2025-12-03 16:37:44', '2025-12-03 16:37:44');
+INSERT INTO `model_llm` VALUES (97, 'SILICONFLOW', 'Pro/Qwen/Qwen2-7B-Instruct', 'CHAT', 32000, 'LLM,CHAT,32k', 0, 1, '2025-12-03 16:37:44', '2025-12-03 16:37:44');
+INSERT INTO `model_llm` VALUES (98, 'SILICONFLOW', 'Pro/Qwen/Qwen2.5-7B-Instruct', 'CHAT', 32000, 'LLM,CHAT,32k', 1, 1, '2025-12-03 16:37:44', '2025-12-03 16:37:44');
+INSERT INTO `model_llm` VALUES (99, 'SILICONFLOW', 'Pro/Qwen/Qwen2.5-Coder-7B-Instruct', 'CHAT', 32000, 'LLM,CHAT,32k', 0, 1, '2025-12-03 16:37:44', '2025-12-03 16:37:44');
+INSERT INTO `model_llm` VALUES (100, 'SILICONFLOW', 'Pro/THUDM/glm-4-9b-chat', 'CHAT', 128000, 'LLM,CHAT,128k', 0, 1, '2025-12-03 16:37:44', '2025-12-03 16:37:44');
+INSERT INTO `model_llm` VALUES (101, 'SILICONFLOW', 'Qwen/Qwen2-7B-Instruct', 'CHAT', 32000, 'LLM,CHAT,32k', 1, 1, '2025-12-03 16:37:44', '2025-12-03 16:37:44');
+INSERT INTO `model_llm` VALUES (102, 'SILICONFLOW', 'Qwen/Qwen2.5-14B-Instruct', 'CHAT', 32000, 'LLM,CHAT,32k', 1, 1, '2025-12-03 16:37:44', '2025-12-03 16:37:44');
+INSERT INTO `model_llm` VALUES (103, 'SILICONFLOW', 'Qwen/Qwen2.5-32B-Instruct', 'CHAT', 32000, 'LLM,CHAT,32k', 1, 1, '2025-12-03 16:37:44', '2025-12-03 16:37:44');
+INSERT INTO `model_llm` VALUES (104, 'SILICONFLOW', 'Qwen/Qwen2.5-72B-Instruct', 'CHAT', 32000, 'LLM,CHAT,32k', 1, 1, '2025-12-03 16:37:44', '2025-12-03 16:37:44');
+INSERT INTO `model_llm` VALUES (105, 'SILICONFLOW', 'Qwen/Qwen2.5-7B-Instruct', 'CHAT', 32000, 'LLM,CHAT,32k', 1, 1, '2025-12-03 16:37:44', '2025-12-03 16:37:44');
+INSERT INTO `model_llm` VALUES (106, 'SILICONFLOW', 'Qwen/Qwen2.5-Coder-32B-Instruct', 'CHAT', 32000, 'LLM,CHAT,32k', 0, 1, '2025-12-03 16:37:44', '2025-12-03 16:37:44');
+INSERT INTO `model_llm` VALUES (107, 'SILICONFLOW', 'Qwen/Qwen2.5-Coder-7B-Instruct', 'CHAT', 32000, 'LLM,CHAT,32k', 1, 1, '2025-12-03 16:37:44', '2025-12-03 16:37:44');
+INSERT INTO `model_llm` VALUES (108, 'SILICONFLOW', 'Qwen/Qwen3-14B', 'CHAT', 128000, 'LLM,CHAT,128k', 1, 1, '2025-12-03 16:37:44', '2025-12-03 16:37:44');
+INSERT INTO `model_llm` VALUES (109, 'SILICONFLOW', 'Qwen/Qwen3-235B-A22B', 'CHAT', 128000, 'LLM,CHAT,128k', 1, 1, '2025-12-03 16:37:44', '2025-12-03 16:37:44');
+INSERT INTO `model_llm` VALUES (110, 'SILICONFLOW', 'Qwen/Qwen3-30B-A3B', 'CHAT', 128000, 'LLM,CHAT,128k', 1, 1, '2025-12-03 16:37:44', '2025-12-03 16:37:44');
+INSERT INTO `model_llm` VALUES (111, 'SILICONFLOW', 'Qwen/Qwen3-32B', 'CHAT', 128000, 'LLM,CHAT,128k', 1, 1, '2025-12-03 16:37:44', '2025-12-03 16:37:44');
+INSERT INTO `model_llm` VALUES (112, 'SILICONFLOW', 'Qwen/Qwen3-8B', 'CHAT', 64000, 'LLM,CHAT,64k', 1, 1, '2025-12-03 16:37:44', '2025-12-03 16:37:44');
+INSERT INTO `model_llm` VALUES (113, 'DeepSeek', 'deepseek-chat', 'CHAT', 8191, 'LLM,CHAT', 1, 1, '2025-12-05 17:25:47', '2025-12-05 17:25:50');
+INSERT INTO `model_llm` VALUES (114, 'DeepSeek', 'deepseek-reasoner', 'CHAT', 64000, 'LLM,CHAT', 1, 1, '2025-12-05 17:26:44', '2025-12-05 17:26:47');
+INSERT INTO `model_llm` VALUES (115, 'ALiBaiLian', 'qwen3-max-preview', 'CHAT', 64000, 'LLM,CHAT,128k', 1, 1, '2025-12-08 09:14:14', '2025-12-08 13:59:28');
 
 -- ----------------------------
 -- Table structure for sys_user

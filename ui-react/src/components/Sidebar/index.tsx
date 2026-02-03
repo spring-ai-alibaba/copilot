@@ -5,6 +5,8 @@ import {db} from "../../utils/indexDB"
 import {eventEmitter} from "../AiChat/utils/EventEmitter"
 import useUserStore from "../../stores/userSlice"
 import {useTranslation} from "react-i18next"
+import {ConversationList} from "../ConversationList"
+import {useConversationStore} from "../../stores/conversationSlice"
 
 interface SidebarProps {
   isOpen: boolean
@@ -250,76 +252,93 @@ export function Sidebar({
           </h1>
         </div>
 
-        {/* New Chat Button */}
-        <button
-          onClick={() => {
-            console.log("New chat button clicked, emitting chat:select with empty string");
-            eventEmitter.emit("chat:select", "");
-          }}
-          className="mx-3 my-2 p-2 flex items-center gap-2 text-purple-600 dark:text-blue-400 hover:bg-gray-100 dark:hover:bg-white/5 rounded-lg transition-colors text-[14px]"
-        >
-          <svg
-            className="w-[16px] h-[16px]"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M12 4v16m8-8H4"
-            />
-          </svg>
-          <span className="translate">{t("sidebar.start_new_chat")}</span>
-        </button>
-
-        {/* Search */}
-        <div className="px-3 py-2">
-          <input
-            type="text"
-            placeholder={t("sidebar.search")}
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full bg-gray-100 dark:bg-[#2C2C2C] text-gray-900 dark:text-white rounded-lg px-3 py-1.5 outline-none text-[14px] border border-gray-200 dark:border-gray-700"
-          />
-        </div>
-
-        {/* Chat History */}
-        <div className="flex-1 px-2 mt-1 overflow-y-auto">
-          {filteredHistory.map((chat) => (
-            <div
-              key={chat.uuid}
-              onClick={() => eventEmitter.emit("chat:select", chat.uuid)}
-              className="group flex items-center w-full text-left px-2 py-1.5 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/5 rounded text-[14px] cursor-pointer"
+        {/* 未登录时显示新建聊天按钮和搜索框 */}
+        {!isAuthenticated && (
+          <>
+            {/* New Chat Button */}
+            <button
+              onClick={() => {
+                console.log("New chat button clicked, emitting chat:select with empty string");
+                eventEmitter.emit("chat:select", "");
+              }}
+              className="mx-3 my-2 p-2 flex items-center gap-2 text-purple-600 dark:text-blue-400 hover:bg-gray-100 dark:hover:bg-white/5 rounded-lg transition-colors text-[14px]"
             >
-              <span className="flex-1 truncate">
-                {chat.title || "New Chat"}
-              </span>
-              <button
-                onClick={(e) => {
-                  e.stopPropagation()
-                  deleteChat(chat.uuid, e)
-                }}
-                className="hidden text-gray-500 group-hover:block dark:text-gray-400 hover:text-gray-700 dark:hover:text-white"
+              <svg
+                className="w-[16px] h-[16px]"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
               >
-                <svg
-                  className="w-4 h-4"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                  />
-                </svg>
-              </button>
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M12 4v16m8-8H4"
+                />
+              </svg>
+              <span className="translate">{t("sidebar.start_new_chat")}</span>
+            </button>
+
+            {/* Search */}
+            <div className="px-3 py-2">
+              <input
+                type="text"
+                placeholder={t("sidebar.search")}
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full bg-gray-100 dark:bg-[#2C2C2C] text-gray-900 dark:text-white rounded-lg px-3 py-1.5 outline-none text-[14px] border border-gray-200 dark:border-gray-700"
+              />
             </div>
-          ))}
-        </div>
+          </>
+        )}
+
+        {/* Conversation List - 使用新的会话列表组件 */}
+        {isAuthenticated ? (
+          <ConversationList
+            onSelectConversation={(conversationId) => {
+              // 切换会话时，清空旧的聊天状态
+              if (!conversationId) {
+                eventEmitter.emit("chat:select", "");
+              }
+            }}
+          />
+        ) : (
+          /* 未登录时显示旧的聊天历史 */
+          <div className="flex-1 px-2 mt-1 overflow-y-auto">
+            {filteredHistory.map((chat) => (
+              <div
+                key={chat.uuid}
+                onClick={() => eventEmitter.emit("chat:select", chat.uuid)}
+                className="group flex items-center w-full text-left px-2 py-1.5 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/5 rounded text-[14px] cursor-pointer"
+              >
+                <span className="flex-1 truncate">
+                  {chat.title || "New Chat"}
+                </span>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    deleteChat(chat.uuid, e)
+                  }}
+                  className="hidden text-gray-500 group-hover:block dark:text-gray-400 hover:text-gray-700 dark:hover:text-white"
+                >
+                  <svg
+                    className="w-4 h-4"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                    />
+                  </svg>
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
 
         {/* Bottom Section */}
         <div className="mt-auto border-t border-gray-200 dark:border-[#333333]">

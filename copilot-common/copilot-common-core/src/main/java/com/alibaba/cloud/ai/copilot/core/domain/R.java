@@ -35,6 +35,21 @@ public class R<T> implements Serializable {
 
     private T data;
 
+    /**
+     * 是否成功 - 用于前端判断
+     * 当 code == 200 时返回 true
+     */
+    public boolean isSuccess() {
+        return this.code == SUCCESS;
+    }
+
+    /**
+     * 兼容前端 success 字段 - JSON 序列化时会输出 "success": true/false
+     */
+    public boolean getSuccess() {
+        return this.code == SUCCESS;
+    }
+
     public static <T> R<T> ok() {
         return restResult(null, SUCCESS, "操作成功");
     }

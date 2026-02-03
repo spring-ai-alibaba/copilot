@@ -84,9 +84,9 @@ spring.data:
     # 端口，默认为6379
     port: 6379
     # 数据库索引
-    database: 2
+    database: 0
     # 密码(如没有密码请注释掉)
-#    password: 123456
+#    password:
     # 连接超时时间
     timeout: 10S
 
@@ -176,6 +176,8 @@ security:
     - /**/*.html
     - /**/*.css
     - /**/*.js
+    # MCP 相关接口（可选：如需公开访问可添加）
+    # - /api/mcp/**
 
 # ===================================================================
 # 数据加密配置
@@ -269,6 +271,25 @@ app:
       - format
       - fdisk
       - mkfs
+  # 会话配置
+  conversation:
+    # 消息压缩配置
+    summarization:
+      # 超过多少 tokens 时触发压缩（默认：4000）
+      max-tokens-before-summary: 4000
+      # 压缩后保留最近多少条消息（默认：20）
+      messages-to-keep: 20
+
+  # MCP 配置
+  mcp:
+    # 客户端配置
+    client:
+      # 请求超时时间（秒）
+      request-timeout: 30
+      # 连接超时时间（秒）
+      connection-timeout: 10
+      # 最大重试次数
+      max-retries: 3
 
 
 

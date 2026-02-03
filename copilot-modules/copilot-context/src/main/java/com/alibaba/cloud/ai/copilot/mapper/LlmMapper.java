@@ -16,12 +16,12 @@ public interface LlmMapper extends BaseMapper<LlmEntity> {
     /**
      * 根据厂商ID查询该厂商下的所有模型
      */
-    @Select("SELECT * FROM llm WHERE fid = #{fid} ORDER BY id ASC")
+    @Select("SELECT * FROM model_llm WHERE fid = #{fid} ORDER BY id ASC")
     List<LlmEntity> selectByFactoryId(String fid);
 
     /**
      * 根据厂商ID查询启用状态的模型
      */
-    @Select("SELECT * FROM llm WHERE fid = #{fid} AND status = '1' ORDER BY id ASC")
+    @Select("SELECT * FROM model_llm WHERE fid = #{fid} AND status = '1' ORDER BY id ASC")
     List<LlmEntity> selectEnabledByFactoryId(String fid);
 }

@@ -20,6 +20,7 @@ public class AppProperties {
     private Workspace workspace = new Workspace();
     private Security security = new Security();
     private Tools tools = new Tools();
+    private Conversation conversation = new Conversation();
 
 
     /**
@@ -101,6 +102,55 @@ public class AppProperties {
 
         public boolean isEnabled() { return enabled; }
         public void setEnabled(boolean enabled) { this.enabled = enabled; }
+    }
+
+    /**
+     * 会话配置
+     */
+    public static class Conversation {
+        /**
+         * 消息压缩配置
+         */
+        private Summarization summarization = new Summarization();
+
+        public Summarization getSummarization() {
+            return summarization;
+        }
+
+        public void setSummarization(Summarization summarization) {
+            this.summarization = summarization;
+        }
+
+        /**
+         * 消息压缩配置
+         */
+        public static class Summarization {
+            /**
+             * 超过多少 tokens 时触发压缩（默认：4000）
+             */
+            private int maxTokensBeforeSummary = 4000;
+
+            /**
+             * 压缩后保留最近多少条消息（默认：20）
+             */
+            private int messagesToKeep = 20;
+
+            public int getMaxTokensBeforeSummary() {
+                return maxTokensBeforeSummary;
+            }
+
+            public void setMaxTokensBeforeSummary(int maxTokensBeforeSummary) {
+                this.maxTokensBeforeSummary = maxTokensBeforeSummary;
+            }
+
+            public int getMessagesToKeep() {
+                return messagesToKeep;
+            }
+
+            public void setMessagesToKeep(int messagesToKeep) {
+                this.messagesToKeep = messagesToKeep;
+            }
+        }
     }
 
     /**

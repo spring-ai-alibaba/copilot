@@ -1,4 +1,5 @@
 export interface MCPServer {
+    id?: number  // 数据库 ID（用于发送到后端）
     name: string
     description?: string
     baseUrl?: string
@@ -27,7 +28,7 @@ export interface MCPTool {
 /**
  * MCP 工具类型
  */
-export type MCPToolType = 'LOCAL' | 'REMOTE'
+export type MCPToolType = 'LOCAL' | 'REMOTE' | 'BUILTIN'
 
 /**
  * MCP 工具状态
