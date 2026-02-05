@@ -5,10 +5,40 @@
  */
 
 import React from 'react';
-import { SSEMessageParser, OperationCallbackData, FileOperationData, CommandOperationData } from './sseMessageParser';
+import { SSEMessageParser, OperationCallbackData, FileOperationData, CommandOperationData, SSEEventType } from './sseMessageParser';
 import { SSEConnectionManager, SSEConnectionStatus } from './sseConnectionManager';
 import { createFileWithContent } from '../WeIde/components/IDEContent/FileExplorer/utils/fileSystem';
+import {useFileStore} from '../WeIde/stores/fileStore';
 import useTerminalStore from '@/stores/terminalSlice';
+import { eventEmitter } from './utils/EventEmitter';
+import useUserStore from '@/stores/userSlice';
+import { Message } from "ai/react";
+
+// 路径处理工具函数
+function extractFilePath(fullPath: string): string {
+  const user = useUserStore.getState().user;
+  if (!user || !user.userType || !user.id) {
+    console.warn('[SSE] 用户信息不完整，无法处理路径:', fullPath);
+    return fullPath;
+  }
+
+  // 构建workspace前缀: workspace/{userType}_{userId}/
+  const workspacePrefix = `workspace/${user.userType}_${user.id}/`;
+
+  // 如果路径以workspace前缀开头，去掉前缀
+  if (fullPath.startsWith(workspacePrefix)) {
+    return fullPath.substring(workspacePrefix.length);
+  }
+
+  // 如果路径以workspace/开头但不是当前用户的workspace，直接返回原路径
+  if (fullPath.startsWith('workspace/')) {
+    console.warn('[SSE] 路径不属于当前用户workspace:', fullPath);
+    return fullPath;
+  }
+
+  // 如果没有workspace前缀，直接返回
+  return fullPath;
+}
 
 // 命令队列（复用现有实现）
 class Queue {
@@ -59,23 +89,43 @@ const sseMessageParser = new SSEMessageParser({
     // 文件添加操作
     onAddStart: async (data: OperationCallbackData) => {
       const fileData = data.data as FileOperationData;
-      console.log('[SSE] 开始添加文件:', fileData.filePath);
+      const processedPath = extractFilePath(fileData.filePath);
+      console.log('[SSE] 开始添加文件:', fileData.filePath, '->', processedPath);
+
+      // 创建空文件
+      await createFileWithContent(processedPath, '', true);
+
+      // 选中文件展示到预览区域
+      const { setSelectedPath } = useFileStore.getState();
+      setSelectedPath(processedPath);
     },
 
     onAddProgress: async (data: OperationCallbackData) => {
       const fileData = data.data as FileOperationData;
-      console.log('[SSE] 文件添加进度:', fileData.filePath, fileData.content?.length);
-      // 可以在这里实现进度更新逻辑
+      const processedPath = extractFilePath(fileData.filePath);
+      console.log('[SSE] 文件添加进度:', fileData.filePath, '->', processedPath, fileData.content?.length);
+
+      // 获取当前文件内容并追加新内容
+      const currentContent = useFileStore.getState().files[processedPath] || '';
+      const newContent = currentContent + (fileData.content || '');
+
+      // 更新文件内容
+      await useFileStore.getState().updateContent(processedPath, newContent, false, true);
+
+      // 选中文件展示到预览区域
+      const { setSelectedPath } = useFileStore.getState();
+      setSelectedPath(processedPath);
     },
 
     onAddEnd: async (data: OperationCallbackData) => {
       const fileData = data.data as FileOperationData;
-      console.log('[SSE] 完成添加文件:', fileData.filePath);
-      
+      const processedPath = extractFilePath(fileData.filePath);
+      console.log('[SSE] 完成添加文件:', fileData.filePath, '->', processedPath);
+
       if (fileData.content !== undefined) {
         try {
           await createFileWithContent(
-            fileData.filePath,
+            processedPath,
             fileData.content,
             true // 自动创建目录
           );
@@ -88,23 +138,44 @@ const sseMessageParser = new SSEMessageParser({
     // 文件编辑操作
     onEditStart: async (data: OperationCallbackData) => {
       const fileData = data.data as FileOperationData;
-      console.log('[SSE] 开始编辑文件:', fileData.filePath);
+      const processedPath = extractFilePath(fileData.filePath);
+      console.log('[SSE] 开始编辑文件:', fileData.filePath, '->', processedPath);
+
+      // 删除现有文件并创建空文件
+      await useFileStore.getState().deleteFile(processedPath);
+      await createFileWithContent(processedPath, '', false);
+
+      // 选中文件展示到预览区域
+      const { setSelectedPath } = useFileStore.getState();
+      setSelectedPath(processedPath);
     },
 
     onEditProgress: async (data: OperationCallbackData) => {
       const fileData = data.data as FileOperationData;
-      console.log('[SSE] 文件编辑进度:', fileData.filePath);
-      // 可以在这里实现实时编辑预览
+      const processedPath = extractFilePath(fileData.filePath);
+      console.log('[SSE] 文件编辑进度:', fileData.filePath, '->', processedPath);
+
+      // 获取当前文件内容并追加新内容
+      const currentContent = useFileStore.getState().files[processedPath] || '';
+      const newContent = currentContent + (fileData.content || '');
+
+      // 更新文件内容
+      await useFileStore.getState().updateContent(processedPath, newContent, false, true);
+
+      // 选中文件展示到预览区域
+      const { setSelectedPath } = useFileStore.getState();
+      setSelectedPath(processedPath);
     },
 
     onEditEnd: async (data: OperationCallbackData) => {
       const fileData = data.data as FileOperationData;
-      console.log('[SSE] 完成编辑文件:', fileData.filePath);
-      
+      const processedPath = extractFilePath(fileData.filePath);
+      console.log('[SSE] 完成编辑文件:', fileData.filePath, '->', processedPath);
+
       if (fileData.content !== undefined) {
         try {
           await createFileWithContent(
-            fileData.filePath,
+            processedPath,
             fileData.content,
             false // 编辑时不需要创建目录
           );
@@ -139,11 +210,25 @@ const sseMessageParser = new SSEMessageParser({
       }
     },
 
+    // 列表操作
+    // onListProgress: async (data: OperationCallbackData) => {
+    //   const listData = data.data as FileOperationData;
+    //   console.log('[SSE] 列表进度:', listData.filePath, listData.content?.length);
+
+    //   // 发送事件更新列表进度状态
+    //   eventEmitter.emit('list-progress-update', {
+    //     operationId: data.operationId,
+    //     filePath: listData.filePath,
+    //     content: listData.content,
+    //     isLoading: true
+    //   });
+    // },
+
     // 命令执行
     onCmd: async (data: OperationCallbackData) => {
       const cmdData = data.data as CommandOperationData;
       console.log('[SSE] 执行命令:', cmdData.command);
-      
+
       if (cmdData.command) {
         queue.push(cmdData.command);
       }
@@ -368,5 +453,36 @@ export const useSSEConnection = (
     disconnect: () => connectionManager?.close(),
     isConnected: () => connectionManager?.isConnected() ?? false,
   };
+};
+
+/**
+ * 解析消息数组（兼容原有接口）
+ * 如果消息内容包含 JSON 格式的 SSE 消息，则解析
+ * 否则保持原有逻辑（用于向后兼容）
+ */
+export const parseMessages = async (messages: Message[]) => {
+  console.log('[SSE] 解析消息数组:', messages);
+  for (let i = 0; i < messages.length; i++) {
+    const message = messages[i];
+    if (message.role === "assistant" && message.content) {
+      try {
+        console.log('[SSE] 解析消息内容:', message.content);
+        // 尝试解析为 JSON 格式的 SSE 消息
+        const jsonMessage = JSON.parse(message.content);
+        console.log('[SSE] 解析后的JSON消息:', jsonMessage);
+        if (jsonMessage.event && jsonMessage.data) {
+          // 这是 SSE 格式的消息
+          sseMessageParser.parse(message.id, jsonMessage);
+        } else {
+          // 不是 SSE 格式，可能是其他格式，跳过
+          console.warn('[SSE] 消息格式不匹配，跳过:', message.id);
+        }
+      } catch (e) {
+        // 不是 JSON 格式，可能是文本内容，跳过
+        // 保持向后兼容，不抛出错误
+        console.debug('[SSE] 消息不是 JSON 格式，跳过解析:', message.id);
+      }
+    }
+  }
 };
 
