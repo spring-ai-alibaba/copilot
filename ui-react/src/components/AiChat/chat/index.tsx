@@ -2,6 +2,7 @@ import {useEffect, useMemo, useRef, useState, useCallback} from "react";
 import {Message, useChat} from "ai/react";
 import {toast} from "react-toastify";
 import {uploadImage} from "@/api/chat";
+import { useMemoryStore } from "@/stores/memorySlice";
 import useChatStore from "../../../stores/chatSlice";
 import {useFileStore} from "../../WeIde/stores/fileStore";
 import {db} from "../../../utils/indexDB";
@@ -501,12 +502,15 @@ export const BaseChat = ({uuid: propUuid}: { uuid?: string }) => {
                     }));
 
                 // 修改请求体格式：用message替换messages数组
+                const memoryFlags = useMemoryStore.getState();
                 const modifiedBody = {
                     ...requestBody,
                     message: latestMessage, // 单个消息对象
                     modelConfigId: (baseModal as any).modelConfigId, // 添加必需的modelConfigId参数
                     conversationId: currentConversationId || undefined, // 添加会话ID
                     tools: toolsForBackend, // 添加启用的 MCP 工具
+                    enablePreferences: memoryFlags.enablePreferencesInChat,
+                    enablePreferenceLearning: memoryFlags.enablePreferenceLearningInChat,
                 };
                 delete modifiedBody.messages; // 删除原来的messages数组
 

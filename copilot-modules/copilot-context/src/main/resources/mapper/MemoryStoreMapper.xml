@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.alibaba.cloud.ai.copilot.mapper.MemoryStoreMapper">
+
+    <!-- 统一结果映射：确保 JSON 字段 value 使用 JacksonTypeHandler 正确映射为 Map -->
+    <resultMap id="BaseResultMap" type="com.alibaba.cloud.ai.copilot.domain.entity.MemoryStoreEntity">
+        <id column="id" property="id"/>
+        <result column="namespace" property="namespace"/>
+        <result column="key" property="key"/>
+        <result column="value" property="value"
+                typeHandler="com.baomidou.mybatisplus.extension.handlers.JacksonTypeHandler"/>
+        <result column="user_id" property="userId"/>
+        <result column="created_time" property="createdTime"/>
+        <result column="updated_time" property="updatedTime"/>
+    </resultMap>
+
+    <!-- 根据命名空间和键查询 -->
+    <select id="selectByNamespaceAndKey" resultMap="BaseResultMap">
+        SELECT * FROM chat_memory_store
+        WHERE namespace = #{namespace} AND `key` = #{key}
+        LIMIT 1
+    </select>
+
+    <!-- 根据命名空间查询所有记录 -->
+    <select id="selectByNamespace" resultMap="BaseResultMap">
+        SELECT * FROM chat_memory_store
+        WHERE namespace = #{namespace}
+        ORDER BY updated_time DESC
+    </select>
+
+    <!-- 根据用户ID查询 -->
+    <select id="selectByUserId" resultMap="BaseResultMap">
+        SELECT * FROM chat_memory_store
+        WHERE user_id = #{userId}
+        ORDER BY updated_time DESC
+    </select>
+
+    <!-- 搜索（基于 JSON 字段） -->
+    <!-- 注意：这是一个简化实现，MySQL 8.0+ 支持 JSON 查询 -->
+    <select id="searchByFilter" resultMap="BaseResultMap">
+        SELECT * FROM chat_memory_store
+        WHERE namespace = #{namespace}
+        <if test="filter != null and filter.size() > 0">
+            <foreach collection="filter.entrySet()" item="entry" open="AND (" separator=" AND " close=")">
+                JSON_EXTRACT(value, CONCAT('$.', #{entry.key})) = #{entry.value}
+            </foreach>
+        </if>
+        ORDER BY updated_time DESC
+    </select>
+
+</mapper>

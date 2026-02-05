@@ -27,6 +27,18 @@ public interface ChatMessageMapper extends BaseMapper<ChatMessageEntity> {
     List<ChatMessageEntity> selectByConversationId(@Param("conversationId") String conversationId);
 
     /**
+     * 根据会话ID查询历史消息（仅返回 user 和 assistant 角色，过滤空内容，按创建时间升序）
+     *
+     * @param conversationId 会话ID
+     * @return 消息列表
+     */
+    @Select("SELECT * FROM chat_message WHERE conversation_id = #{conversationId} " +
+            "AND role IN ('user', 'assistant') " +
+            "AND content IS NOT NULL AND TRIM(content) != '' " +
+            "ORDER BY created_time ASC")
+    List<ChatMessageEntity> selectByConversationIdForDisplay(@Param("conversationId") String conversationId);
+
+    /**
      * 根据会话ID分页查询历史消息（按创建时间倒序，返回最新的消息）
      *
      * @param conversationId 会话ID

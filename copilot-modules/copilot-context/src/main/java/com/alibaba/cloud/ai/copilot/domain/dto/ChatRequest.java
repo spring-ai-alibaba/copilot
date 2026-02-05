@@ -23,6 +23,16 @@ public class ChatRequest {
      */
     private String conversationId;
 
+    /**
+     * 是否在会话中使用偏好（默认true）
+     */
+    private Boolean enablePreferences;
+
+    /**
+     * 是否允许学习偏好（默认true）
+     */
+    private Boolean enablePreferenceLearning;
+
     private PromptExtra otherConfig;
     
     private List<ToolInfo> tools;

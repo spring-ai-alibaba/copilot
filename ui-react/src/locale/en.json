@@ -118,6 +118,7 @@
     "themeModeLight": "Light Mode",
     "themeModeDark": "Dark Mode",
     "MCPServer": "MCP Server",
+    "Memory": "Long-term Memory",
     "InvalidProxyUrl": "Invalid proxy URL",
     "mcp": {
       "actions": "Actions",
@@ -375,6 +376,76 @@
         "username": "Database Username",
         "password": "Database Password"
       }
+    }
+  },
+  "memory": {
+    "chat": {
+      "usePreferences": "Use preferences",
+      "usePreferencesHint": "Use preferences in this chat. When enabled, active preferences are injected into the system prompt."
+    },
+    "tabs": {
+      "profile": "Profile",
+      "preferences": "Preferences",
+      "list": "Memories",
+      "search": "Search"
+    },
+    "sections": {
+      "profile": "User Profile",
+      "session": "Session Controls"
+    },
+    "fields": {
+      "name": "Name",
+      "language": "Language",
+      "enablePreferenceLearning": "Preference learning (user-level)",
+      "enablePreferencesInChat": "Use preferences in this chat",
+      "enablePreferenceLearningInChat": "Learn preferences in this chat",
+      "category": "Category",
+      "value": "Value",
+      "context": "Context",
+      "enabled": "Enabled",
+      "namespace": "Namespace (JSON array)",
+      "filter": "Filter (JSON)"
+    },
+    "placeholders": {
+      "name": "Enter name (optional)",
+      "preferenceValue": "e.g. Java / concise answers / Spring Boot",
+      "context": "Optional: store user's original wording"
+    },
+    "hints": {
+      "enablePreferenceLearning": "Allow the system to learn preferences from conversations (global)",
+      "enablePreferencesInChat": "If off, enabled preferences won't be injected into system prompt for this chat",
+      "enablePreferenceLearningInChat": "If off, no new preferences will be learned in this chat",
+      "enabledPreferencesCount": "Enabled preferences: {{count}}"
+    },
+    "actions": {
+      "addPreference": "Add preference",
+      "refresh": "Refresh",
+      "search": "Search"
+    },
+    "columns": {
+      "enabled": "Enabled",
+      "category": "Category",
+      "value": "Value",
+      "confidence": "Confidence",
+      "source": "Source",
+      "actions": "Actions",
+      "key": "Key",
+      "namespace": "Namespace"
+    },
+    "confirm": {
+      "deletePreferenceTitle": "Delete this preference?",
+      "deleteMemoryTitle": "Delete this memory?"
+    },
+    "messages": {
+      "loginRequired": "Please login to manage long-term memory.",
+      "saved": "Saved",
+      "saveFailed": "Save failed",
+      "loadFailed": "Load failed",
+      "searchFailed": "Search failed",
+      "preferenceValueRequired": "Preference value is required",
+      "preferenceAdded": "Preference added",
+      "preferenceDeleted": "Preference deleted",
+      "memoryDeleted": "Memory deleted"
     }
   },
   "preview": {

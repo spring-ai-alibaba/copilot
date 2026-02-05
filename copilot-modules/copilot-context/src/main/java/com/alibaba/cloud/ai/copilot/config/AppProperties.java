@@ -21,6 +21,7 @@ public class AppProperties {
     private Security security = new Security();
     private Tools tools = new Tools();
     private Conversation conversation = new Conversation();
+    private Memory memory = new Memory();
 
 
     /**
@@ -160,5 +161,153 @@ public class AppProperties {
         DEFAULT,    // 默认模式，危险操作需要确认
         AUTO_EDIT,  // 自动编辑模式，文件编辑不需要确认
         YOLO        // 完全自动模式，所有操作都不需要确认
+    }
+
+    /**
+     * 长期记忆配置
+     */
+    public static class Memory {
+        /**
+         * 是否启用长期记忆功能
+         */
+        private boolean enabled = true;
+
+        /**
+         * 是否启用偏好学习（全局开关）
+         */
+        private boolean preferenceLearningEnabled = true;
+
+        /**
+         * 学习模式：agent_active, post_process, hybrid
+         */
+        private String learningMode = "hybrid";
+
+        /**
+         * 最小置信度阈值
+         */
+        private double minConfidence = 0.7;
+
+        /**
+         * 是否启用后处理分析
+         */
+        private boolean postProcessAnalysis = false;
+
+        /**
+         * 后处理分析的对话长度阈值（超过此长度才分析）
+         */
+        private int analysisThreshold = 10;
+
+        /**
+         * 去重配置
+         */
+        private Deduplication deduplication = new Deduplication();
+
+        public boolean isEnabled() {
+            return enabled;
+        }
+
+        public void setEnabled(boolean enabled) {
+            this.enabled = enabled;
+        }
+
+        public boolean isPreferenceLearningEnabled() {
+            return preferenceLearningEnabled;
+        }
+
+        public void setPreferenceLearningEnabled(boolean preferenceLearningEnabled) {
+            this.preferenceLearningEnabled = preferenceLearningEnabled;
+        }
+
+        public String getLearningMode() {
+            return learningMode;
+        }
+
+        public void setLearningMode(String learningMode) {
+            this.learningMode = learningMode;
+        }
+
+        public double getMinConfidence() {
+            return minConfidence;
+        }
+
+        public void setMinConfidence(double minConfidence) {
+            this.minConfidence = minConfidence;
+        }
+
+        public boolean isPostProcessAnalysis() {
+            return postProcessAnalysis;
+        }
+
+        public void setPostProcessAnalysis(boolean postProcessAnalysis) {
+            this.postProcessAnalysis = postProcessAnalysis;
+        }
+
+        public int getAnalysisThreshold() {
+            return analysisThreshold;
+        }
+
+        public void setAnalysisThreshold(int analysisThreshold) {
+            this.analysisThreshold = analysisThreshold;
+        }
+
+        public Deduplication getDeduplication() {
+            return deduplication;
+        }
+
+        public void setDeduplication(Deduplication deduplication) {
+            this.deduplication = deduplication;
+        }
+
+        /**
+         * 去重配置
+         */
+        public static class Deduplication {
+            /**
+             * 相似度阈值（超过此值认为是重复）
+             */
+            private double similarityThreshold = 0.8;
+
+            /**
+             * 是否启用同义词匹配
+             */
+            private boolean enableSynonymMatching = true;
+
+            /**
+             * 是否启用语义相似度（需要向量数据库）
+             */
+            private boolean enableSemanticSimilarity = false;
+
+            public double getSimilarityThreshold() {
+                return similarityThreshold;
+            }
+
+            public void setSimilarityThreshold(double similarityThreshold) {
+                this.similarityThreshold = similarityThreshold;
+            }
+
+            public boolean isEnableSynonymMatching() {
+                return enableSynonymMatching;
+            }
+
+            public void setEnableSynonymMatching(boolean enableSynonymMatching) {
+                this.enableSynonymMatching = enableSynonymMatching;
+            }
+
+            public boolean isEnableSemanticSimilarity() {
+                return enableSemanticSimilarity;
+            }
+
+            public void setEnableSemanticSimilarity(boolean enableSemanticSimilarity) {
+                this.enableSemanticSimilarity = enableSemanticSimilarity;
+            }
+        }
+    }
+
+    public Memory getMemory() {
+        return memory;
+    }
+
+    public void setMemory(Memory memory) {
+        this.memory = memory;
     }
 }
