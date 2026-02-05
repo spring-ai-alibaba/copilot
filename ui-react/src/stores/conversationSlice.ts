@@ -45,9 +45,9 @@ export const useConversationStore = create<ConversationState>((set, get) => ({
       set({
         conversations: result.records,
         pagination: {
-          page: result.current,
-          size: result.size,
-          total: result.total,
+          page: Number(result.current) || page,
+          size: Number(result.size) || size,
+          total: Number(result.total) || 0,
         },
         loading: false,
       });

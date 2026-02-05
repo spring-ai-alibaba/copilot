@@ -108,12 +108,12 @@ export const ConversationList: React.FC<ConversationListProps> = ({
   );
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full min-h-0">
       {/* 新建会话按钮 */}
       <button
         onClick={handleCreateConversation}
         disabled={isCreating}
-        className="mx-3 my-2 p-2 flex items-center gap-2 text-purple-600 dark:text-blue-400 hover:bg-gray-100 dark:hover:bg-white/5 rounded-lg transition-colors text-[14px] disabled:opacity-50 disabled:cursor-not-allowed"
+        className="mx-3 my-2 p-2 flex items-center gap-2 text-purple-600 dark:text-blue-400 hover:bg-gray-100 dark:hover:bg-white/5 rounded-lg transition-colors text-[14px] disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0"
       >
         <svg
           className="w-[16px] h-[16px]"
@@ -134,7 +134,7 @@ export const ConversationList: React.FC<ConversationListProps> = ({
       </button>
 
       {/* 搜索框 */}
-      <div className="px-3 py-2">
+      <div className="px-3 py-2 flex-shrink-0">
         <input
           type="text"
           placeholder={t("sidebar.search") || "搜索会话..."}
@@ -145,7 +145,7 @@ export const ConversationList: React.FC<ConversationListProps> = ({
       </div>
 
       {/* 会话列表 */}
-      <div className="flex-1 px-2 mt-1 overflow-y-auto">
+      <div className="flex-1 px-2 mt-1 overflow-y-auto min-h-0">
         {loading ? (
           <div className="flex items-center justify-center py-8">
             <div className="w-6 h-6 border-2 border-purple-600 border-t-transparent rounded-full animate-spin" />

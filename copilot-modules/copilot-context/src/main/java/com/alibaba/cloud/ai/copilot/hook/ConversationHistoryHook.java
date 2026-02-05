@@ -234,23 +234,7 @@ public class ConversationHistoryHook extends MessagesModelHook {
         return fixedMessages;
     }
 
-    /**
-     * 检查 entity 的 metadata 中是否包含 tool_calls
-     */
-    private boolean hasToolCalls(ChatMessageEntity entity) {
-        if (entity.getMetadata() == null || entity.getMetadata().trim().isEmpty()) {
-            return false;
-        }
-        try {
-            Map<String, Object> metadata = objectMapper.readValue(
-                entity.getMetadata(),
-                new TypeReference<Map<String, Object>>() {}
-            );
-            return Boolean.TRUE.equals(metadata.get("hasToolCalls"));
-        } catch (Exception e) {
-            return false;
-        }
-    }
+
 
     /**
      * 转换 Assistant 消息，包括恢复 tool_calls
@@ -335,7 +319,7 @@ public class ConversationHistoryHook extends MessagesModelHook {
         try {
             Map<String, Object> metadata = objectMapper.readValue(
                 entity.getMetadata(),
-                new TypeReference<Map<String, Object>>() {}
+                new TypeReference<>() {}
             );
 
             String toolCallId = (String) metadata.get("toolCallId");
@@ -348,25 +332,14 @@ public class ConversationHistoryHook extends MessagesModelHook {
                 return null;
             }
 
-            // 使用反射创建 ToolResponseMessage.ToolResponse
-            // ToolResponse 是一个 record，构造函数接受 (String id, String name, String responseData)
-            Constructor<?> toolResponseConstructor = ToolResponseMessage.ToolResponse.class
-                .getDeclaredConstructor(String.class, String.class, String.class);
+            ToolResponseMessage.ToolResponse toolResponse = new ToolResponseMessage.ToolResponse(toolCallId, toolName, content);
+            List<ToolResponseMessage.ToolResponse> responses = List.of(toolResponse);
 
-            Object toolResponse = toolResponseConstructor.newInstance(toolCallId, toolName, content);
-            List<ToolResponseMessage.ToolResponse> responses = List.of(
-                (ToolResponseMessage.ToolResponse) toolResponse
-            );
-
-            // 使用反射创建 ToolResponseMessage
-            // ToolResponseMessage 构造函数接受 (List<ToolResponse> responses, Map<String, Object> properties)
-            Constructor<ToolResponseMessage> constructor = ToolResponseMessage.class
-                .getDeclaredConstructor(List.class, Map.class);
-            constructor.setAccessible(true);
-
-            // properties 不要塞入自定义字段（如 toolCallId/toolName），避免在 state().data() 序列化/反序列化链路中污染 metadata
-            Map<String, Object> properties = new HashMap<>();
-            ToolResponseMessage toolResponseMessage = constructor.newInstance(responses, properties);
+            // metadata 不要塞入自定义字段（如 toolCallId/toolName），避免在 state().data() 序列化/反序列化链路中污染 metadata
+            ToolResponseMessage toolResponseMessage = ToolResponseMessage.builder()
+                .responses(responses)
+                .metadata(Map.of())
+                .build();
 
             log.debug("恢复 ToolResponseMessage: toolCallId={}, toolName={}", toolCallId, toolName);
             return toolResponseMessage;

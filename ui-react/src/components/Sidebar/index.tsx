@@ -293,52 +293,54 @@ export function Sidebar({
         )}
 
         {/* Conversation List - 使用新的会话列表组件 */}
-        {isAuthenticated ? (
-          <ConversationList
-            onSelectConversation={(conversationId) => {
-              // 切换会话时，清空旧的聊天状态
-              if (!conversationId) {
-                eventEmitter.emit("chat:select", "");
-              }
-            }}
-          />
-        ) : (
-          /* 未登录时显示旧的聊天历史 */
-          <div className="flex-1 px-2 mt-1 overflow-y-auto">
-            {filteredHistory.map((chat) => (
-              <div
-                key={chat.uuid}
-                onClick={() => eventEmitter.emit("chat:select", chat.uuid)}
-                className="group flex items-center w-full text-left px-2 py-1.5 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/5 rounded text-[14px] cursor-pointer"
-              >
-                <span className="flex-1 truncate">
-                  {chat.title || "New Chat"}
-                </span>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    deleteChat(chat.uuid, e)
-                  }}
-                  className="hidden text-gray-500 group-hover:block dark:text-gray-400 hover:text-gray-700 dark:hover:text-white"
+        <div className="flex-1 overflow-hidden min-h-0">
+          {isAuthenticated ? (
+            <ConversationList
+              onSelectConversation={(conversationId) => {
+                // 切换会话时，清空旧的聊天状态
+                if (!conversationId) {
+                  eventEmitter.emit("chat:select", "");
+                }
+              }}
+            />
+          ) : (
+            /* 未登录时显示旧的聊天历史 */
+            <div className="h-full px-2 mt-1 overflow-y-auto">
+              {filteredHistory.map((chat) => (
+                <div
+                  key={chat.uuid}
+                  onClick={() => eventEmitter.emit("chat:select", chat.uuid)}
+                  className="group flex items-center w-full text-left px-2 py-1.5 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/5 rounded text-[14px] cursor-pointer"
                 >
-                  <svg
-                    className="w-4 h-4"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
+                  <span className="flex-1 truncate">
+                    {chat.title || "New Chat"}
+                  </span>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      deleteChat(chat.uuid, e)
+                    }}
+                    className="hidden text-gray-500 group-hover:block dark:text-gray-400 hover:text-gray-700 dark:hover:text-white"
                   >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                    />
-                  </svg>
-                </button>
-              </div>
-            ))}
-          </div>
-        )}
+                    <svg
+                      className="w-4 h-4"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                      />
+                    </svg>
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
 
         {/* Bottom Section */}
         <div className="mt-auto border-t border-gray-200 dark:border-[#333333]">

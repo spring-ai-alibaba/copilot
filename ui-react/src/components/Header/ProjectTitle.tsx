@@ -2,6 +2,7 @@ import React, {useEffect, useRef, useState} from "react";
 import {Sidebar} from "../Sidebar";
 import {db} from "../../utils/indexDB";
 import useUserStore from "../../stores/userSlice";
+import {useConversationStore} from "../../stores/conversationSlice";
 import {useTranslation} from "react-i18next";
 
 export function ProjectTitle() {
@@ -9,6 +10,9 @@ export function ProjectTitle() {
   const [chatCount, setChatCount] = useState(0);
   const timeoutRef = useRef<NodeJS.Timeout>();
   const { user, isAuthenticated } = useUserStore();
+  // 使用 selector 直接订阅 pagination.total，确保能正确响应变化
+  const paginationTotal = useConversationStore((state) => state.pagination.total);
+  const loadConversations = useConversationStore((state) => state.loadConversations);
   const { t } = useTranslation();
   const getInitials = (name: string) => {
     return (
@@ -23,18 +27,44 @@ export function ProjectTitle() {
 
   // 获取聊天数量
   const loadChatCount = async () => {
-    const uuids = await db.getAllUuids();
-    setChatCount(uuids.length);
+    if (isAuthenticated) {
+      // 已登录：从后端获取会话总数
+      try {
+        await loadConversations(1, 1); // 只获取第一页，主要是为了获取 total
+        // loadConversations 完成后，从 store 中读取最新的 total
+        const updatedTotal = useConversationStore.getState().pagination.total;
+        setChatCount(updatedTotal);
+      } catch (error) {
+        console.error("获取会话总数失败:", error);
+        setChatCount(0);
+      }
+    } else {
+      // 未登录：从浏览器 IndexedDB 获取
+      const uuids = await db.getAllUuids();
+      setChatCount(uuids.length);
+    }
   };
 
+  // 已登录时，监听 paginationTotal 的变化并更新 chatCount（用于响应其他地方的更新）
   useEffect(() => {
-    loadChatCount();
-    // 订阅数据库更新
-    const unsubscribe = db.subscribe(loadChatCount);
-    return () => {
-      unsubscribe();
-    };
-  }, []);
+    if (isAuthenticated && paginationTotal > 0) {
+      setChatCount(paginationTotal);
+    }
+  }, [isAuthenticated, paginationTotal]);
+
+  // 加载聊天数量
+  useEffect(() => {
+    if (isAuthenticated) {
+      loadChatCount();
+    } else {
+      // 未登录：从 IndexedDB 加载并订阅更新
+      loadChatCount();
+      const unsubscribe = db.subscribe(loadChatCount);
+      return () => {
+        unsubscribe();
+      };
+    }
+  }, [isAuthenticated]);
 
   const handleMouseEnter = () => {
     if (timeoutRef.current) {

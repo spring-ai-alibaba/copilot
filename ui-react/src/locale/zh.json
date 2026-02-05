@@ -105,6 +105,7 @@
     "themeModeLight": "明亮模式",
     "themeModeDark": "暗黑模型",
     "MCPServer": "MCP服务",
+    "Memory": "长期记忆",
     "InvalidProxyUrl": "无效的代理URL",
     "mcp": {
       "actions": "操作",
@@ -364,6 +365,76 @@
       }
     },
     "themeSystem": "跟随系统"
+  },
+  "memory": {
+    "chat": {
+      "usePreferences": "使用偏好",
+      "usePreferencesHint": "会话启用偏好（使用）：开启后会把已启用偏好注入系统提示"
+    },
+    "tabs": {
+      "profile": "用户画像",
+      "preferences": "用户偏好",
+      "list": "记忆列表",
+      "search": "记忆搜索"
+    },
+    "sections": {
+      "profile": "用户画像",
+      "session": "会话控制"
+    },
+    "fields": {
+      "name": "姓名",
+      "language": "语言",
+      "enablePreferenceLearning": "启用偏好学习（用户级）",
+      "enablePreferencesInChat": "会话启用偏好（使用）",
+      "enablePreferenceLearningInChat": "会话启用偏好学习（记录）",
+      "category": "类别",
+      "value": "值",
+      "context": "上下文",
+      "enabled": "启用",
+      "namespace": "命名空间（JSON数组）",
+      "filter": "过滤器（JSON）"
+    },
+    "placeholders": {
+      "name": "请输入姓名（可选）",
+      "preferenceValue": "例如：Java / 简洁回答 / Spring Boot",
+      "context": "可选：记录用户原话或上下文"
+    },
+    "hints": {
+      "enablePreferenceLearning": "允许系统从对话中自动学习偏好（全局开关）",
+      "enablePreferencesInChat": "关闭后，本次会话不会把已启用偏好注入系统提示",
+      "enablePreferenceLearningInChat": "关闭后，本次会话不会学习新偏好",
+      "enabledPreferencesCount": "已启用偏好：{{count}} 条"
+    },
+    "actions": {
+      "addPreference": "添加偏好",
+      "refresh": "刷新",
+      "search": "搜索"
+    },
+    "columns": {
+      "enabled": "启用",
+      "category": "类别",
+      "value": "值",
+      "confidence": "置信度",
+      "source": "来源",
+      "actions": "操作",
+      "key": "Key",
+      "namespace": "Namespace"
+    },
+    "confirm": {
+      "deletePreferenceTitle": "确认删除偏好？",
+      "deleteMemoryTitle": "确认删除记忆？"
+    },
+    "messages": {
+      "loginRequired": "请先登录后管理长期记忆。",
+      "saved": "已保存",
+      "saveFailed": "保存失败",
+      "loadFailed": "加载失败",
+      "searchFailed": "搜索失败",
+      "preferenceValueRequired": "请输入偏好值",
+      "preferenceAdded": "偏好已添加",
+      "preferenceDeleted": "偏好已删除",
+      "memoryDeleted": "记忆已删除"
+    }
   },
   "preview": {
     "noserver": "暂未有服务运行",

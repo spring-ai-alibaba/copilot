@@ -10,8 +10,9 @@ import MCPSettings from "@/components/Settings/MCPSettings";
 import KnowledgeSettings from "@/components/Settings/KnowledgeSettings";
 import ModelSettings from "@/components/Settings/ModelSettings";
 import PromptSettings from "@/components/Settings/PromptSettings";
+import MemorySettings from "@/components/Settings/MemorySettings";
 
-export type SettingsTab = "General" | "Quota" | "MCPServer" | "Knowledge" | "Models" | "Prompts";
+export type SettingsTab = "General" | "Quota" | "MCPServer" | "Knowledge" | "Models" | "Prompts" | "Memory";
 
 const isElectron = typeof window !== "undefined" && !!window.electron;
 export const TAB_KEYS = {
@@ -21,6 +22,7 @@ export const TAB_KEYS = {
   Knowledge: "Knowledge" as const,
   Models: "Models" as const,
   Prompts: "Prompts" as const,
+  Memory: "Memory" as const,
 } as const;
 
 interface SettingsProps {
@@ -195,6 +197,21 @@ export function Settings({
     ),
   });
 
+  tabs.push({
+    id: TAB_KEYS.Memory,
+    label: t("settings.Memory"),
+    icon: (
+      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth={2}
+          d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+        />
+      </svg>
+    ),
+  });
+
   return createPortal(
     <div
       className={`
@@ -255,6 +272,7 @@ export function Settings({
           {activeTab === TAB_KEYS.Knowledge && <KnowledgeSettings />}
           {activeTab === TAB_KEYS.Models && <ModelSettings />}
           {activeTab === TAB_KEYS.Prompts && <PromptSettings />}
+          {activeTab === TAB_KEYS.Memory && <MemorySettings />}
         </div>
 
         {/* Close Button */}

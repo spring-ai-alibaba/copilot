@@ -66,6 +66,11 @@ public class ConversationSaveHook extends MessagesModelHook {
                     if (msg instanceof AssistantMessage assistantMsg) {
                         String content = assistantMsg.getText();
                         if (content != null && !content.trim().isEmpty()) {
+                            // 关键：只把“不包含 tool_calls 的 assistant”当作最终回复候选
+                            // 否则在工具链路中间（assistant 刚发出 tool_calls，但 tool 还没追加到 messages）会被误判为“最终回复”，导致落库链路不完整
+                            if (assistantMsg.getToolCalls() != null && !assistantMsg.getToolCalls().isEmpty()) {
+                                continue;
+                            }
                             // 检查后面是否还有 ToolResponseMessage
                             boolean hasToolAfter = false;
                             for (int j = i + 1; j < messages.size(); j++) {
@@ -131,40 +136,44 @@ public class ConversationSaveHook extends MessagesModelHook {
                                     conversationId, assistantMsg.getToolCalls() != null && !assistantMsg.getToolCalls().isEmpty());
 
                             } else if (msg instanceof ToolResponseMessage toolMsg) {
-                                entity.setRole("tool");
-
+                                // 关键：ToolResponseMessage 可能包含多个 responses（一次 assistant 发起多个 tool_calls）
+                                // 之前只保存第一个 response 会导致 tool 调用链不完整，历史恢复时会触发“移除 tool_calls”的修复逻辑，进而让模型重复发起工具调用
                                 List<ToolResponseMessage.ToolResponse> responses = toolMsg.getResponses();
-                                String content = "";
-                                String toolCallId = null;
-                                String toolName = null;
-
-                                if (responses != null && !responses.isEmpty()) {
-                                    ToolResponseMessage.ToolResponse firstResponse = responses.get(0);
-                                    content = firstResponse.responseData() != null ? firstResponse.responseData() : "";
-                                    toolCallId = firstResponse.id();
-                                    toolName = firstResponse.name();
+                                if (responses == null || responses.isEmpty()) {
+                                    // 兜底：没有 response 也不应落库，否则会污染链路
+                                    continue;
                                 }
 
-                                entity.setContent(content);
+                                for (ToolResponseMessage.ToolResponse resp : responses) {
+                                    ChatMessageEntity toolEntity = new ChatMessageEntity();
+                                    toolEntity.setConversationId(conversationId);
+                                    toolEntity.setMessageId(UUID.randomUUID().toString());
+                                    toolEntity.setRole("tool");
+                                    toolEntity.setCreatedTime(LocalDateTime.now());
+                                    toolEntity.setUpdatedTime(LocalDateTime.now());
 
-                                // 保存 tool_call_id 到 metadata
-                                try {
-                                    Map<String, Object> metadata = new HashMap<>();
-                                    if (toolCallId != null) {
-                                        metadata.put("toolCallId", toolCallId);
+                                    String toolContent = resp.responseData() != null ? resp.responseData() : "";
+                                    toolEntity.setContent(toolContent);
+
+                                    String toolCallId = resp.id();
+                                    String toolName = resp.name();
+                                    try {
+                                        Map<String, Object> metadata = new HashMap<>();
+                                        if (toolCallId != null) {
+                                            metadata.put("toolCallId", toolCallId);
+                                        }
+                                        if (toolName != null) {
+                                            metadata.put("toolName", toolName);
+                                        }
+                                        toolEntity.setMetadata(objectMapper.writeValueAsString(metadata));
+                                    } catch (Exception e) {
+                                        log.warn("保存 tool_call_id 到 metadata 失败", e);
                                     }
-                                    if (toolName != null) {
-                                        metadata.put("toolName", toolName);
-                                    }
-                                    entity.setMetadata(objectMapper.writeValueAsString(metadata));
-                                } catch (Exception e) {
-                                    log.warn("保存 tool_call_id 到 metadata 失败", e);
+
+                                    chatMessageMapper.insert(toolEntity);
+                                    savedCount++;
+                                    log.debug("保存 Tool 消息: conversationId={}, toolCallId={}", conversationId, toolCallId);
                                 }
-
-                                chatMessageMapper.insert(entity);
-                                savedCount++;
-                                log.debug("保存 Tool 消息: conversationId={}, toolCallId={}",
-                                    conversationId, toolCallId);
                             }
                         }
 
