@@ -1,3 +1,5 @@
+[![MseeP.ai Security Assessment Badge](https://mseep.net/pr/spring-ai-alibaba-copilot-badge.png)](https://mseep.ai/app/spring-ai-alibaba-copilot)
+
 # AI编码助手 (Alibaba Copilot)
 
 基于Spring AI Alibaba框架构建的智能编码助手，集成MCP工具协议，支持项目分析、代码生成、智能编辑和项目脚手架等功能。通过自然语言交互，帮助开发者快速完成各种编程任务。
