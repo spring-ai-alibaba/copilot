@@ -4,8 +4,7 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 
 /**
- * 设备类型
- * 针对一套 用户体系
+ * 设备类型（精简版：仅保留 PC）
  *
  * @author yzm
  */
@@ -13,30 +12,8 @@ import lombok.Getter;
 @AllArgsConstructor
 public enum DeviceType {
 
-    /**
-     * pc端
-     */
-    PC("pc"),
-
-    /**
-     * app端
-     */
-    APP("app"),
-
-    /**
-     * 小程序端
-     */
-    XCX("xcx"),
-
-    /**
-     * 数据采集
-     */
-    COLLECAT("collect"),
-
-    /**
-     * 树木医生
-     */
-    TREES_DOCTOR("trees_doctor");
+    /** pc端 */
+    PC("pc");
 
     private final String device;
 }

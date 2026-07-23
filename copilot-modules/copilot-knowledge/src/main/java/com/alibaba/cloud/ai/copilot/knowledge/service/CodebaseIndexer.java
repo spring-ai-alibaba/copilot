@@ -3,7 +3,6 @@ package com.alibaba.cloud.ai.copilot.knowledge.service;
 import com.alibaba.cloud.ai.copilot.knowledge.domain.entity.FileIndexState;
 import com.alibaba.cloud.ai.copilot.knowledge.mapper.IndexStateMapper;
 import com.alibaba.cloud.ai.copilot.knowledge.domain.vo.KnowledgeChunk;
-import com.alibaba.cloud.ai.copilot.knowledge.service.KnowledgeVectorStoreService;
 import com.alibaba.cloud.ai.copilot.knowledge.splitter.DocumentSplitter;
 import com.alibaba.cloud.ai.copilot.knowledge.splitter.SplitterFactory;
 import com.alibaba.cloud.ai.copilot.knowledge.utils.FileScanner;
@@ -18,9 +17,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
 
 /**
  * 代码库索引编排器

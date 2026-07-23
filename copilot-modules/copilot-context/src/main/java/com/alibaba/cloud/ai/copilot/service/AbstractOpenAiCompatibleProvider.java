@@ -5,16 +5,13 @@ import com.alibaba.cloud.ai.copilot.domain.dto.model.DiscoveredModelInfo;
 import com.alibaba.cloud.ai.copilot.domain.dto.model.HealthCheckResult;
 import com.alibaba.cloud.ai.copilot.domain.entity.LlmEntity;
 import com.alibaba.cloud.ai.copilot.domain.entity.ModelConfigEntity;
-import io.micrometer.observation.ObservationRegistry;
+import io.agentscope.core.message.Msg;
+import io.agentscope.core.model.ChatResponse;
+import io.agentscope.core.model.GenerateOptions;
+import io.agentscope.core.model.Model;
+import io.agentscope.extensions.model.openai.OpenAIChatModel;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.ai.chat.model.ChatModel;
-import org.springframework.ai.chat.prompt.ChatOptions;
-import org.springframework.ai.model.tool.ToolCallingManager;
-import org.springframework.ai.openai.OpenAiChatModel;
-import org.springframework.ai.openai.OpenAiChatOptions;
-import org.springframework.ai.openai.api.OpenAiApi;
-import org.springframework.retry.support.RetryTemplate;
 import org.springframework.util.StringUtils;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.HttpServerErrorException;
@@ -27,6 +24,9 @@ import java.util.stream.Collectors;
 /**
  * OpenAI 兼容协议供应商抽象基类
  * 适用于所有兼容 OpenAI API 协议的供应商：OpenAI、DeepSeek、Siliconflow、Moonshot 等
+ *
+ * <p>迁移到 agentscope 2.0：用 {@link OpenAIChatModel} 构建模型，返回 {@link Model}，
+ * 替代原 spring-ai 的 {@code OpenAiChatModel}。所有兼容供应商只需改 baseUrl。</p>
  *
  * @author Robust_H
  */
@@ -53,81 +53,68 @@ public abstract class AbstractOpenAiCompatibleProvider implements ModelProvider 
     /** 健康检查最大模型切换次数 */
     protected static final int HEALTH_CHECK_MAX_MODEL_SWITCHES = 3;
 
-    // ==================== 核心方法：创建 ChatModel ====================
+    // ==================== 核心方法：创建 agentscope Model ====================
 
     @Override
-    public ChatModel createChatModel(ModelConfigEntity config) {
+    public Model createChatModel(ModelConfigEntity config) {
         return createChatModel(config, null);
     }
 
     /**
-     * 创建 ChatModel（支持自定义 ChatOptions）
+     * 创建 agentscope {@link Model}（支持自定义 GenerateOptions）
      *
      * @param config  模型配置
      * @param options 自定义选项，为 null 则使用默认选项
-     * @return ChatModel 实例
+     * @return agentscope {@link Model} 实例
      */
-    public ChatModel createChatModel(ModelConfigEntity config, ChatOptions options) {
+    public Model createChatModel(ModelConfigEntity config, GenerateOptions options) {
         validateConfig(config);
 
-        OpenAiApi api = buildOpenAiApi(config);
-        OpenAiChatOptions defaultOptions = (options instanceof OpenAiChatOptions)
-                ? (OpenAiChatOptions) options
-                : buildDefaultChatOptions(config);
+        GenerateOptions defaultOptions = (options != null) ? options : buildDefaultChatOptions(config);
 
-        log.debug("创建 ChatModel: provider={}, model={}, baseUrl={}",
-                getProviderName(), config.getModelName(), resolveBaseUrl(config));
+        log.debug("创建 agentscope Model: provider={}, model={}, baseUrl={}",
+            getProviderName(), config.getModelName(), resolveBaseUrl(config));
 
-        return OpenAiChatModel.builder()
-                .openAiApi(api)
-                .defaultOptions(defaultOptions)
-                .toolCallingManager(buildToolCallingManager(config))
-                .retryTemplate(buildRetryTemplate())
-                .observationRegistry(ObservationRegistry.NOOP)
-                .build();
+        return OpenAIChatModel.builder()
+            .apiKey(config.getApiKey())
+            .modelName(config.getModelKey())
+            .baseUrl(resolveBaseUrl(config))
+            .stream(true)
+            .generateOptions(defaultOptions)
+            .build();
     }
 
-    // ==================== ChatOptions 构建方法 ====================
+    // ==================== GenerateOptions 构建方法 ====================
 
     @Override
-    public ChatOptions createChatOptions(ModelConfigEntity config, Integer maxTokens, Double temperature) {
-        return OpenAiChatOptions.builder()
-                .model(config.getModelKey())
-                .maxTokens(maxTokens != null ? maxTokens : getDefaultMaxTokens(config))
-                .temperature(temperature != null ? temperature : DEFAULT_TEMPERATURE)
-                .topP(DEFAULT_TOP_P)
-                .frequencyPenalty(DEFAULT_FREQUENCY_PENALTY)
-                .presencePenalty(DEFAULT_PRESENCE_PENALTY)
-                .build();
+    public GenerateOptions createChatOptions(ModelConfigEntity config, Integer maxTokens, Double temperature) {
+        return GenerateOptions.builder()
+            .modelName(config.getModelKey())
+            .maxTokens(maxTokens != null ? maxTokens : getDefaultMaxTokens(config))
+            .temperature(temperature != null ? temperature : DEFAULT_TEMPERATURE)
+            .topP(DEFAULT_TOP_P)
+            .frequencyPenalty(DEFAULT_FREQUENCY_PENALTY)
+            .presencePenalty(DEFAULT_PRESENCE_PENALTY)
+            .build();
     }
 
     @Override
-    public ChatOptions createDefaultChatOptions(ModelConfigEntity config) {
+    public GenerateOptions createDefaultChatOptions(ModelConfigEntity config) {
         return createChatOptions(config, null, null);
     }
 
     /**
-     * 构建默认的 ChatOptions
+     * 构建默认的 GenerateOptions
      */
-    protected OpenAiChatOptions buildDefaultChatOptions(ModelConfigEntity config) {
-        return OpenAiChatOptions.builder()
-                .model(config.getModelKey())
-                .maxTokens(getDefaultMaxTokens(config))
-                .temperature(DEFAULT_TEMPERATURE)
-                .build();
+    protected GenerateOptions buildDefaultChatOptions(ModelConfigEntity config) {
+        return GenerateOptions.builder()
+            .modelName(config.getModelKey())
+            .maxTokens(getDefaultMaxTokens(config))
+            .temperature(DEFAULT_TEMPERATURE)
+            .build();
     }
 
-    // ==================== OpenAiApi 构建 ====================
-
-    /**
-     * 构建 OpenAiApi 实例
-     */
-    protected OpenAiApi buildOpenAiApi(ModelConfigEntity config) {
-        return OpenAiApi.builder()
-                .baseUrl(resolveBaseUrl(config))
-                .apiKey(config.getApiKey())
-                .build();
-    }
+    // ==================== Base URL 解析 ====================
 
     /**
      * 解析 Base URL（优先使用配置值，否则使用默认值）
@@ -141,25 +128,6 @@ public abstract class AbstractOpenAiCompatibleProvider implements ModelProvider 
             throw new IllegalStateException("未配置 Provider 的默认 Base URL: " + getProviderName());
         }
         return defaultUrl;
-    }
-
-    // ==================== 辅助组件构建 ====================
-
-    /**
-     * 构建工具调用管理器
-     */
-    protected ToolCallingManager buildToolCallingManager(ModelConfigEntity config) {
-        return ToolCallingManager.builder().build();
-    }
-
-    /**
-     * 构建重试模板
-     */
-    protected RetryTemplate buildRetryTemplate() {
-        return RetryTemplate.builder()
-                .maxAttempts(3)
-                .exponentialBackoff(1000, 2, 10000)
-                .build();
     }
 
     // ==================== 配置校验 ====================
@@ -187,6 +155,34 @@ public abstract class AbstractOpenAiCompatibleProvider implements ModelProvider 
             return config.getMaxToken();
         }
         return DEFAULT_MAX_TOKENS;
+    }
+
+    // ==================== 同步调用工具（agentscope Model 只有 stream，提供同步封装） ====================
+
+    /**
+     * 同步调用模型（用于健康检查等一次性场景）。
+     * agentscope 的 {@link Model} 只暴露流式 {@code stream(...)}，这里 block 取首个非空 ChatResponse 的文本。
+     *
+     * @param model    agentscope 模型
+     * @param prompt   提示文本
+     * @return 模型回复文本
+     */
+    protected String callSync(Model model, String prompt) {
+        Msg userMsg = Msg.builder().textContent(prompt).build();
+        ChatResponse resp = model.stream(List.of(userMsg), List.of(), null)
+            .filter(r -> r != null && r.getContent() != null && !r.getContent().isEmpty())
+            .blockFirst();
+        if (resp == null) {
+            return "";
+        }
+        // 拼接所有 TextBlock 内容
+        StringBuilder sb = new StringBuilder();
+        for (var block : resp.getContent()) {
+            if (block instanceof io.agentscope.core.message.TextBlock tb) {
+                sb.append(tb.getText());
+            }
+        }
+        return sb.toString();
     }
 
     // ==================== 接口默认实现 ====================
@@ -320,9 +316,9 @@ public abstract class AbstractOpenAiCompatibleProvider implements ModelProvider 
         for (int attempt = 1; attempt <= maxRetries; attempt++) {
             long attemptStartTime = System.currentTimeMillis();
             try {
-                // 创建模型并发送测试请求
-                ChatModel chatModel = createChatModel(testConfig);
-                String response = chatModel.call("hi");
+                // 创建模型并发送测试请求（agentscope 同步封装）
+                Model model = createChatModel(testConfig);
+                String response = callSync(model, "hi");
                 long responseTime = System.currentTimeMillis() - attemptStartTime;
 
                 if (attempt > 1) {
@@ -409,8 +405,8 @@ public abstract class AbstractOpenAiCompatibleProvider implements ModelProvider 
             long attemptStartTime = System.currentTimeMillis();
             try {
                 // 创建模型并发送测试请求
-                ChatModel chatModel = createChatModel(testConfig);
-                String response = chatModel.call("hi");
+                Model model = createChatModel(testConfig);
+                String response = callSync(model, "hi");
                 long responseTime = System.currentTimeMillis() - attemptStartTime;
 
                 if (attempt > 1) {
@@ -444,7 +440,7 @@ public abstract class AbstractOpenAiCompatibleProvider implements ModelProvider 
                         Thread.sleep(retryDelay);
                     } catch (InterruptedException ie) {
                         Thread.currentThread().interrupt();
-                        log.warn("模型健康检测重试被中断，provider={}, model={}", providerName, modelName);
+                        log.warn("健康检测重试被中断，provider={}, model={}", providerName, modelName);
                         break;
                     }
                     retryDelay = (long) (retryDelay * getHealthCheckRetryMultiplier());

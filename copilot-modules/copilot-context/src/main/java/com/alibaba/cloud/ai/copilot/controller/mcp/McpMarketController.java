@@ -16,7 +16,6 @@ import java.util.Map;
  * MCP 市场管理 Controller
  *
  * @author copilot team: evo
- * @email exotisch@163.com
  */
 @Slf4j
 @RestController

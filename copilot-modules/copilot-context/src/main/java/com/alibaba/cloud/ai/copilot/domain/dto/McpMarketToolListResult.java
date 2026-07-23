@@ -12,7 +12,6 @@ import java.util.List;
  * MCP 市场工具列表返回结果（分页）
  *
  * @author copilot team: evo
- * @email exotisch@163.com
  */
 @Data
 @Builder

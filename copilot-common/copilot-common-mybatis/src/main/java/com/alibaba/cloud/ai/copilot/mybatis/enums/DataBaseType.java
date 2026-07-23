@@ -8,7 +8,6 @@ import lombok.Getter;
 /**
  * 数据库类型
  *
- * @author Lion Li
  */
 @Getter
 @AllArgsConstructor

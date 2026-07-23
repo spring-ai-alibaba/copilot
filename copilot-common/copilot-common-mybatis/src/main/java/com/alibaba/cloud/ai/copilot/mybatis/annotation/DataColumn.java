@@ -8,7 +8,6 @@ import java.lang.annotation.*;
  * 一个注解只能对应一个模板
  * </p>
  *
- * @author Lion Li
  * @version 3.5.0
  */
 @Target(ElementType.METHOD)

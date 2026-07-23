@@ -1,79 +1,56 @@
 package com.alibaba.cloud.ai.copilot.service.impl;
 
+import com.alibaba.cloud.ai.copilot.agent.CopilotAgentFactory;
 import com.alibaba.cloud.ai.copilot.config.AppProperties;
 import com.alibaba.cloud.ai.copilot.domain.dto.ChatRequest;
 import com.alibaba.cloud.ai.copilot.domain.dto.CreateConversationRequest;
 import com.alibaba.cloud.ai.copilot.domain.entity.ChatMessageEntity;
-import com.alibaba.cloud.ai.copilot.domain.entity.McpToolInfo;
-import com.alibaba.cloud.ai.copilot.handler.*;
-import com.alibaba.cloud.ai.copilot.hook.ConversationHistoryHook;
-import com.alibaba.cloud.ai.copilot.hook.ConversationSaveHook;
-import com.alibaba.cloud.ai.copilot.hook.LongTermMemoryHook;
-import com.alibaba.cloud.ai.copilot.interceptor.DynamicSystemPromptInterceptor;
 import com.alibaba.cloud.ai.copilot.knowledge.service.KnowledgeAvailabilityChecker;
-import com.alibaba.cloud.ai.copilot.store.DatabaseStore;
-import com.alibaba.cloud.ai.copilot.mapper.ChatMessageMapper;
-import com.alibaba.cloud.ai.copilot.mapper.McpToolInfoMapper;
-import com.alibaba.cloud.ai.copilot.enums.ToolStatus;
-import com.alibaba.cloud.ai.copilot.service.mcp.BuiltinToolRegistry;
-import com.alibaba.cloud.ai.copilot.service.mcp.McpClientManager;
 import com.alibaba.cloud.ai.copilot.satoken.utils.LoginHelper;
 import com.alibaba.cloud.ai.copilot.service.ChatService;
 import com.alibaba.cloud.ai.copilot.service.ConversationService;
-import com.alibaba.cloud.ai.copilot.service.DynamicModelService;
 import com.alibaba.cloud.ai.copilot.service.SseEventService;
-import com.alibaba.cloud.ai.copilot.tools.*;
-import com.alibaba.cloud.ai.graph.NodeOutput;
-import com.alibaba.cloud.ai.graph.RunnableConfig;
-import com.alibaba.cloud.ai.graph.agent.ReactAgent;
-import com.alibaba.cloud.ai.graph.agent.extension.tools.filesystem.EditFileTool;
-import com.alibaba.cloud.ai.graph.agent.extension.tools.filesystem.GrepTool;
-import com.alibaba.cloud.ai.graph.agent.extension.tools.filesystem.ReadFileTool;
-import com.alibaba.cloud.ai.graph.agent.hook.Hook;
-import com.alibaba.cloud.ai.graph.agent.hook.summarization.SummarizationHook;
-import com.alibaba.cloud.ai.graph.agent.interceptor.ModelInterceptor;
-import com.alibaba.cloud.ai.graph.checkpoint.savers.MemorySaver;
-import com.alibaba.cloud.ai.graph.exception.GraphRunnerException;
-import com.alibaba.cloud.ai.graph.streaming.StreamingOutput;
-import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.alibaba.cloud.ai.copilot.mapper.ChatMessageMapper;
+import io.agentscope.core.agui.adapter.AguiAdapterConfig;
+import io.agentscope.core.agui.adapter.AguiAgentAdapter;
+import io.agentscope.core.agui.event.AguiEvent;
+import io.agentscope.core.agui.model.AguiMessage;
+import io.agentscope.core.agui.model.RunAgentInput;
+import io.agentscope.core.util.JsonUtils;
+import io.agentscope.harness.agent.HarnessAgent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.ai.chat.model.ChatModel;
-import org.springframework.ai.tool.ToolCallback;
+import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
-import org.springframework.web.reactive.function.client.WebClientResponseException;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 import reactor.core.publisher.Flux;
 
-import java.nio.file.Paths;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
-
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
- * 聊天服务实现
+ * 聊天服务实现（agentscope 2.0 + AG-UI 协议）。
+ *
+ * <p>每个请求：动态构建 {@link HarnessAgent} → 用 {@link AguiAgentAdapter} 把
+ * agent.streamEvents() 的 AgentEvent 流转成 AG-UI {@link AguiEvent} 流 → 经
+ *
+ * <p>工具调用全程流式：AG-UI 的 TOOL_CALL_START / TOOL_CALL_ARGS(delta) /
+ * TOOL_CALL_END / TOOL_CALL_RESULT 事件逐帧下发，前端可在工具执行过程中
+ * 实时看到参数增量与结果——这正是原 spring-ai-alibaba 框架做不到的。</p>
  */
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class ChatServiceImpl implements ChatService {
 
-    private final AppProperties appProperties;
-    private final DynamicModelService dynamicModelService;
-   private final OutputHandlerRegistry outputHandlerRegistry;
+    private final CopilotAgentFactory agentFactory;
     private final SseEventService sseEventService;
     private final ConversationService conversationService;
     private final ChatMessageMapper chatMessageMapper;
-    private final ConversationHistoryHook conversationHistoryHook;
-    private final ConversationSaveHook conversationSaveHook;
-    private final DynamicSystemPromptInterceptor dynamicSystemPromptInterceptor;
-    private final McpClientManager mcpClientManager;
-    private final BuiltinToolRegistry builtinToolRegistry;
-    private final McpToolInfoMapper mcpToolInfoMapper;
-    private final DatabaseStore databaseStore;
-    private final LongTermMemoryHook longTermMemoryHook;
+    private final AppProperties appProperties;
     private final KnowledgeAvailabilityChecker knowledgeAvailabilityChecker;
 
     @Override
@@ -81,118 +58,21 @@ public class ChatServiceImpl implements ChatService {
         try {
             // 1. 获取或创建会话
             String conversationId = request.getConversationId();
-
             if (conversationId == null || conversationId.isEmpty()) {
-                // 创建新会话
                 CreateConversationRequest createRequest = new CreateConversationRequest();
                 createRequest.setModelConfigId(request.getModelConfigId());
-
                 Long userIdLong = LoginHelper.getUserId();
                 conversationId = conversationService.createConversation(userIdLong, createRequest);
-                log.info("创建新会话: conversationId={}, userId={}, 原因: 请求中未提供conversationId",
-                    conversationId, userIdLong);
+                log.info("创建新会话: conversationId={}, userId={}", conversationId, userIdLong);
             } else {
                 log.debug("使用现有会话: conversationId={}", conversationId);
             }
 
-            // 2. 获取 ChatModel
-            ChatModel chatModel = dynamicModelService.getChatModelWithConfigId(request.getModelConfigId());
-
-            // 4. 构建 Hooks
-            List<Hook> hooks = new ArrayList<>();
-
-            // 4.1 会话历史加载 Hook（从数据库加载历史消息）改进：只在首次请求时加载历史，后续让 ReactAgent 自己管理消息流
-            hooks.add(conversationHistoryHook);
-
-            // 4.2 消息压缩 Hook（当消息过多时自动压缩）
-            hooks.add(SummarizationHook.builder()
-                .model(chatModel)
-                .maxTokensBeforeSummary(appProperties.getConversation().getSummarization().getMaxTokensBeforeSummary())
-                .messagesToKeep(appProperties.getConversation().getSummarization().getMessagesToKeep())
-                .build());
-
-            // 4.3 会话保存 Hook（保存 Assistant 响应到数据库）
-            // 改进：只保存工具调用完成后的最终文本响应
-            hooks.add(conversationSaveHook);
-
-            // 4.4 长期记忆 Hook（加载用户画像和学习偏好）
-            if (appProperties.getMemory().isEnabled()) {
-                hooks.add(longTermMemoryHook);
-            }
-
-            // 5. 构建 Interceptors
-            List<ModelInterceptor> interceptors = new ArrayList<>();
-
-            // 5.1 动态系统提示
-            interceptors.add(dynamicSystemPromptInterceptor);
-
-            // 6. 加载工具（Milvus 不可用时过滤掉 search_knowledge）
-            List<ToolCallback> allTools = loadToolCallback();
-            if (!knowledgeAvailabilityChecker.isAvailable()) {
-                allTools.removeIf(t -> "search_knowledge".equals(t.getToolDefinition().name()));
-                log.info("向量数据库不可用，已移除 search_knowledge 工具");
-            }
-
-            log.info("共加载 {} 个工具", allTools.size());
-
-            String rootDirectory = Paths.get(System.getProperty("user.dir") + "/workspace").toString();
-
-            String prompt = "【基础约束】\n" +
-                    "你是编程agent，使用工具在项目根目录（" + rootDirectory + "）内完成编程任务。\n\n" +
-                    "【前端开发规范 - 必须遵守】\n" +
-                    "1. 禁止手写大量CSS！必须使用 Tailwind CSS 框架\n" +
-                    "2. HTML页面必须引入 Tailwind CSS CDN：<script src=\"https://cdn.tailwindcss.com\"></script>\n" +
-                    "【技术栈】\n" +
-                    "擅长 java+vue+element 技术栈，用户没有明确编程需求时正常对话即可，" +
-                    "前端开发默认使用 HTML + Tailwind CSS，保持简洁专业的风格。";
-
-            // 6.3 构建 Agent
-            var agentBuilder = ReactAgent.builder()
-                    .name("copilot_agent")
-                    .model(chatModel)
-                    .systemPrompt(prompt)
-                    .hooks(hooks.toArray(new Hook[0]))
-                    .interceptors(interceptors.toArray(new ModelInterceptor[0]))
-                    .saver(new MemorySaver())
-                    .tools(ListDirectoryTool.createListDirectoryToolCallback(ListDirectoryTool.DESCRIPTION),
-                            GrepTool.createGrepToolCallback(GrepTool.DESCRIPTION),
-                            EditFileTool.createEditFileToolCallback(EditFileTool.DESCRIPTION),
-                            ReadFileTool.createReadFileToolCallback(ReadFileTool.DESCRIPTION),
-                            WriteLinesTool.createToolCallback(),
-                            DeleteFileTool.createToolCallback()
-                    );
-            ReactAgent agent = agentBuilder.build();
-
-            // 7. 设置会话ID到上下文（供 Hook 和 Interceptor 使用）
             Long userIdLong = LoginHelper.getUserId();
-            RunnableConfig.Builder configBuilder = RunnableConfig.builder();
-            // 7. 设置会话ID和用户ID到上下文（供 Hook 和 Interceptor 使用）
-            RunnableConfig config = RunnableConfig.builder()
-                .addMetadata("conversationId", conversationId)
-                .addMetadata("user_id", String.valueOf(userIdLong))
-                // 供 LongTermMemoryHook 兜底 LLM 结构化抽取时优先使用当前会话同一个模型配置
-                .addMetadata("model_config_id", request.getModelConfigId()).build();
-
-            // 设置偏好相关开关
-            boolean enablePreferences = request.getEnablePreferences() != null
-                ? request.getEnablePreferences()
-                : true; // 默认启用
-            boolean enablePreferenceLearning = request.getEnablePreferenceLearning() != null
-                ? request.getEnablePreferenceLearning()
-                : true; // 默认启用
-
-            configBuilder.addMetadata("enable_preferences", String.valueOf(enablePreferences));
-            configBuilder.addMetadata("enable_preference_learning", String.valueOf(enablePreferenceLearning));
-
-            // 设置长期记忆存储（如果启用）
-            if (appProperties.getMemory().isEnabled()) {
-                configBuilder.store(databaseStore);
-            }
-
-            // 8. 保存用户消息到数据库
             final String finalConversationId = conversationId;
             final String userMessageContent = request.getMessage().getContent();
 
+            // 2. 保存用户消息到数据库
             ChatMessageEntity userMessageEntity = new ChatMessageEntity();
             userMessageEntity.setConversationId(finalConversationId);
             userMessageEntity.setMessageId(UUID.randomUUID().toString());
@@ -202,40 +82,61 @@ public class ChatServiceImpl implements ChatService {
             userMessageEntity.setUpdatedTime(LocalDateTime.now());
             chatMessageMapper.insert(userMessageEntity);
 
-            // 9. 增加消息计数
+            // 3. 增加消息计数
             conversationService.incrementMessageCount(finalConversationId);
 
-            // 10. 发送会话ID到前端（供前端保存并复用）
+            // 4. 发送会话ID到前端
             sseEventService.sendConversationId(emitter, finalConversationId);
 
-            // 11. 执行 Agent
-            Flux<NodeOutput> stream = agent.stream(userMessageContent, config);
-            // 创建 Handler Registry
-            OutputHandlerRegistry handlerRegistry = createHandlerRegistry();
-            stream.subscribe(
-                output -> handlerRegistry.handle(output, emitter),
-                error -> {
-                    if (error instanceof WebClientResponseException wcre) {
-                        // 关键：打印下游模型服务返回的错误响应体，便于定位 400 的具体原因
-                        log.error("Agent execution error: status={}, body={}",
-                            wcre.getStatusCode(),
-                            wcre.getResponseBodyAsString(),
-                            wcre);
-                    } else {
-                        log.error("Agent execution error", error);
+            // 5. 构建动态 agent
+            HarnessAgent agent = agentFactory.buildAgent(request.getModelConfigId());
+
+            // 6. 构建 AG-UI 输入：threadId=conversationId（供历史 Middleware 定位会话），
+            //    forwardedProps 携带 modelConfigId / 偏好开关，供阶段2 的 Middleware 读取
+            String runId = UUID.randomUUID().toString();
+            String messageId = UUID.randomUUID().toString();
+            Map<String, Object> forwardedProps = new java.util.HashMap<>();
+            forwardedProps.put("modelConfigId", request.getModelConfigId());
+            forwardedProps.put("conversationId", finalConversationId);
+            forwardedProps.put("userId", String.valueOf(userIdLong));
+            forwardedProps.put("enablePreferences",
+                    request.getEnablePreferences() == null || request.getEnablePreferences());
+            forwardedProps.put("enablePreferenceLearning",
+                    request.getEnablePreferenceLearning() == null || request.getEnablePreferenceLearning());
+
+            RunAgentInput runInput = RunAgentInput.builder()
+                    .threadId(finalConversationId)
+                    .runId(runId)
+                    .messages(List.of(AguiMessage.userMessage(messageId, userMessageContent)))
+                    .forwardedProps(forwardedProps)
+                    .build();
+
+            // 7. AG-UI 适配器：开启工具调用参数流式（emitToolCallArgs）与思考链（enableReasoning）
+            AguiAdapterConfig adapterConfig = AguiAdapterConfig.builder()
+                    .emitToolCallArgs(true)
+                    .enableReasoning(true)
+                    .emitStateEvents(false)
+                    .build();
+            AguiAgentAdapter adapter = new AguiAgentAdapter(agent, adapterConfig);
+
+            // 8. 订阅 AG-UI 事件流，逐帧编码为 SSE 发往前端；并累积 assistant 文本以便落库
+            final AtomicReference<StringBuilder> assistantText = new AtomicReference<>(new StringBuilder());
+
+            Flux<AguiEvent> aguiEvents = adapter.run(runInput);
+            aguiEvents.subscribe(
+                    event -> sendAguiEvent(emitter, event, assistantText),
+                    error -> {
+                        log.error("Agent 执行出错: conversationId={}", finalConversationId, error);
+                        sseEventService.sendComplete(emitter);
+                    },
+                    () -> {
+                        // 流完成：落库 assistant 文本 + 更新会话标题
+                        saveAssistantMessage(finalConversationId, assistantText.get().toString());
+                        updateConversationTitleIfNeeded(finalConversationId, userMessageContent, userIdLong);
+                        sseEventService.sendComplete(emitter);
                     }
-                    sseEventService.sendComplete(emitter);
-                },
-                () -> {
-                    // 流完成后，更新会话标题（基于首条用户消息）
-                    updateConversationTitleIfNeeded(finalConversationId, userMessageContent, userIdLong);
-                    sseEventService.sendComplete(emitter);
-                }
             );
 
-        } catch (GraphRunnerException e) {
-            log.error("Error in builder mode", e);
-            sseEventService.sendComplete(emitter);
         } catch (Exception e) {
             log.error("Unexpected error in builder mode", e);
             sseEventService.sendComplete(emitter);
@@ -243,71 +144,67 @@ public class ChatServiceImpl implements ChatService {
     }
 
     /**
-     * 初始化 Handler Registry
-     * 用于处理不同类型的 OutputType
+     * 把单个 AG-UI 事件编码为 SSE 帧并发送。
+     * 直接用 agentscope JsonUtils 序列化为 JSON 作为 SSE data，事件类型名作为 SSE event 字段，
+     * 便于前端按名订阅。累积 assistant 文本用于落库。
      */
-    private OutputHandlerRegistry createHandlerRegistry() {
-        return new OutputHandlerRegistry(
-                new ModelStreamingHandler(sseEventService),
-                new ModelFinishedHandler(),
-                new ToolFinishedHandler(sseEventService),
-                new HookFinishedHandler()
-        );
-    }
-
-    /**
-     * 加载工具
-     */
-    private List<ToolCallback> loadToolCallback() {
-        LambdaQueryWrapper<McpToolInfo> queryWrapper = new LambdaQueryWrapper<>();
-        queryWrapper.eq(McpToolInfo::getStatus, ToolStatus.ENABLED.getValue());
-        List<McpToolInfo> enabledTools = mcpToolInfoMapper.selectList(queryWrapper);
-        List<ToolCallback> allTools = new ArrayList<>();
-        for (McpToolInfo tool : enabledTools) {
-            try {
-                if (BuiltinToolRegistry.TYPE_BUILTIN.equals(tool.getType())) {
-                    // 内置工具 - 从注册表获取
-                    ToolCallback callback = builtinToolRegistry.createToolCallback(tool.getName());
-                    if (callback != null) {
-                        allTools.add(callback);
-                        log.debug("加载内置工具: {}", tool.getName());
-                    }
-                } else {
-                    // MCP 工具 (LOCAL/REMOTE) - 从 McpClientManager 获取
-                    List<ToolCallback> mcpCallbacks = mcpClientManager.getToolCallbacks(List.of(tool.getId()));
-                    allTools.addAll(mcpCallbacks);
-                    log.debug("加载 MCP 工具: {}", tool.getName());
+    private void sendAguiEvent(SseEmitter emitter, AguiEvent event, AtomicReference<StringBuilder> assistantText) {
+        try {
+            // 累积 assistant 文本（用于落库）
+            if (event instanceof AguiEvent.TextMessageContent tmc) {
+                if (tmc.delta() != null) {
+                    assistantText.get().append(tmc.delta());
                 }
-            } catch (Exception e) {
-                log.error("加载工具失败: {} - {}", tool.getName(), e.getMessage());
-                // 继续加载其他工具，不阻断
             }
+            // 序列化为 JSON 并下发（SSE 帧：event:<TYPE>\ndata:<json>\n\n）
+            String json = JsonUtils.getJsonCodec().toJson(event);
+            emitter.send(SseEmitter.event()
+                    .name(event.getType().name())
+                    .data(json, MediaType.APPLICATION_JSON));
+        } catch (Exception e) {
+            log.debug("发送 AG-UI 事件失败: {}", e.getMessage());
         }
-        return allTools;
     }
 
+    /**
+     * 落库 assistant 消息（阶段1 仅文本；tool_calls 链还原在阶段2 SaveMiddleware 接入）。
+     */
+    private void saveAssistantMessage(String conversationId, String content) {
+        if (content == null || content.isBlank()) {
+            return;
+        }
+        try {
+            ChatMessageEntity entity = new ChatMessageEntity();
+            entity.setConversationId(conversationId);
+            entity.setMessageId(UUID.randomUUID().toString());
+            entity.setRole("assistant");
+            entity.setContent(content);
+            entity.setCreatedTime(LocalDateTime.now());
+            entity.setUpdatedTime(LocalDateTime.now());
+            chatMessageMapper.insert(entity);
+        } catch (Exception e) {
+            log.error("保存 assistant 消息失败: conversationId={}", conversationId, e);
+        }
+    }
 
     /**
-     * 更新会话标题（如果是新会话且标题为默认值）
+     * 更新会话标题（如果是新会话且标题为默认值）。
      */
     private void updateConversationTitleIfNeeded(String conversationId, String firstMessage, Long userId) {
         try {
             var conversation = conversationService.getConversation(conversationId);
             if (conversation != null &&
                     ("新对话".equals(conversation.getTitle()) || conversation.getTitle() == null)) {
-                // 生成标题（取前50个字符）
                 String title = firstMessage.length() > 50
-                    ? firstMessage.substring(0, 50) + "..."
-                    : firstMessage;
+                        ? firstMessage.substring(0, 50) + "..."
+                        : firstMessage;
                 if (userId == null) {
                     log.debug("跳过更新会话标题：userId 为空: conversationId={}", conversationId);
                     return;
                 }
                 conversationService.updateConversationTitle(conversationId, title, userId);
-                log.debug("更新会话标题: conversationId={}, title={}", conversationId, title);
             }
         } catch (IllegalArgumentException e) {
-            // 常见原因：异步线程下无法获取/传递正确的登录上下文，或会话不属于当前用户
             log.warn("更新会话标题被拒绝: conversationId={}, reason={}", conversationId, e.getMessage());
         } catch (Exception e) {
             log.error("更新会话标题失败: conversationId={}", conversationId, e);

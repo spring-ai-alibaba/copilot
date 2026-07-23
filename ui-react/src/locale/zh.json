@@ -506,6 +506,7 @@
     "AI_powered_development_platform": "AI驱动的开发平台",
     "email": "邮箱",
     "password": "密码",
+    "username": "用户名",
     "sign_in": "登录",
     "remember_me": "记住我",
     "forgot_password": "忘记密码",
@@ -539,6 +540,8 @@
     "create_account": "创建您的账户",
     "creating_account": "正在创建账户...",
     "create_account_button": "创建账户",
+    "confirm_password": "确认密码",
+    "passwords_not_match": "两次输入的密码不一致",
     "already_account": "已经有账户了？"
   },
 

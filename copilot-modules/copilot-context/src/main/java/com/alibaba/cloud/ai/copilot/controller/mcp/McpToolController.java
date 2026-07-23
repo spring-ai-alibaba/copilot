@@ -17,7 +17,6 @@ import java.util.stream.Collectors;
  * MCP 工具管理 Controller
  *
  * @author copilot team: evo
- * @email exotisch@163.com
  */
 @Slf4j
 @RestController

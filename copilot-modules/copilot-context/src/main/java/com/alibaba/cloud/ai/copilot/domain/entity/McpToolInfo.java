@@ -9,7 +9,6 @@ import java.time.LocalDateTime;
  * MCP 工具信息实体
  *
  * @author copilot team: evo
- * @email exotisch@163.com
  */
 @Data
 @TableName("mcp_tool_info")

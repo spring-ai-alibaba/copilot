@@ -1,14 +1,10 @@
-# AI编码助手 (Alibaba Copilot)
+# AI编码助手 (Copilot)
 
-基于Spring AI Alibaba框架构建的智能编码助手，集成MCP工具协议，支持项目分析、代码生成、智能编辑和项目脚手架等功能。通过自然语言交互，帮助开发者快速完成各种编程任务。
-
-## 📺 演示视频
-
-![演示视频](docs/image/demo.gif)
+基于AgentScope框架构建的智能编码助手，集成MCP工具协议，支持项目分析、代码生成、智能编辑和项目脚手架等功能。通过自然语言交互，帮助开发者快速完成各种编程任务。
 
 ## 技术架构
 - **Spring Boot 3.4.5**: 应用框架
-- **Spring AI 1.0.0**: AI集成框架，支持多种LLM模型
+- **AgentScope 2.0.0**: AI集成框架，支持多种LLM模型
 - **MCP Client**: Model Context Protocol客户端集成
 - **AspectJ**: AOP切面编程，用于工具调用监控
 - **Jackson**: JSON处理
@@ -16,10 +12,10 @@
 
 ## 系统要求
 - **Java 17+**: 核心运行环境
-- **Maven 3.6+**: 项目构建工具
-- **Node.js 20+**: 前端开发环境
+- **Maven 3.9+**: 项目构建工具
+- **Node.js 22+**: 前端开发环境
 - **MySQL 8.0+**: 数据库
-- **Git**: 版本控制（可选）
+- **Git**: 版本控制
 - **阿里云通义千问 API Key**（或 OpenAI API Key）
 
 ## 🚀 快速入门
@@ -171,9 +167,7 @@ tail -f copilot-admin/logs/spring.log
 本项目采用 Apache License 2.0 许可证 - 查看 [LICENSE](LICENSE) 文件了解详情。
 
 ## 致谢
-
-- [Spring AI](https://spring.io/projects/spring-ai) - AI集成框架
-- [Model Context Protocol](https://modelcontextprotocol.io/) - 工具协议标准
+- [AgentScope-Java](https://github.com/agentscope-ai/agentscope-java) - AI集成框架
 
 ---
 

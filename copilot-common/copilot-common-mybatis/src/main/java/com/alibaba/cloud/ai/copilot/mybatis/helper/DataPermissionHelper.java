@@ -19,7 +19,6 @@ import java.util.function.Supplier;
 /**
  * 数据权限助手
  *
- * @author Lion Li
  * @version 3.5.0
  */
 @NoArgsConstructor(access = AccessLevel.PRIVATE)

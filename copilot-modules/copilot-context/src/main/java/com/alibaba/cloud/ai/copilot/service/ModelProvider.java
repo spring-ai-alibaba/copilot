@@ -3,14 +3,17 @@ package com.alibaba.cloud.ai.copilot.service;
 import com.alibaba.cloud.ai.copilot.domain.dto.model.DiscoveredModelInfo;
 import com.alibaba.cloud.ai.copilot.domain.dto.model.HealthCheckResult;
 import com.alibaba.cloud.ai.copilot.domain.entity.ModelConfigEntity;
-import org.springframework.ai.chat.model.ChatModel;
-import org.springframework.ai.chat.prompt.ChatOptions;
+import io.agentscope.core.model.GenerateOptions;
+import io.agentscope.core.model.Model;
 
 import java.util.List;
 
 /**
  * 统一的模型供应商接口
  * 支持多平台：OpenAI、通义千问、DeepSeek、Kimi、智谱AI、Siliconflow、Ollama 等
+ *
+ * <p>迁移到 agentscope 2.0 后，返回 {@link Model}（io.agentscope.core.model.Model），
+ * 替代原 spring-ai 的 ChatModel。</p>
  *
  * @author Robust_H
  */
@@ -38,43 +41,43 @@ public interface ModelProvider {
     // ==================== 模型创建 ====================
 
     /**
-     * 创建 ChatModel 实例
+     * 创建 agentscope Model 实例
      *
      * @param config 模型配置（包含 apiKey, modelName, apiUrl 等）
-     * @return ChatModel 实例
+     * @return agentscope {@link Model} 实例
      */
-    ChatModel createChatModel(ModelConfigEntity config);
+    Model createChatModel(ModelConfigEntity config);
 
     /**
-     * 创建 ChatModel 实例（支持自定义选项）
+     * 创建 Model 实例（支持自定义选项）
      *
      * @param config  模型配置
-     * @param options 自定义 ChatOptions，为 null 则使用默认选项
-     * @return ChatModel 实例
+     * @param options 自定义 GenerateOptions，为 null 则使用默认选项
+     * @return agentscope {@link Model} 实例
      */
-    default ChatModel createChatModel(ModelConfigEntity config, ChatOptions options) {
+    default Model createChatModel(ModelConfigEntity config, GenerateOptions options) {
         return createChatModel(config);
     }
 
-    // ==================== ChatOptions 构建 ====================
+    // ==================== GenerateOptions 构建 ====================
 
     /**
-     * 创建 ChatOptions（自定义参数）
+     * 创建 GenerateOptions（自定义参数）
      *
      * @param config      模型配置
      * @param maxTokens   最大 token 数，null 则使用默认值
      * @param temperature 温度参数，null 则使用默认值
-     * @return ChatOptions 实例
+     * @return GenerateOptions 实例
      */
-    ChatOptions createChatOptions(ModelConfigEntity config, Integer maxTokens, Double temperature);
+    GenerateOptions createChatOptions(ModelConfigEntity config, Integer maxTokens, Double temperature);
 
     /**
-     * 创建默认的 ChatOptions
+     * 创建默认的 GenerateOptions
      *
      * @param config 模型配置
-     * @return 默认 ChatOptions 实例
+     * @return 默认 GenerateOptions 实例
      */
-    ChatOptions createDefaultChatOptions(ModelConfigEntity config);
+    GenerateOptions createDefaultChatOptions(ModelConfigEntity config);
 
     // ==================== 健康检查与模型发现 ====================
 

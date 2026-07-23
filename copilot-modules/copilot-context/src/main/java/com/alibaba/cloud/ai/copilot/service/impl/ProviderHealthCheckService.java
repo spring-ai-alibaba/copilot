@@ -236,8 +236,8 @@ public class ProviderHealthCheckService {
         long startTime = System.currentTimeMillis();
 
         try {
-            org.springframework.ai.chat.model.ChatModel chatModel = provider.createChatModel(testConfig);
-            String response = chatModel.call("hi");
+            io.agentscope.core.model.Model model = provider.createChatModel(testConfig);
+            String response = callSyncHealth(model);
             long responseTime = System.currentTimeMillis() - startTime;
 
             log.info("OpenAiCompatible 健康检测成功，url={}, model={}, 响应时间={}ms",
@@ -280,5 +280,27 @@ public class ProviderHealthCheckService {
         config.setModelKey(testModelName);
         config.setEnabled(false);
         modelConfigMapper.insert(config);
+    }
+
+    /**
+     * 健康检查同步调用：agentscope 的 {@link io.agentscope.core.model.Model} 只暴露流式 stream(...)，
+     * 这里 block 取首个非空 ChatResponse 的文本。
+     */
+    private String callSyncHealth(io.agentscope.core.model.Model model) {
+        io.agentscope.core.message.Msg userMsg = io.agentscope.core.message.Msg.builder().textContent("hi").build();
+        io.agentscope.core.model.ChatResponse resp = model.stream(
+                java.util.List.of(userMsg), java.util.List.of(), null)
+            .filter(r -> r != null && r.getContent() != null && !r.getContent().isEmpty())
+            .blockFirst();
+        if (resp == null) {
+            return "";
+        }
+        StringBuilder sb = new StringBuilder();
+        for (var block : resp.getContent()) {
+            if (block instanceof io.agentscope.core.message.TextBlock tb) {
+                sb.append(tb.getText());
+            }
+        }
+        return sb.toString();
     }
 }

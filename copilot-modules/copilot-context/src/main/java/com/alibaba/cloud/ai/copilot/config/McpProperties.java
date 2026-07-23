@@ -8,7 +8,6 @@ import org.springframework.stereotype.Component;
  * MCP 配置属性
  *
  * @author copilot team: evo
- * @email exotisch@163.com
  */
 @Data
 @Component

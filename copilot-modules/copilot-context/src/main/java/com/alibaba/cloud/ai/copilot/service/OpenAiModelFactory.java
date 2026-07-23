@@ -1,46 +1,46 @@
 package com.alibaba.cloud.ai.copilot.service;
 
-import org.springframework.ai.chat.model.ChatModel;
-import org.springframework.ai.openai.OpenAiChatOptions;
+import io.agentscope.core.model.GenerateOptions;
+import io.agentscope.core.model.Model;
 
 /**
  * OpenAI模型工厂服务接口
- * 提供统一的OpenAI模型创建和配置方法
+ * 提供统一的OpenAI兼容模型创建和配置方法（agentscope {@link Model}）
  */
 public interface OpenAiModelFactory {
 
     /**
-     * 根据模型名称和用户ID创建ChatModel
-     * 
+     * 根据模型名称和用户ID创建 agentscope {@link Model}
+     *
      * @param modelName 模型名称
      * @param userId 用户ID
-     * @return ChatModel实例
+     * @return agentscope {@link Model} 实例
      */
-    ChatModel createChatModel(String modelName, String userId);
+    Model createChatModel(String modelName, String userId);
 
     /**
-     * 根据模型名称创建ChatModel（使用默认配置）
-     * 
+     * 根据模型名称创建 agentscope {@link Model}（使用默认配置）
+     *
      * @param modelName 模型名称
-     * @return ChatModel实例
+     * @return agentscope {@link Model} 实例
      */
-    ChatModel createChatModel(String modelName);
+    Model createChatModel(String modelName);
 
     /**
-     * 创建标准的OpenAI聊天选项
-     * 
+     * 创建标准的 GenerateOptions
+     *
      * @param modelName 模型名称
      * @param maxTokens 最大token数
      * @param temperature 温度参数
-     * @return OpenAiChatOptions实例
+     * @return GenerateOptions 实例
      */
-    OpenAiChatOptions createChatOptions(String modelName, Integer maxTokens, Double temperature);
+    GenerateOptions createChatOptions(String modelName, Integer maxTokens, Double temperature);
 
     /**
-     * 创建默认的OpenAI聊天选项
-     * 
+     * 创建默认的 GenerateOptions
+     *
      * @param modelName 模型名称
-     * @return OpenAiChatOptions实例
+     * @return GenerateOptions 实例
      */
-    OpenAiChatOptions createDefaultChatOptions(String modelName);
+    GenerateOptions createDefaultChatOptions(String modelName);
 }

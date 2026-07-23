@@ -31,7 +31,6 @@ import java.util.Map;
  * MCP 市场服务实现
  *
  * @author copilot team: evo
- * @email exotisch@163.com
  */
 @Slf4j
 @Service

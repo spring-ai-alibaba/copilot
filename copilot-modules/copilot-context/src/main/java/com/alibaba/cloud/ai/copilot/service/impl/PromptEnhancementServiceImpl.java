@@ -2,19 +2,19 @@ package com.alibaba.cloud.ai.copilot.service.impl;
 
 import com.alibaba.cloud.ai.copilot.domain.entity.ModelConfigEntity;
 import com.alibaba.cloud.ai.copilot.service.*;
+import io.agentscope.core.message.Msg;
+import io.agentscope.core.message.TextBlock;
+import io.agentscope.core.model.ChatResponse;
+import io.agentscope.core.model.GenerateOptions;
+import io.agentscope.core.model.Model;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.ai.chat.model.ChatModel;
-import org.springframework.ai.chat.model.ChatResponse;
-import org.springframework.ai.chat.prompt.Prompt;
-import org.springframework.ai.chat.prompt.PromptTemplate;
-import org.springframework.ai.openai.OpenAiChatOptions;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
 
 /**
- * Implementation of prompt enhancement service using Spring AI
+ * Implementation of prompt enhancement service using agentscope
  */
 @Slf4j
 @Service
@@ -39,35 +39,50 @@ public class PromptEnhancementServiceImpl implements PromptEnhancementService {
             // 获取默认模型名称
             String modelName = getDefaultModelName();
 
-            // 使用动态模型服务获取ChatModel
-            ChatModel chatModel = dynamicModelService.getChatModel(modelName);
+            // 使用动态模型服务获取 agentscope Model
+            Model model = dynamicModelService.getChatModel(modelName);
 
-            // Create prompt template using template service
+            // 构造增强提示内容
             String enhancementPromptContent = "提示词增强！";
-            PromptTemplate promptTemplate = new PromptTemplate(enhancementPromptContent);
-            Prompt prompt = promptTemplate.create();
 
-            // 使用OpenAiModelFactory创建自定义配置的ChatOptions
-            OpenAiChatOptions chatOptions = openAiModelFactory.createChatOptions(
+            // 使用 OpenAiModelFactory 创建自定义配置的 GenerateOptions（较低温度确保一致性）
+            GenerateOptions generateOptions = openAiModelFactory.createChatOptions(
                     modelName,
                     32000,  // maxTokens - 增加到32K支持完整提示词增强
                     0.3     // temperature - 较低的温度确保一致性
             );
 
-            // Create prompt with options
-            Prompt enhancementPrompt = new Prompt(prompt.getInstructions(), chatOptions);
+            // 同步调用模型（agentscope 只有流式，block 取结果）
+            Msg userMsg = Msg.builder().textContent(enhancementPromptContent).build();
+            ChatResponse resp = model.stream(List.of(userMsg), List.of(), generateOptions)
+                    .filter(r -> r != null && r.getContent() != null && !r.getContent().isEmpty())
+                    .blockFirst();
 
-            // Call AI model
-            ChatResponse response = chatModel.call(enhancementPrompt);
-            String enhancedPrompt = response.getResult().getOutput().getText();
-
-            return enhancedPrompt.trim();
+            String enhancedPrompt = extractText(resp);
+            return enhancedPrompt == null ? enhancePromptFallback(originalPrompt) : enhancedPrompt.trim();
 
         } catch (Exception e) {
             log.error("Error enhancing prompt", e);
             // Fallback to simple enhancement
             return enhancePromptFallback(originalPrompt);
         }
+    }
+
+    /**
+     * 从 ChatResponse 拼接所有 TextBlock 文本
+     */
+    private String extractText(ChatResponse resp) {
+        if (resp == null || resp.getContent() == null) {
+            return null;
+        }
+        StringBuilder sb = new StringBuilder();
+        for (var block : resp.getContent()) {
+            if (block instanceof TextBlock tb) {
+                sb.append(tb.getText());
+            }
+        }
+        String text = sb.toString();
+        return text.isEmpty() ? null : text;
     }
 
     /**

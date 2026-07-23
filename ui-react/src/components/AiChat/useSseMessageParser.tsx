@@ -18,7 +18,7 @@ import { Message } from "ai/react";
  * 后端已返回相对路径（如 hello.html 或 vue/hello.html）
  * 这里只做兼容处理，确保路径格式正确
  */
-function normalizeFilePath(filePath: string): string {
+export function normalizeFilePath(filePath: string): string {
   if (!filePath) return filePath;
 
   // 1. 统一路径分隔符（Windows 反斜杠转正斜杠）
@@ -339,7 +339,7 @@ class StreamingFileManager {
 }
 
 // 全局单例
-const streamingFileManager = new StreamingFileManager();
+export const streamingFileManager = new StreamingFileManager();
 
 /**
  * 选中文件并在编辑器中打开

@@ -5,7 +5,6 @@ import java.lang.annotation.*;
 /**
  * 数据权限组注解，用于标记数据权限配置数组
  *
- * @author Lion Li
  * @version 3.5.0
  */
 @Target({ElementType.METHOD, ElementType.TYPE})

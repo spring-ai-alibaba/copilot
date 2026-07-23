@@ -25,7 +25,6 @@ import java.util.function.Function;
  *
  * @param <T> table 泛型
  * @param <V> vo 泛型
- * @author Lion Li
  * @since 2021-05-13
  */
 @SuppressWarnings("unchecked")

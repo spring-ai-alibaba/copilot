@@ -12,7 +12,6 @@ import java.util.List;
  * 消息领域模型
  * 表示对话中的一条消息
  *
- * @author Alibaba Cloud AI Team
  */
 @Data
 @NoArgsConstructor

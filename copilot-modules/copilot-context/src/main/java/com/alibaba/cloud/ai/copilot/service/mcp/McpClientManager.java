@@ -18,8 +18,6 @@ import jakarta.annotation.PreDestroy;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.ai.mcp.McpToolUtils;
-import org.springframework.ai.tool.ToolCallback;
 import org.springframework.stereotype.Component;
 
 import java.time.Duration;
@@ -31,7 +29,6 @@ import java.util.concurrent.ConcurrentHashMap;
  * 管理与外部 MCP Server 的连接，支持 STDIO 和 SSE 传输
  *
  * @author copilot team: evo
- * @email exotisch@163.com
  */
 @Slf4j
 @Component
@@ -46,35 +43,6 @@ public class McpClientManager {
      * 缓存活跃的 MCP Client
      */
     private final Map<Long, McpSyncClient> activeClients = new ConcurrentHashMap<>();
-
-    /**
-     * 获取指定工具 ID 列表的 ToolCallback
-     * 用于注入到 ReactAgent
-     *
-     * @param toolIds 工具 ID 列表
-     * @return ToolCallback 列表
-     */
-    public List<ToolCallback> getToolCallbacks(List<Long> toolIds) {
-        List<McpSyncClient> clients = new ArrayList<>();
-
-        for (Long toolId : toolIds) {
-            try {
-                McpSyncClient client = getOrCreateClient(toolId);
-                if (client != null) {
-                    clients.add(client);
-                }
-            } catch (Exception e) {
-                log.error("Failed to create MCP client for tool {}: {}", toolId, e.getMessage());
-            }
-        }
-
-        if (clients.isEmpty()) {
-            return Collections.emptyList();
-        }
-
-        // 使用 McpToolUtils 将 MCP Client 转换为 ToolCallback
-        return McpToolUtils.getToolCallbacksFromSyncClients(clients);
-    }
 
     /**
      * 获取或创建 MCP Client

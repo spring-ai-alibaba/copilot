@@ -8,7 +8,6 @@ import com.alibaba.cloud.ai.copilot.system.domain.vo.SysUserVo;
 /**
  * 用户 业务层
  *
- * @author Lion Li
  */
 public interface ISysUserService {
 
@@ -19,23 +18,6 @@ public interface ISysUserService {
      * @return 用户对象信息
      */
     SysUserVo selectUserByUserName(String userName);
-
-    /**
-     * 通过OpenId查询用户
-     *
-     * @Date 2023/5/18
-     * @param openId
-     * @return SysUserVo
-     **/
-    SysUserVo selectUserByOpenId(String openId);
-
-    /**
-     * 通过手机号查询用户
-     *
-     * @param phoneNumber 手机号
-     * @return 用户对象信息
-     */
-    SysUserVo selectUserByPhoneNumber(String phoneNumber);
 
     /**
      * 通过用户ID查询用户

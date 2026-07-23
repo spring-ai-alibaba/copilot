@@ -9,7 +9,6 @@ import com.baomidou.mybatisplus.extension.service.IService;
  * MCP 市场服务接口
  *
  * @author copilot team: evo
- * @email exotisch@163.com
  */
 public interface McpMarketService extends IService<McpMarketInfo> {
 

@@ -3,9 +3,9 @@ package com.alibaba.cloud.ai.copilot.knowledge.service;
 import com.alibaba.cloud.ai.copilot.knowledge.domain.entity.KnowledgeFts;
 import com.alibaba.cloud.ai.copilot.knowledge.domain.vo.KnowledgeChunk;
 import com.alibaba.cloud.ai.copilot.knowledge.mapper.KnowledgeFtsMapper;
+import com.alibaba.cloud.ai.copilot.knowledge.store.KnowledgeDoc;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.ai.document.Document;
 import org.springframework.stereotype.Service;
 
 import java.util.*;
@@ -45,7 +45,7 @@ public class KnowledgeFtsService {
      * @param n      返回条数
      * @return 匹配的 Document 列表（按 BM25 评分排序）
      */
-    public List<Document> search(String userId, String query, int n) {
+    public List<KnowledgeDoc> search(String userId, String query, int n) {
         if (query == null || query.trim().isEmpty()) return List.of();
 
         // 构建 MySQL BOOLEAN MODE 查询词
@@ -57,7 +57,7 @@ public class KnowledgeFtsService {
         log.info("FTS 搜索结果: userId={}, 返回 {} 条", userId, results.size());
 
         return results.stream()
-                .map(this::toDocument)
+                .map(this::toKnowledgeDoc)
                 .collect(Collectors.toList());
     }
 
@@ -150,13 +150,16 @@ public class KnowledgeFtsService {
         return sb.toString();
     }
 
-    private Document toDocument(KnowledgeFts record) {
-        Map<String, Object> metadata = new HashMap<>();
-        metadata.put("user_id", record.getUserId());
-        metadata.put("file_path", record.getFilePath());
-        metadata.put("start_line", record.getStartLine());
-        metadata.put("end_line", record.getEndLine());
-        metadata.put("source", "fts");  // 标记来源，方便调试
-        return new Document(record.getId(), record.getContent(), metadata);
+    private KnowledgeDoc toKnowledgeDoc(KnowledgeFts record) {
+        Map<String, Object> payload = new HashMap<>();
+        payload.put("user_id", record.getUserId());
+        payload.put("file_path", record.getFilePath());
+        payload.put("start_line", record.getStartLine());
+        payload.put("end_line", record.getEndLine());
+        payload.put("source", "fts");
+        String id = record.getId() != null ? record.getId() : java.util.UUID.randomUUID().toString();
+        return new KnowledgeDoc(id, id,
+                record.getContent() != null ? record.getContent() : "",
+                null, null, payload);
     }
 }

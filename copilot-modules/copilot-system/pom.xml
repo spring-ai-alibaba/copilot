@@ -31,11 +31,6 @@
 
         <dependency>
             <groupId>com.alibaba.cloud.ai</groupId>
-            <artifactId>copilot-common-redis</artifactId>
-        </dependency>
-
-        <dependency>
-            <groupId>com.alibaba.cloud.ai</groupId>
             <artifactId>copilot-common-mybatis</artifactId>
         </dependency>
 

@@ -17,7 +17,6 @@ import java.util.Date;
 /**
  * MP注入处理器
  *
- * @author Lion Li
  * @date 2021/4/25
  */
 @Slf4j

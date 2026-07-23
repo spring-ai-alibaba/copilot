@@ -14,7 +14,6 @@ import java.util.Date;
 /**
  * 用户信息视图对象 sys_user
  *
- * @author Michelle.Chung
  */
 @Data
 @AutoMapper(target = SysUser.class)

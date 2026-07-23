@@ -25,8 +25,6 @@
         <maven.compiler.target>17</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <spring-boot.version>3.4.5</spring-boot.version>
-        <spring-ai-alibaba.version>1.1.2.0</spring-ai-alibaba.version>
-        <spring-ai.version>1.1.2</spring-ai.version>
         <lombok.version>1.18.30</lombok.version>
         <mybatis.version>3.5.16</mybatis.version>
         <mybatis-plus.version>3.5.12</mybatis-plus.version>
@@ -34,8 +32,6 @@
         <p6spy.version>3.9.1</p6spy.version>
         <mysql.version>8.0.32</mysql.version>
         <jackson.version>2.15.2</jackson.version>
-        <redisson.version>3.20.1</redisson.version>
-        <lock4j.version>2.2.4</lock4j.version>
         <satoken.version>1.34.0</satoken.version>
         <hutool.version>5.8.35</hutool.version>
         <therapi-javadoc.version>0.15.0</therapi-javadoc.version>
@@ -46,9 +42,9 @@
         <json-schema-validator.version>1.0.87</json-schema-validator.version>
         <java-diff-utils.version>4.12</java-diff-utils.version>
         <commons-lang3.version>3.12.0</commons-lang3.version>
-        <langchain4j.version>1.2.0</langchain4j.version>
-        <tmp-langchain4j.version>1.2.0-beta8</tmp-langchain4j.version>
-        <milvus.version>2.4.8</milvus.version>
+        <agentscope.version>2.0.0</agentscope.version>
+        <mcp.version>0.17.0</mcp.version>
+        <milvus.version>2.6.17</milvus.version>
     </properties>
 
 
@@ -72,59 +68,22 @@
                 <scope>import</scope>
             </dependency>
 
-            <!-- Spring AI BOM -->
+            <!-- AgentScope BOM（提供 HarnessAgent / 事件流 / Middleware / RAG / MCP 扩展） -->
             <dependency>
-                <groupId>org.springframework.ai</groupId>
-                <artifactId>spring-ai-bom</artifactId>
-                <version>${spring-ai.version}</version>
-                <type>pom</type>
-                <scope>import</scope>
-            </dependency>
-
-            <!-- LangChain4j BOM -->
-            <dependency>
-                <groupId>dev.langchain4j</groupId>
-                <artifactId>langchain4j-bom</artifactId>
-                <version>${langchain4j.version}</version>
+                <groupId>io.agentscope</groupId>
+                <artifactId>agentscope-bom</artifactId>
+                <version>${agentscope.version}</version>
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
 
             <!-- 内部模块依赖 -->
-            <dependency>
-                <groupId>com.alibaba.cloud.ai</groupId>
-                <artifactId>copilot-common-core</artifactId>
-                <version>${project.version}</version>
-            </dependency>
-
-            <dependency>
-                <groupId>com.alibaba.cloud.ai</groupId>
-                <artifactId>copilot-common-web</artifactId>
-                <version>${project.version}</version>
-            </dependency>
-
-            <dependency>
-                <groupId>com.alibaba.cloud.ai</groupId>
-                <artifactId>copilot-common-mybatis</artifactId>
-                <version>${project.version}</version>
-            </dependency>
-
+            <!-- copilot-common-core / copilot-common-web / copilot-common-mybatis / -satoken / -security
+                 由 copilot-common-bom 统一管理版本，此处不再重复声明 -->
             <dependency>
                 <groupId>com.alibaba.cloud.ai</groupId>
                 <artifactId>copilot-conversation-api</artifactId>
                 <version>${project.version}</version>
-            </dependency>
-
-            <dependency>
-                <groupId>org.redisson</groupId>
-                <artifactId>redisson-spring-boot-starter</artifactId>
-                <version>${redisson.version}</version>
-            </dependency>
-
-            <dependency>
-                <groupId>com.baomidou</groupId>
-                <artifactId>lock4j-redisson-spring-boot-starter</artifactId>
-                <version>${lock4j.version}</version>
             </dependency>
 
             <dependency>
@@ -145,38 +104,13 @@
                 <version>${project.version}</version>
             </dependency>
 
+            <dependency>
+                <groupId>com.alibaba.cloud.ai</groupId>
+                <artifactId>copilot-knowledge</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+
             <!-- 第三方依赖版本管理 -->
-            <dependency>
-                <groupId>com.alibaba.cloud.ai</groupId>
-                <artifactId>spring-ai-alibaba-starter-dashscope</artifactId>
-                <version>${spring-ai-alibaba.version}</version>
-            </dependency>
-
-            <!-- 显式声明核心库版本，避免版本冲突 -->
-            <dependency>
-                <groupId>com.alibaba.cloud.ai</groupId>
-                <artifactId>spring-ai-alibaba-dashscope</artifactId>
-                <version>${spring-ai-alibaba.version}</version>
-            </dependency>
-
-            <dependency>
-                <groupId>com.alibaba.cloud.ai</groupId>
-                <artifactId>spring-ai-alibaba-autoconfigure-dashscope</artifactId>
-                <version>${spring-ai-alibaba.version}</version>
-            </dependency>
-
-            <dependency>
-                <groupId>com.alibaba.cloud.ai</groupId>
-                <artifactId>spring-ai-alibaba-agent-framework</artifactId>
-                <version>${spring-ai-alibaba.version}</version>
-            </dependency>
-
-            <dependency>
-                <groupId>com.alibaba.cloud.ai</groupId>
-                <artifactId>spring-ai-model-chat-memory-repository-jdbc</artifactId>
-                <version>${spring-ai-alibaba.version}</version>
-            </dependency>
-
             <dependency>
                 <groupId>org.mybatis</groupId>
                 <artifactId>mybatis</artifactId>
@@ -262,18 +196,6 @@
                 <groupId>cn.dev33</groupId>
                 <artifactId>sa-token-spring-boot3-starter</artifactId>
                 <version>${satoken.version}</version>
-            </dependency>
-            <!-- Sa-Token 整合 jwt -->
-            <dependency>
-                <groupId>cn.dev33</groupId>
-                <artifactId>sa-token-jwt</artifactId>
-                <version>${satoken.version}</version>
-                <exclusions>
-                    <exclusion>
-                        <groupId>cn.hutool</groupId>
-                        <artifactId>hutool-all</artifactId>
-                    </exclusion>
-                </exclusions>
             </dependency>
             <dependency>
                 <groupId>cn.dev33</groupId>

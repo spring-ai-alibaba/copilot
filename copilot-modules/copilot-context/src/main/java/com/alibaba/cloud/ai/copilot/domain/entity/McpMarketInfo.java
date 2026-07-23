@@ -9,7 +9,6 @@ import java.time.LocalDateTime;
  * MCP 市场信息实体
  *
  * @author copilot team: evo
- * @email exotisch@163.com
  */
 @Data
 @TableName("mcp_market_info")

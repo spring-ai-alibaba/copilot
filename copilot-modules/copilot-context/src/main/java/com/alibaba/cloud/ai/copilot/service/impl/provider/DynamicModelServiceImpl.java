@@ -6,10 +6,10 @@ import com.alibaba.cloud.ai.copilot.service.DynamicModelService;
 import com.alibaba.cloud.ai.copilot.service.ModelProvider;
 import com.alibaba.cloud.ai.copilot.service.OpenAiModelFactory;
 import com.alibaba.cloud.ai.copilot.service.impl.ProviderRegistry;
+import io.agentscope.core.model.GenerateOptions;
+import io.agentscope.core.model.Model;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.ai.chat.model.ChatModel;
-import org.springframework.ai.chat.prompt.ChatOptions;
 import org.springframework.stereotype.Service;
 
 import java.util.Map;
@@ -17,7 +17,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * 动态模型服务实现类
- * 支持从数据库动态获取 API 配置并创建对应的模型实例
+ * 支持从数据库动态获取 API 配置并创建对应的 agentscope {@link Model} 实例
  */
 @Slf4j
 @Service
@@ -27,7 +27,7 @@ public class DynamicModelServiceImpl implements DynamicModelService {
     /**
      * 模型缓存，避免重复创建（key: configId 或 modelName:userId）
      */
-    private final Map<String, ChatModel> modelCache = new ConcurrentHashMap<>();
+    private final Map<String, Model> modelCache = new ConcurrentHashMap<>();
 
     /**
      * Provider 注册表
@@ -39,32 +39,32 @@ public class DynamicModelServiceImpl implements DynamicModelService {
     private final OpenAiModelFactory openAiModelFactory;
 
     @Override
-    public ChatModel getChatModel(String modelName, String userId) {
+    public Model getChatModel(String modelName, String userId) {
         String cacheKey = generateCacheKey(modelName, userId);
 
         return modelCache.computeIfAbsent(cacheKey, key -> {
             try {
                 return createChatModel(modelName, userId);
             } catch (Exception e) {
-                log.error("根据模型名称创建 ChatModel 失败，model={}, userId={}", modelName, userId, e);
-                throw new RuntimeException("创建 ChatModel 失败", e);
+                log.error("根据模型名称创建 Model 失败，model={}, userId={}", modelName, userId, e);
+                throw new RuntimeException("创建 Model 失败", e);
             }
         });
     }
 
     @Override
-    public ChatModel getChatModelWithConfigId(String id) {
+    public Model getChatModelWithConfigId(String id) {
         return getChatModelWithConfigId(id, null);
     }
 
     /**
-     * 根据配置 ID 获取 ChatModel（支持自定义选项）
+     * 根据配置 ID 获取 agentscope {@link Model}（支持自定义选项）
      *
      * @param id      配置 ID
-     * @param options 自定义 ChatOptions，为 null 则使用默认选项
-     * @return ChatModel 实例
+     * @param options 自定义 GenerateOptions，为 null 则使用默认选项
+     * @return agentscope {@link Model} 实例
      */
-    public ChatModel getChatModelWithConfigId(String id, ChatOptions options) {
+    public Model getChatModelWithConfigId(String id, GenerateOptions options) {
         String cacheKey = "config:" + id;
 
         return modelCache.computeIfAbsent(cacheKey, key -> {
@@ -80,7 +80,7 @@ public class DynamicModelServiceImpl implements DynamicModelService {
             }
 
             ModelProvider provider = providerRegistry.getProviderOrThrow(config.getProvider());
-            log.info("开始创建 ChatModel，configId={}, provider={}, model={}",
+            log.info("开始创建 agentscope Model，configId={}, provider={}, model={}",
                     id, config.getProvider(), config.getModelName());
 
             return provider.createChatModel(config, options);
@@ -96,7 +96,7 @@ public class DynamicModelServiceImpl implements DynamicModelService {
     @Override
     public boolean isModelAvailable(String modelName, String userId) {
         try {
-            ChatModel model = getChatModel(modelName, userId);
+            Model model = getChatModel(modelName, userId);
             return model != null;
         } catch (Exception e) {
             log.warn("模型不可用，modelName={}, userId={}, 错误={}", modelName, userId, e.getMessage());
@@ -105,15 +105,15 @@ public class DynamicModelServiceImpl implements DynamicModelService {
     }
 
     /**
-     * 创建ChatModel实例
+     * 创建 agentscope Model 实例
      */
-    private ChatModel createChatModel(String modelName, String userId) {
+    private Model createChatModel(String modelName, String userId) {
         try {
             // 使用OpenAiModelFactory创建模型
             return openAiModelFactory.createChatModel(modelName, userId);
         } catch (Exception e) {
-            log.error("通过 OpenAiModelFactory 创建 ChatModel 失败，model={}, userId={}", modelName, userId, e);
-            throw new RuntimeException("通过 OpenAiModelFactory 创建 ChatModel 失败", e);
+            log.error("通过 OpenAiModelFactory 创建 Model 失败，model={}, userId={}", modelName, userId, e);
+            throw new RuntimeException("通过 OpenAiModelFactory 创建 Model 失败", e);
         }
     }
 
@@ -124,7 +124,7 @@ public class DynamicModelServiceImpl implements DynamicModelService {
      */
     public void refreshModelCacheById(String configId) {
         String cacheKey = "config:" + configId;
-        ChatModel removed = modelCache.remove(cacheKey);
+        Model removed = modelCache.remove(cacheKey);
         if (removed != null) {
             log.info("已从缓存中移除模型实例，configId={}", configId);
         }

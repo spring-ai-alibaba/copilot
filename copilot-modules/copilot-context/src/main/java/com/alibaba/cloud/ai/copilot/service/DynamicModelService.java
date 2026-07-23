@@ -1,53 +1,53 @@
 package com.alibaba.cloud.ai.copilot.service;
 
-import org.springframework.ai.chat.model.ChatModel;
-import org.springframework.ai.chat.prompt.ChatOptions;
+import io.agentscope.core.model.GenerateOptions;
+import io.agentscope.core.model.Model;
 
 /**
  * 动态模型服务接口
- * 根据配置动态创建和获取 AI 模型实例
+ * 根据配置动态创建和获取 AI 模型实例（agentscope {@link Model}）
  */
 public interface DynamicModelService {
 
     // ==================== 根据模型名称获取 ====================
 
     /**
-     * 根据模型名称和用户 ID 获取 ChatModel
+     * 根据模型名称和用户 ID 获取 agentscope {@link Model}
      *
      * @param modelName 模型名称（如 gpt-4, deepseek-chat）
      * @param userId    用户 ID，用于获取用户特定的配置
-     * @return ChatModel 实例
+     * @return agentscope {@link Model} 实例
      */
-    ChatModel getChatModel(String modelName, String userId);
+    Model getChatModel(String modelName, String userId);
 
     /**
-     * 根据模型名称获取默认的 ChatModel
+     * 根据模型名称获取默认的 agentscope {@link Model}
      *
      * @param modelName 模型名称
-     * @return ChatModel 实例
+     * @return agentscope {@link Model} 实例
      */
-    default ChatModel getChatModel(String modelName) {
+    default Model getChatModel(String modelName) {
         return getChatModel(modelName, null);
     }
 
     // ==================== 根据配置 ID 获取 ====================
 
     /**
-     * 根据配置 ID 获取 ChatModel
+     * 根据配置 ID 获取 agentscope {@link Model}
      *
      * @param configId 配置 ID（model_config.id）
-     * @return ChatModel 实例
+     * @return agentscope {@link Model} 实例
      */
-    ChatModel getChatModelWithConfigId(String configId);
+    Model getChatModelWithConfigId(String configId);
 
     /**
-     * 根据配置 ID 获取 ChatModel（支持自定义选项）
+     * 根据配置 ID 获取 agentscope {@link Model}（支持自定义选项）
      *
      * @param configId 配置 ID
-     * @param options  自定义 ChatOptions，为 null 则使用默认选项
-     * @return ChatModel 实例
+     * @param options  自定义 GenerateOptions，为 null 则使用默认选项
+     * @return agentscope {@link Model} 实例
      */
-    ChatModel getChatModelWithConfigId(String configId, ChatOptions options);
+    Model getChatModelWithConfigId(String configId, GenerateOptions options);
 
     // ==================== 缓存管理 ====================
 

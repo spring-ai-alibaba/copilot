@@ -15,7 +15,6 @@ import java.util.concurrent.ConcurrentHashMap;
  * 统一管理所有 ModelProvider 实例，提供按名称快速查找功能
  * </p>
  *
- * @author Copilot Team
  * @since 1.0.0
  */
 @Slf4j

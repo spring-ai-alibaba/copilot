@@ -30,60 +30,53 @@
 
         <dependency>
             <groupId>com.alibaba.cloud.ai</groupId>
-            <artifactId>copilot-common-redis</artifactId>
-        </dependency>
-
-        <dependency>
-            <groupId>com.alibaba.cloud.ai</groupId>
             <artifactId>copilot-common-mybatis</artifactId>
         </dependency>
 
         <dependency>
             <groupId>com.alibaba.cloud.ai</groupId>
             <artifactId>copilot-knowledge</artifactId>
+            <version>${project.version}</version>
         </dependency>
 
-        <!-- Spring AI -->
+        <!-- Spring AI（已移除：copilot-context 不再依赖 spring-ai / spring-ai-alibaba，agent 框架换用 agentscope） -->
+
+        <!-- MCP Java SDK：供 McpClientManager 管理外部 MCP Server 连接（STDIO/SSE），原由 spring-ai-starter-mcp-client 传递，现直接声明 -->
         <dependency>
-            <groupId>org.springframework.ai</groupId>
-            <artifactId>spring-ai-starter-model-openai</artifactId>
+            <groupId>io.modelcontextprotocol.sdk</groupId>
+            <artifactId>mcp</artifactId>
+            <version>${mcp.version}</version>
         </dependency>
 
-        <!-- Spring AI Chat Memory -->
+        <!-- AgentScope 2.0 - 替代 spring-ai-alibaba-agent-framework -->
+        <!-- HarnessAgent（自带 workspace/filesystem 工具/compaction）+ 事件流 streamEvents + Middleware -->
         <dependency>
-            <groupId>org.springframework.ai</groupId>
-            <artifactId>spring-ai-model-chat-memory-repository-jdbc</artifactId>
+            <groupId>io.agentscope</groupId>
+            <artifactId>agentscope-harness</artifactId>
         </dependency>
 
-
-        <!-- Spring AI Alibaba Agent Framework -->
+        <!-- AgentScope OpenAI 兼容模型扩展（接 DashScope compatible-mode / DeepSeek / SiliconFlow） -->
         <dependency>
-            <groupId>com.alibaba.cloud.ai</groupId>
-            <artifactId>spring-ai-alibaba-agent-framework</artifactId>
+            <groupId>io.agentscope</groupId>
+            <artifactId>agentscope-extensions-model-openai</artifactId>
         </dependency>
 
-        <!-- DashScope ChatModel 支持（如果使用其他模型，请跳转 Spring AI 文档选择对应的 starter） -->
+        <!-- AgentScope AG-UI 协议适配器（AgentEvent → AG-UI 事件） -->
         <dependency>
-            <groupId>com.alibaba.cloud.ai</groupId>
-            <artifactId>spring-ai-alibaba-starter-dashscope</artifactId>
+            <groupId>io.agentscope</groupId>
+            <artifactId>agentscope-extensions-agui</artifactId>
+        </dependency>
+
+        <!-- AgentScope MySQL AgentStateStore（会话状态持久化，阶段2 用） -->
+        <dependency>
+            <groupId>io.agentscope</groupId>
+            <artifactId>agentscope-extensions-mysql</artifactId>
         </dependency>
 
         <!-- Diff Utils -->
         <dependency>
             <groupId>io.github.java-diff-utils</groupId>
             <artifactId>java-diff-utils</artifactId>
-        </dependency>
-
-        <!-- MCP Client Boot Starter - 用于连接外部 MCP 服务器 -->
-        <dependency>
-            <groupId>org.springframework.ai</groupId>
-            <artifactId>spring-ai-starter-mcp-client</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>com.alibaba.cloud.ai</groupId>
-            <artifactId>copilot-knowledge</artifactId>
-            <version>1.0.0</version>
-            <scope>compile</scope>
         </dependency>
 
     </dependencies>

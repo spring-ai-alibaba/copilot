@@ -1,31 +1,33 @@
 package com.alibaba.cloud.ai.copilot.knowledge.config;
 
-import io.milvus.client.MilvusServiceClient;
-import io.milvus.param.ConnectParam;
-import io.milvus.param.MetricType;
+import com.alibaba.cloud.ai.copilot.knowledge.store.KnowledgeMilvusStore;
+import io.agentscope.core.embedding.EmbeddingModel;
+import io.agentscope.core.embedding.openai.OpenAITextEmbedding;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.ai.document.Document;
-import org.springframework.ai.embedding.EmbeddingModel;
-import org.springframework.ai.vectorstore.SearchRequest;
-import org.springframework.ai.vectorstore.VectorStore;
-import org.springframework.ai.vectorstore.filter.Filter;
-import org.springframework.ai.vectorstore.milvus.MilvusVectorStore;
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
-import java.util.List;
-
 /**
- * Milvus VectorStore 配置
- * Milvus 连接失败时自动降级为 NoOpVectorStore，应用正常启动。
+ * 知识库向量存储配置（agentscope 2.0 + Milvus SDK）。
+ *
+ * <p>embedding 用 agentscope {@link OpenAITextEmbedding}
+ * 向量存储用本地 {@link KnowledgeMilvusStore}</p>
  *
  * @author RobustH
  */
 @Slf4j
 @Configuration
 public class MilvusVectorStoreConfig {
+
+    @Value("${spring.ai.openai.embedding.api-key:}")
+    private String embeddingApiKey;
+
+    @Value("${spring.ai.openai.embedding.base-url:https://api.siliconflow.cn}")
+    private String embeddingBaseUrl;
+
+    @Value("${spring.ai.openai.embedding.options.model:BAAI/bge-large-zh-v1.5}")
+    private String embeddingModelName;
 
     @Value("${spring.ai.vectorstore.milvus.client.host:localhost}")
     private String host;
@@ -42,63 +44,51 @@ public class MilvusVectorStoreConfig {
     @Value("${spring.ai.vectorstore.milvus.embedding-dimension:1024}")
     private Integer embeddingDimension;
 
-    @Value("${spring.ai.vectorstore.milvus.initialize-schema:true}")
-    private Boolean initializeSchema;
+    @Value("${spring.ai.vectorstore.milvus.client.username:}")
+    private String username;
+
+    @Value("${spring.ai.vectorstore.milvus.client.password:}")
+    private String password;
 
     /**
-     * 创建 Milvus VectorStore。
-     * 若 Milvus 不可用（连接超时/拒绝），返回 NoOpVectorStore 避免启动失败。
+     * OpenAI 兼容的文本嵌入模型（SiliconFlow bge-large-zh-v1.5，1024 维）。
+     * apiKey 未配置时返回 null，知识库功能降级关闭，应用仍可启动。
      */
-    @Bean
-    public VectorStore vectorStore(@Qualifier("openAiEmbeddingModel") EmbeddingModel embeddingModel) {
+    @Bean(name = "openAiEmbeddingModel")
+    public EmbeddingModel openAiEmbeddingModel() {
+        if (embeddingApiKey == null || embeddingApiKey.isBlank()) {
+            log.warn("嵌入模型 apiKey 未配置（spring.ai.openai.embedding.api-key），知识库功能已禁用");
+            return null;
+        }
         try {
-            ConnectParam connectParam = ConnectParam.newBuilder()
-                    .withHost(host)
-                    .withPort(port)
-                    .withDatabaseName(databaseName)
+            OpenAITextEmbedding model = OpenAITextEmbedding.builder()
+                    .apiKey(embeddingApiKey)
+                    .baseUrl(embeddingBaseUrl)
+                    .modelName(embeddingModelName)
+                    .dimensions(embeddingDimension)
                     .build();
-            MilvusServiceClient milvusClient = new MilvusServiceClient(connectParam);
-            log.info("Milvus 客户端已初始化: 主机={}, 端口={}, 数据库={}", host, port, databaseName);
-
-            MilvusVectorStore vectorStore = MilvusVectorStore.builder(milvusClient, embeddingModel)
-                    .collectionName(collectionName)
-                    .databaseName(databaseName)
-                    .metricType(MetricType.COSINE)
-                    .embeddingDimension(embeddingDimension)
-                    .initializeSchema(initializeSchema)
-                    .build();
-
-            log.info("Milvus 向量存储已初始化: 集合={}, 维度={}", collectionName, embeddingDimension);
-            return vectorStore;
-
+            log.info("OpenAI 兼容嵌入模型已初始化: model={}, dim={}, baseUrl={}", embeddingModelName, embeddingDimension, embeddingBaseUrl);
+            return model;
         } catch (Exception e) {
-            log.warn("Milvus 不可用，知识库功能已禁用（应用继续正常启动）: {}", e.getMessage());
-            return new NoOpVectorStore();
+            log.warn("嵌入模型初始化失败，知识库功能已禁用: {}", e.getMessage());
+            return null;
         }
     }
 
     /**
-     * Milvus 不可用时的空操作 VectorStore，所有操作静默忽略。
+     * Milvus 向量存储。Milvus 不可用时返回 null，知识库功能降级关闭。
      */
-    public static class NoOpVectorStore implements VectorStore {
-        @Override
-        public void add(List<Document> documents) {
-            log.warn("NoOpVectorStore: Milvus 不可用，忽略 add 操作");
-        }
-
-        @Override
-        public void delete(List<String> idList) {
-            // Milvus 不可用，忽略
-        }
-
-        @Override
-        public void delete(Filter.Expression filterExpression) {
-            // Milvus 不可用，忽略
-        }
-
-        @Override
-        public List<Document> similaritySearch(SearchRequest request) {
-            return List.of();
+    @Bean(destroyMethod = "close")
+    public KnowledgeMilvusStore knowledgeMilvusStore() {
+        String uri = String.format("http://%s:%d", host, port);
+        try {
+            KnowledgeMilvusStore store = new KnowledgeMilvusStore(
+                    uri, databaseName, collectionName, embeddingDimension, username, password);
+            log.info("Milvus 向量存储已初始化: uri={}, collection={}, dim={}", uri, collectionName, embeddingDimension);
+            return store;
+        } catch (Exception e) {
+            log.warn("Milvus 不可用，知识库功能已禁用（应用继续正常启动）: {}", e.getMessage());
+            return null;
         }
     }
 }

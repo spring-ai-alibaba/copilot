@@ -5,8 +5,7 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 
 /**
- * 设备类型
- * 针对多套 用户体系
+ * 用户类型（多套用户体系；精简版仅保留系统用户）
  *
  * @author yzm
  */
@@ -14,15 +13,8 @@ import lombok.Getter;
 @AllArgsConstructor
 public enum UserType {
 
-    /**
-     * pc端
-     */
-    SYS_USER("sys_user"),
-
-    /**
-     * app端
-     */
-    APP_USER("app_user");
+    /** 系统用户 */
+    SYS_USER("sys_user");
 
     private final String userType;
 

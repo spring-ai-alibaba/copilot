@@ -11,7 +11,6 @@ import java.util.List;
  * MCP 工具服务接口
  *
  * @author copilot team: evo
- * @email exotisch@163.com
  */
 public interface McpToolService extends IService<McpToolInfo> {
 

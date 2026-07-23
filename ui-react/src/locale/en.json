@@ -503,6 +503,7 @@
     "AI_powered_development_platform": "AI-Powered Development Platform",
     "email": "Email",
     "password": "Password",
+    "username": "Username",
     "sign_in": "Sign In",
     "signing_in": "Signing in...",
     "Failed to fetch": "Failed to fetch",
@@ -536,6 +537,8 @@
     "create_account": "Create your We0 account",
     "creating_account": "Creating Account...",
     "create_account_button": "Create Account",
+    "confirm_password": "Confirm Password",
+    "passwords_not_match": "Passwords do not match",
     "already_account": "Already have an account?"
   },
   "sketch": {

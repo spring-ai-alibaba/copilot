@@ -12,7 +12,6 @@ import org.apache.ibatis.session.Configuration;
  * 修改表信息初始化方式
  * 目前用于全局修改是否使用逻辑删除
  *
- * @author Lion Li
  */
 public class PlusPostInitTableInfoHandler implements PostInitTableInfoHandler {
 

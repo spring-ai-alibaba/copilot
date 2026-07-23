@@ -38,11 +38,6 @@
             </dependency>
             <dependency>
                 <groupId>com.alibaba.cloud.ai</groupId>
-                <artifactId>copilot-common-redis</artifactId>
-                <version>${revision}</version>
-            </dependency>
-            <dependency>
-                <groupId>com.alibaba.cloud.ai</groupId>
                 <artifactId>copilot-common-satoken</artifactId>
                 <version>${revision}</version>
             </dependency>

@@ -1,34 +1,16 @@
 package com.alibaba.cloud.ai.copilot.satoken.config;
 
-import cn.dev33.satoken.dao.SaTokenDao;
-import cn.dev33.satoken.jwt.StpLogicJwtForSimple;
-import cn.dev33.satoken.stp.StpLogic;
-import com.alibaba.cloud.ai.copilot.satoken.core.dao.PlusSaTokenDao;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
-import org.springframework.context.annotation.Bean;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 /**
- * sa-token 配置
+ * sa-token 配置（精简版）
+ * <p>
+ * 不再注册自定义 SaTokenDao（使用 Sa-Token 默认内存存储），
+ * 不再注册 JWT StpLogic（使用默认 token 风格）。
+ * 保留空配置类以维持 AutoConfiguration.imports 注册有效。
  *
- * @author Lion Li
  */
 @AutoConfiguration
 public class SaTokenConfig implements WebMvcConfigurer {
-
-    @Bean
-    public StpLogic getStpLogicJwt() {
-        // Sa-Token 整合 jwt (简单模式)
-        return new StpLogicJwtForSimple();
-    }
-
-
-    /**
-     * 自定义dao层存储
-     */
-    @Bean
-    public SaTokenDao saTokenDao() {
-        return new PlusSaTokenDao();
-    }
-
 }

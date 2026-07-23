@@ -6,7 +6,6 @@ import lombok.Getter;
  * MCP 工具状态枚举
  *
  * @author copilot team: evo
- * @email exotisch@163.com
  */
 @Getter
 public enum ToolStatus {

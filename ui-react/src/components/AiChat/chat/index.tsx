@@ -15,8 +15,7 @@ import {parseMessage} from "../../../utils/messagepParseJson";
 import useUserStore from "../../../stores/userSlice";
 import {useLimitModalStore} from "../../UserModal";
 import {updateFileSystemNow} from "../../WeIde/services";
-import {parseMessages, parseSSEMessage} from "../useSseMessageParser";
-import {SSEEventType} from "../sseMessageParser";
+import {parseMessages, streamingFileManager, normalizeFilePath} from "../useSseMessageParser";
 import {createMpIcon} from "@/utils/createWtrite";
 import {useTranslation} from "react-i18next";
 import { apiUrl } from "@/api/base";
@@ -531,9 +530,14 @@ export const BaseChat = ({uuid: propUuid}: { uuid?: string }) => {
 
             // 创建一个新的 ReadableStream 来拦截数据
             const originalStream = response.body;
-            console.log('[customFetch] 原始流:', originalStream);
+            console.log('[customFetch] 原始流（AG-UI）:', originalStream);
             const reader = originalStream.getReader();
-            let chunkCount = 0;
+
+            // AG-UI 工具调用 args 累积器：toolCallId -> {name, argsBuffer}
+            const toolCallStates = new Map<string, { name: string; argsBuffer: string }>();
+
+            // SSE 帧累积缓冲（跨 chunk 的不完整帧）
+            let sseBuffer = '';
 
             const stream = new ReadableStream({
                 start(controller) {
@@ -544,88 +548,95 @@ export const BaseChat = ({uuid: propUuid}: { uuid?: string }) => {
                                 return;
                             }
 
-                            chunkCount++;
-
-                            // 处理 SSE 格式的数据
-                            const text = new TextDecoder().decode(value);
+                            const text = new TextDecoder().decode(value, { stream: true });
+                            sseBuffer += text;
 
                             let transformedText = '';
 
-                            if (text.trim()) {
-                                const lines = text.split('\n').filter(line => line.trim());
+                            // 按空行拆分完整帧（SSE 帧以 \n\n 分隔）
+                            let sepIndex: number;
+                            while ((sepIndex = sseBuffer.indexOf('\n\n')) !== -1) {
+                                const frame = sseBuffer.slice(0, sepIndex);
+                                sseBuffer = sseBuffer.slice(sepIndex + 2);
+                                if (!frame.trim()) continue;
 
-                                let currentEvent = '';
-                                let currentData = '';
-
-                                for (const line of lines) {
+                                let eventName = '';
+                                let dataStr = '';
+                                for (const line of frame.split('\n')) {
                                     if (line.startsWith('event:')) {
-                                        currentEvent = line.slice(6).trim();
+                                        eventName = line.slice(6).trim();
                                     } else if (line.startsWith('data:')) {
-                                        currentData = line.slice(5).trimStart();
-
-                                        if (currentData === '[DONE]') {
-                                            // transformedText += 'data: [DONE]\n\n';
-                                            continue;
-                                        }
-
-                                        try {
-                                            const parsed = JSON.parse(currentData);
-                                            console.log('[customFetch] 解析消息:', parsed);
-                                            // 处理 SSE 格式的消息
-                                            if (parsed && parsed.event) {
-                                                const eventType = parsed.event;
-                                                console.log('[customFetch] 事件类型:', eventType, '数据:', parsed.data);
-
-                                                // 对于文件操作和命令操作，使用 SSE 消息解析器
-                                                if ([SSEEventType.ADD_START, SSEEventType.ADD_PROGRESS, SSEEventType.ADD_END,
-                                                     SSEEventType.EDIT_START, SSEEventType.EDIT_PROGRESS, SSEEventType.EDIT_END,
-                                                     SSEEventType.DELETE_START, SSEEventType.DELETE_PROGRESS, SSEEventType.DELETE_END,
-                                                     SSEEventType.LIST_PROGRESS,
-                                                     SSEEventType.CMD].includes(eventType)) {
-                                                    console.log('[customFetch] 匹配到文件操作事件:', eventType);
-                                                    // 异步处理文件/命令操作，不阻塞流处理
-                                                    setTimeout(() => {
-                                                        const messageId = parsed.messageId || `msg_${Date.now()}`;
-                                                        console.log('[customFetch] 调用 parseSSEMessage:', messageId, parsed);
-                                                        parseSSEMessage(messageId, parsed);
-                                                    }, 0);
-                                                    continue;
-                                                }
-
-                                                // 处理文本消息
-                                                if (eventType === 'text' && parsed.data && parsed.data.content) {
-                                                    // 转换为 AI SDK 期望的格式
-                                                    const content = parsed.data.content;
-                                                    if (content) {
-                                                        transformedText += content;
-                                                    }
-                                                }
-
-                                                // 处理完成消息
-                                                if (eventType === 'done') {
-                                                    transformedText += 'data: [DONE]\n\n';
-                                                    continue;
-                                                }
-                                            } else {
-                                                // 兼容旧的 OpenAI 格式
-                                                if (parsed.choices && parsed.choices[0] && parsed.choices[0].delta) {
-                                                    const content = parsed.choices[0].delta.content;
-                                                    const finishReason = parsed.choices[0].finish_reason;
-
-                                                    if (content) {
-                                                        transformedText += content;
-                                                    }
-
-                                                    if (finishReason === 'stop') {
-                                                        break;
-                                                    }
-                                                }
-                                            }
-                                        } catch (e) {
-                                            // 忽略解析错误
-                                            console.debug('Failed to parse SSE data:', e, currentData);
-                                        }
+                                        dataStr = line.slice(5).replace(/^\s/, '');
                                     }
+                                }
+                                if (!dataStr) continue;
+
+                                // 后端会先发一个 conversationId 控制事件（旧协议残留，data 是 JSON）
+                                let parsed: any;
+                                try {
+                                    parsed = JSON.parse(dataStr);
+                                } catch (e) {
+                                    // 可能是纯文本控制帧（如 [DONE]），忽略
+                                    continue;
+                                }
+
+                                // 用 SSE event 名（UPPER 枚举名）路由；回退到 JSON.type
+                                const type = (eventName || parsed.type || '').toUpperCase();
+
+                                // 会话ID控制事件：后端在新建会话时回传，前端需写入 store 以支撑后续多轮
+                                if (eventName === 'conversation-id' && parsed.conversationId) {
+                                    setCurrentConversation(parsed.conversationId);
+                                    continue;
+                                }
+
+                                switch (type) {
+                                    case 'TEXT_MESSAGE_CONTENT': {
+                                        const delta = parsed.delta;
+                                        if (delta) transformedText += delta;
+                                        break;
+                                    }
+                                    case 'TOOL_CALL_START': {
+                                        const tcId = parsed.toolCallId;
+                                        const tcName = parsed.toolCallName;
+                                        if (tcId && tcName) {
+                                            toolCallStates.set(tcId, { name: tcName, argsBuffer: '' });
+                                        }
+                                        break;
+                                    }
+                                    case 'TOOL_CALL_ARGS': {
+                                        const tcId = parsed.toolCallId;
+                                        const delta = parsed.delta;
+                                        const st = tcId ? toolCallStates.get(tcId) : undefined;
+                                        if (st && delta) {
+                                            st.argsBuffer += delta;
+                                        }
+                                        break;
+                                    }
+                                    case 'TOOL_CALL_END': {
+                                        const tcId = parsed.toolCallId;
+                                        const st = tcId ? toolCallStates.get(tcId) : undefined;
+                                        if (st) {
+                                            handleToolCallEnd(st.name, st.argsBuffer);
+                                            toolCallStates.delete(tcId);
+                                        }
+                                        break;
+                                    }
+                                    case 'TOOL_CALL_RESULT': {
+                                        // 工具结果（list_files/grep 等）暂不渲染到聊天，仅日志
+                                        console.debug('[AG-UI] tool result:', parsed.toolCallId, parsed.content);
+                                        break;
+                                    }
+                                    case 'RUN_FINISHED': {
+                                        transformedText += 'data: [DONE]\n\n';
+                                        break;
+                                    }
+                                    case 'RUN_ERROR': {
+                                        console.error('[AG-UI] run error:', parsed.message || parsed);
+                                        break;
+                                    }
+                                    default:
+                                        // 其他事件（STEP_*/STATE_*/REASONING_* 等）暂不处理
+                                        break;
                                 }
                             }
 
@@ -650,6 +661,47 @@ export const BaseChat = ({uuid: propUuid}: { uuid?: string }) => {
 
         } catch (error) {
             throw error;
+        }
+    };
+
+    /**
+     * 工具调用完成时，根据工具名与累积的 args JSON 驱动文件操作。
+     * write_file/edit_file → StreamingFileManager 打字机渲染（与旧 add/edit 协议行为一致）；
+     * delete_file → 删除文件；list_files/grep_files/glob_files/read_file → 暂不渲染。
+     */
+    const handleToolCallEnd = (toolName: string, argsJson: string) => {
+        let args: any = {};
+        try {
+            args = argsJson ? JSON.parse(argsJson) : {};
+        } catch (e) {
+            console.error('[AG-UI] 解析工具参数失败:', toolName, argsJson, e);
+            return;
+        }
+        const rawPath = args.path || args.filePath;
+        if (!rawPath) return;
+        const filePath = normalizeFilePath(rawPath);
+
+        switch (toolName) {
+            case 'write_file':
+            case 'edit_file': {
+                // write_file 的 content / edit_file 的 new_string
+                const content = args.content != null ? args.content : (args.new_string != null ? args.new_string : '');
+                streamingFileManager.addContent(filePath, String(content)).catch(e =>
+                    console.error('[AG-UI] 流式写入失败:', filePath, e)
+                );
+                // edit_file 完成后需校准（写入是整段替换）
+                if (toolName === 'edit_file') {
+                    // 延迟一帧让 addContent 入池后标记完成
+                    setTimeout(() => streamingFileManager.completeFile(filePath), 50);
+                }
+                break;
+            }
+            case 'delete_file': {
+                Promise.resolve(useFileStore.getState().deleteFile(filePath)).catch(() => {});
+                break;
+            }
+            default:
+                break;
         }
     };
 

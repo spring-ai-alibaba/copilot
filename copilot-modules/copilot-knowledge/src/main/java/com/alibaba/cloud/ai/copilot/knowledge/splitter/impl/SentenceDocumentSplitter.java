@@ -5,35 +5,24 @@ import com.alibaba.cloud.ai.copilot.knowledge.splitter.DocumentSplitter;
 
 import com.alibaba.cloud.ai.copilot.knowledge.enums.KnowledgeCategory;
 import com.alibaba.cloud.ai.copilot.knowledge.domain.vo.KnowledgeChunk;
-import com.alibaba.cloud.ai.transformer.splitter.SentenceSplitter;
+import io.agentscope.core.rag.reader.SplitStrategy;
+import io.agentscope.core.rag.reader.TextChunker;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.ai.document.Document;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.util.DigestUtils;
 
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.stream.Collectors;
 
 /**
- * 基于句子的文档切割器
- * 使用 Spring AI Alibaba 的 SentenceSplitter
- * 
- * SentenceSplitter 特点:
- * - 基于 OpenNLP 的 SentenceDetectorME 实现
- * - 精准识别句子边界，特别适合中文和多语言文本
- * - 按句子聚合，保留语义完整性
- * - 适用于 RAG 场景，提升检索准确性
- * 
- * 应用场景:
- * - 长文本文档（技术文档、论文、报告等）
- * - 需要保持语义完整性的文本
- * - 中文和多语言混合文本
- * - RAG 检索增强生成场景
+ * 基于段落的文档切割器
+ *
+ * <p>使用 agentscope {@link TextChunker}（PARAGRAPH 策略）保留按语义边界聚合、保持语义完整性的目标，
+ * 适合长文本文档与 RAG 场景。</p>
  *
  * @author RobustH
  */
@@ -41,39 +30,32 @@ import java.util.stream.Collectors;
 @Component
 public class SentenceDocumentSplitter implements DocumentSplitter {
 
-    private final SentenceSplitter sentenceSplitter;
+    private final int chunkSize;
 
     public SentenceDocumentSplitter(
             @Value("${copilot.knowledge.splitter.chunk-size:500}") int chunkSize) {
+        this.chunkSize = chunkSize;
         log.info("初始化 SentenceDocumentSplitter: chunkSize={}", chunkSize);
-        this.sentenceSplitter = new SentenceSplitter(chunkSize);
     }
 
     @Override
     public List<KnowledgeChunk> split(String content, String filePath) {
         try {
-            // 创建 Spring AI Document
-            Document document = new Document(content, Map.of("source", filePath));
+            List<String> chunks = TextChunker.chunkText(content, chunkSize, SplitStrategy.PARAGRAPH, 0);
 
-            // 使用 SentenceSplitter 切割
-            // SentenceSplitter 会：
-            // 1. 使用 OpenNLP 模型识别句子边界
-            // 2. 按最大 token 数聚合句子
-            // 3. 保持语义完整性
-            List<Document> splitDocs = sentenceSplitter.apply(List.of(document));
+            log.debug("文件 {} 使用 PARAGRAPH 策略切割为 {} 个 chunks", filePath, chunks.size());
 
-            log.debug("文件 {} 使用 SentenceSplitter 切割为 {} 个 chunks", filePath, splitDocs.size());
-
-            // 转换为 KnowledgeChunk
-            AtomicInteger index = new AtomicInteger(0);
-            return splitDocs.stream()
-                    .filter(doc -> !doc.getText().trim().isEmpty())
-                    .map(doc -> createKnowledgeChunk(doc, filePath, index.getAndIncrement()))
-                    .collect(Collectors.toList());
-
+            List<KnowledgeChunk> result = new ArrayList<>();
+            int index = 0;
+            for (String text : chunks) {
+                if (text == null || text.trim().isEmpty()) {
+                    continue;
+                }
+                result.add(createKnowledgeChunk(text, filePath, index++));
+            }
+            return result;
         } catch (Exception e) {
-            log.error("SentenceSplitter 切割失败: {}", filePath, e);
-            // 降级：返回整个文档作为单个 chunk
+            log.error("段落切割失败: {}", filePath, e);
             return List.of(createKnowledgeChunk(content, filePath, 0));
         }
     }
@@ -81,22 +63,6 @@ public class SentenceDocumentSplitter implements DocumentSplitter {
     @Override
     public SplitterStrategy getStrategy() {
         return SplitterStrategy.SENTENCE;
-    }
-
-
-
-    private KnowledgeChunk createKnowledgeChunk(Document doc, String filePath, int index) {
-        return KnowledgeChunk.builder()
-                .id(UUID.randomUUID().toString())
-                .content(doc.getText())
-                .filePath(filePath)
-                .fileType(KnowledgeCategory.FileType.DOCUMENT)
-                .language(detectLanguage(doc.getText()))
-                .createdAt(System.currentTimeMillis())
-                .contentHash(DigestUtils.md5DigestAsHex(doc.getText().getBytes()))
-                .chunkIndex(index)
-                .metadata(Collections.emptyMap())
-                .build();
     }
 
     private KnowledgeChunk createKnowledgeChunk(String content, String filePath, int index) {
@@ -107,24 +73,21 @@ public class SentenceDocumentSplitter implements DocumentSplitter {
                 .fileType(KnowledgeCategory.FileType.DOCUMENT)
                 .language(detectLanguage(content))
                 .createdAt(System.currentTimeMillis())
+                .contentHash(DigestUtils.md5DigestAsHex(content.getBytes(StandardCharsets.UTF_8)))
+                .chunkIndex(index)
+                .metadata(Collections.emptyMap())
                 .build();
     }
 
     /**
-     * 简单的语言检测
-     * 根据内容中的字符判断是否包含中文
+     * 简单的语言检测：根据内容是否包含中文字符判断。
      */
     private String detectLanguage(String content) {
         if (content == null || content.isEmpty()) {
             return "unknown";
         }
-        
-        // 检测是否包含中文字符
         boolean hasChinese = content.chars()
                 .anyMatch(c -> Character.UnicodeBlock.of(c) == Character.UnicodeBlock.CJK_UNIFIED_IDEOGRAPHS);
-        
         return hasChinese ? "zh" : "en";
     }
-
-
 }

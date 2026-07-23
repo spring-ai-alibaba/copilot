@@ -4,7 +4,7 @@
 
 # 服务器配置
 server:
-  port: 6039
+  port: 6040
   servlet:
     context-path: /
 
@@ -96,45 +96,6 @@ spring:
         metric-type: COSINE
 
 # ===================================================================
-# Redis 配置 (单机模式)
-# ===================================================================
-spring.data:
-  redis:
-    # 地址
-    host: 127.0.0.1
-    # 端口，默认为6379
-    port: 6379
-    # 数据库索引
-    database: 0
-    # 密码(如没有密码请注释掉)
-#    password:
-    # 连接超时时间
-    timeout: 10S
-
-# Redisson 配置
-redisson:
-  # redis key前缀
-  keyPrefix:
-  # 线程池数量
-  threads: 4
-  # Netty线程池数量
-  nettyThreads: 8
-  # 单节点配置
-  singleServerConfig:
-    # 客户端名称
-    clientName: ${ruoyi.name}
-    # 最小空闲连接数
-    connectionMinimumIdleSize: 8
-    # 连接池大小
-    connectionPoolSize: 32
-    # 连接空闲超时，单位：毫秒
-    idleConnectionTimeout: 10000
-    # 命令等待超时，单位：毫秒
-    timeout: 3000
-    # 发布和订阅连接池大小
-    subscriptionConnectionPoolSize: 50
-
-# ===================================================================
 # MyBatis Plus 配置
 # https://baomidou.com/config/
 # ===================================================================
@@ -186,12 +147,9 @@ mybatis-plus:
 security:
   # 排除路径
   excludes:
-    # 重置密码
-    - /auth/reset/password
     # 登录与注册
     - /auth/login
     - /auth/register
-    - /auth/visitorLogin
     # 静态资源
     - /*.html
     - /**/*.html
@@ -217,16 +175,6 @@ mybatis-encryptor:
   privateKey:
 
 # ===================================================================
-# 用户安全配置
-# ===================================================================
-user:
-  password:
-    # 密码最大错误次数
-    maxRetryCount: 5
-    # 密码锁定时间（默认10分钟）
-    lockTime: 10
-
-# ===================================================================
 # Sa-Token 认证配置
 # ===================================================================
 sa-token:
@@ -246,8 +194,6 @@ sa-token:
   is-read-cookie: false
   # token前缀
   token-prefix: "Bearer"
-  # jwt秘钥
-  jwt-secret-key: abcdefghijklmnopqrstuvwxyz
 
 # ===================================================================
 # 日志配置

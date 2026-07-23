@@ -1,7 +1,6 @@
 package com.alibaba.cloud.ai.copilot.system.service.impl;
 
 import cn.hutool.core.util.ObjectUtil;
-import com.alibaba.cloud.ai.copilot.core.constant.CacheNames;
 import com.alibaba.cloud.ai.copilot.core.exception.ServiceException;
 import com.alibaba.cloud.ai.copilot.core.service.UserService;
 import com.alibaba.cloud.ai.copilot.core.utils.MapstructUtils;
@@ -14,14 +13,12 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
  * 用户 业务层处理
  *
- * @author Lion Li
  */
 @Slf4j
 @RequiredArgsConstructor
@@ -40,28 +37,6 @@ public class SysUserServiceImpl implements ISysUserService, UserService {
     @Override
     public SysUserVo selectUserByUserName(String userName) {
         return baseMapper.selectUserByUserName(userName);
-    }
-
-    /**
-     * 通过OpenId查询用户
-     *
-     * @param openId 用户名
-     * @return 用户对象信息
-     */
-    @Override
-    public SysUserVo selectUserByOpenId(String openId) {
-        return baseMapper.selectUserByOpenId(openId);
-    }
-
-    /**
-     * 通过手机号查询用户
-     *
-     * @param phoneNumber 手机号
-     * @return 用户对象信息
-     */
-    @Override
-    public SysUserVo selectUserByPhoneNumber(String phoneNumber) {
-        return baseMapper.selectUserByPhonenumber(phoneNumber);
     }
 
     /**
@@ -240,7 +215,6 @@ public class SysUserServiceImpl implements ISysUserService, UserService {
                         .eq(SysUser::getUserId, userId));
     }
 
-    @Cacheable(cacheNames = CacheNames.SYS_USER_NAME, key = "#userId")
     @Override
     public String selectUserNameById(Long userId) {
         SysUser sysUser = baseMapper.selectOne(new LambdaQueryWrapper<SysUser>()

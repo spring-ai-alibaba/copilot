@@ -11,7 +11,6 @@ import java.time.Duration;
  * MCP 配置类
  *
  * @author copilot team: evo
- * @email exotisch@163.com
  */
 @Configuration
 public class McpConfig {

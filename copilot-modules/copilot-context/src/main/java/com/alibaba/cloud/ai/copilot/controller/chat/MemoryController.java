@@ -3,7 +3,7 @@ package com.alibaba.cloud.ai.copilot.controller.chat;
 import com.alibaba.cloud.ai.copilot.domain.dto.*;
 import com.alibaba.cloud.ai.copilot.satoken.utils.LoginHelper;
 import com.alibaba.cloud.ai.copilot.store.DatabaseStore;
-import com.alibaba.cloud.ai.graph.store.StoreItem;
+import com.alibaba.cloud.ai.copilot.store.MemoryStoreItem;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
@@ -53,7 +53,7 @@ public class MemoryController {
             }
             
             // 保存记忆
-            StoreItem item = StoreItem.of(request.getNamespace(), request.getKey(), request.getValue());
+            MemoryStoreItem item = MemoryStoreItem.of(request.getNamespace(), request.getKey(), request.getValue());
             databaseStore.putItem(item);
             
             log.debug("保存记忆成功: userId={}, namespace={}, key={}", userId, request.getNamespace(), request.getKey());
@@ -84,7 +84,7 @@ public class MemoryController {
             }
             
             // 获取记忆
-            Optional<StoreItem> itemOpt = databaseStore.getItem(namespace, key);
+            Optional<MemoryStoreItem> itemOpt = databaseStore.getItem(namespace, key);
             
             if (itemOpt.isPresent()) {
                 log.debug("获取记忆成功: userId={}, namespace={}, key={}", userId, namespace, key);
@@ -116,7 +116,7 @@ public class MemoryController {
             }
             
             // 搜索记忆（支持 filter: JSON_CONTAINS(value, filter)）
-            List<StoreItem> items = databaseStore.searchItems(request.getNamespace(), request.getFilter());
+            List<MemoryStoreItem> items = databaseStore.searchItems(request.getNamespace(), request.getFilter());
 
             log.debug("搜索记忆成功: userId={}, namespace={}, count={}", 
                     userId, request.getNamespace(), items.size());
