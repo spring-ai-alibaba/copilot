@@ -35,7 +35,7 @@ export function BackendSettings({ otherConfig, updateConfig }: BackendSettingsPr
               const newConfig = { ...otherConfig, backendLanguage: e.target.value };
               updateConfig(newConfig);
             }}
-            className="w-full px-2.5 py-1.5 bg-white dark:bg-[#1e1e1e] border border-border rounded-md text-foreground focus:outline-none focus:border-blue-500 text-sm"
+            className="w-full rounded-lg border border-border bg-background px-2.5 py-1.5 text-sm text-foreground outline-none focus:border-foreground/20"
           >
             <option value="Java">Java</option>
             <option value="Node">Node</option>
@@ -62,7 +62,7 @@ export function BackendSettings({ otherConfig, updateConfig }: BackendSettingsPr
               };
               updateConfig(newConfig);
             }}
-            className="w-full px-2.5 py-1.5 bg-white dark:bg-[#1e1e1e] border border-border rounded-md text-foreground focus:outline-none focus:border-blue-500 text-sm"
+            className="w-full rounded-lg border border-border bg-background px-2.5 py-1.5 text-sm text-foreground outline-none focus:border-foreground/20"
           >
             <option value="none">{t('settings.backend.database.none')}</option>
             <option value="mysql">MySQL</option>
@@ -92,7 +92,7 @@ export function BackendSettings({ otherConfig, updateConfig }: BackendSettingsPr
               updateConfig(newConfig);
             }}
             placeholder="localhost:3306"
-            className="w-full px-2.5 py-1.5 bg-white dark:bg-[#1e1e1e] border border-border rounded-md text-foreground focus:outline-none focus:border-blue-500 text-sm"
+            className="w-full rounded-lg border border-border bg-background px-2.5 py-1.5 text-sm text-foreground outline-none focus:border-foreground/20"
           />
           <label className="block text-gray-500 dark:text-gray-300 mb-1.5 text-sm mt-4">
             {t('settings.backend.database.username')}
@@ -114,7 +114,7 @@ export function BackendSettings({ otherConfig, updateConfig }: BackendSettingsPr
               updateConfig(newConfig);
             }}
             placeholder={t('settings.backend.database.username')}
-            className="w-full px-2.5 py-1.5 bg-white dark:bg-[#1e1e1e] border border-border rounded-md text-foreground focus:outline-none focus:border-blue-500 text-sm"
+            className="w-full rounded-lg border border-border bg-background px-2.5 py-1.5 text-sm text-foreground outline-none focus:border-foreground/20"
           />
           <label className="block text-gray-500 dark:text-gray-300 mb-1.5 text-sm mt-4">
             {t('settings.backend.database.password')}
@@ -136,10 +136,10 @@ export function BackendSettings({ otherConfig, updateConfig }: BackendSettingsPr
               updateConfig(newConfig);
             }}
             placeholder={t('settings.backend.database.password')}
-            className="w-full px-2.5 py-1.5 bg-white dark:bg-[#1e1e1e] border border-border rounded-md text-foreground focus:outline-none focus:border-blue-500 text-sm"
+            className="w-full rounded-lg border border-border bg-background px-2.5 py-1.5 text-sm text-foreground outline-none focus:border-foreground/20"
           />
         </div>
       )}
     </>
   );
-} 
+}

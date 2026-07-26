@@ -109,7 +109,7 @@ export function KnowledgePreview({ visible, onCancel, document, kbKey }: Knowled
             <div className="font-medium mb-1">{t('knowledge.metadata')}:</div>
             <div className="flex flex-wrap gap-1">
               {Object.entries(chunk.metadata).map(([key, value]) => (
-                <Tag key={key} size="small">
+                <Tag key={key}>
                   {key}: {String(value)}
                 </Tag>
               ))}

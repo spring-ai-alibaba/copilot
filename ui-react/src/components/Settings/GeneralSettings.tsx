@@ -62,7 +62,7 @@ const CustomSelect = ({ value, onChange, options, className = "" }) => {
           "w-full px-3 py-2 text-sm text-left rounded-md",
           "bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700",
           "hover:bg-gray-50 dark:hover:bg-gray-700/50",
-          "focus:outline-none focus:ring-2 focus:ring-purple-500/50",
+          "focus:outline-none focus:ring-2 focus:ring-ring/20",
           "transition-colors duration-200",
           "flex items-center justify-between gap-2",
           className
@@ -81,8 +81,7 @@ const CustomSelect = ({ value, onChange, options, className = "" }) => {
 
       {isOpen && (
         <div className={classNames(
-          "absolute z-50 w-full mt-1 rounded-md shadow-lg",
-          "bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700",
+          "arc-popover absolute z-50 mt-1 w-full overflow-hidden p-1.5",
           "max-h-60 overflow-auto scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-gray-600"
         )}>
           {options.map((option) => (
@@ -93,10 +92,10 @@ const CustomSelect = ({ value, onChange, options, className = "" }) => {
                 setIsOpen(false);
               }}
               className={classNames(
-                "w-full px-3 py-2 text-sm text-left",
-                "hover:bg-gray-50 dark:hover:bg-gray-700/50",
+                "w-full rounded-lg px-3 py-2 text-left text-sm",
+                "hover:bg-foreground/[0.055]",
                 "transition-colors duration-200",
-                value === option.value && "bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400"
+                value === option.value && "bg-foreground/[0.075] text-foreground"
               )}
             >
               {option.label}
@@ -116,10 +115,9 @@ const CustomInput = ({ value, onChange, placeholder, className = "" }) => (
     onChange={onChange}
     placeholder={placeholder}
     className={classNames(
-      "w-full px-3 py-2 text-sm rounded-md",
-      "bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700",
-      "focus:outline-none focus:ring-2 focus:ring-purple-500/50",
-      "placeholder-gray-400 dark:placeholder-gray-500",
+      "w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground",
+      "focus:outline-none focus:ring-2 focus:ring-ring/20",
+      "placeholder:text-muted-foreground",
       "transition-colors duration-200",
       className
     )}
@@ -134,19 +132,19 @@ const CustomRadio = ({ checked, onChange, children, value }) => (
       "flex items-center gap-2 px-3 py-2 w-full text-sm rounded-md",
       "transition-colors duration-200",
       checked
-        ? "bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400 border-purple-200 dark:border-purple-800"
-        : "bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-700",
-      "border hover:bg-gray-50 dark:hover:bg-gray-700/50"
+        ? "border-foreground/15 bg-foreground/[0.065] text-foreground"
+        : "border-border bg-background text-muted-foreground",
+      "border hover:bg-foreground/[0.045]"
     )}
   >
     <div className={classNames(
       "w-4 h-4 rounded-full border-2 flex items-center justify-center",
       checked
-        ? "border-purple-500 dark:border-purple-400"
-        : "border-gray-300 dark:border-gray-600"
+        ? "border-foreground"
+        : "border-border"
     )}>
       {checked && (
-        <div className="w-2 h-2 rounded-full bg-purple-500 dark:bg-purple-400" />
+        <div className="h-2 w-2 rounded-full bg-foreground" />
       )}
     </div>
     <span>{children}</span>
@@ -163,7 +161,7 @@ const CustomTextArea = ({ value, onChange, placeholder, className = "" }) => (
     className={classNames(
       "w-full px-3 py-2 text-sm rounded-md",
       "bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700",
-      "focus:outline-none focus:ring-2 focus:ring-purple-500/50",
+      "focus:outline-none focus:ring-2 focus:ring-ring/20",
       "placeholder-gray-400 dark:placeholder-gray-500",
       "transition-colors duration-200",
       "resize-y min-h-[100px]",
@@ -539,8 +537,8 @@ export function GeneralSettings() {
               "px-4 py-2 text-sm font-medium transition-colors duration-200",
               "focus:outline-none",
               activeTab === 'general'
-                ? "border-b-2 border-purple-500 text-purple-600 dark:text-purple-400"
-                : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300"
+                ? "border-b-2 border-foreground text-foreground"
+                : "text-muted-foreground hover:text-foreground"
             )}
             onClick={() => setActiveTab('general')}
           >
@@ -677,7 +675,7 @@ export function GeneralSettings() {
                   className={classNames(
                     "w-full px-3 py-2 text-sm rounded-md pr-10",
                     "bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700",
-                    "focus:outline-none focus:ring-2 focus:ring-purple-500/50",
+                    "focus:outline-none focus:ring-2 focus:ring-ring/20",
                     "placeholder-gray-400 dark:placeholder-gray-500",
                     "transition-colors duration-200"
                   )}

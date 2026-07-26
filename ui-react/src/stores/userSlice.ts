@@ -7,6 +7,7 @@ import { safeJsonParse, safeJsonStringify } from "@/utils/safeJsonParse"
 
 export interface User {
   id: string
+  userId?: string
   username: string
   error?: any
   email: string

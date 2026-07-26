@@ -1,151 +1,112 @@
-import {useEffect, useRef, useState} from "react";
-import {useTranslation} from 'react-i18next';
+import { useEffect, useRef, useState } from "react";
+import { LoaderCircle, Sparkles, X } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { apiUrl } from "@/api/base";
+import { Button } from "@/components/ui/button";
 
 interface PromptEnhancedProps {
   setInput: (text: string) => void;
-  input: string
+  input: string;
 }
-const PromptEnhanced = (props: PromptEnhancedProps) => {
-  const { setInput, input } = props || {};
+
+const PromptEnhanced = ({ setInput, input }: PromptEnhancedProps) => {
   const [isOpen, setIsOpen] = useState(false);
   const [promptText, setPromptText] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const popoverRef = useRef<HTMLDivElement>(null);
   const { t } = useTranslation();
+
   useEffect(() => {
-    if (isOpen) {
-      setPromptText(input);
-    }
-  }, [isOpen]);
-  const handleClick = async () => {
+    if (isOpen) setPromptText(input);
+  }, [input, isOpen]);
+
+  useEffect(() => {
+    const handleClickOutside = (event: PointerEvent) => {
+      if (!popoverRef.current?.contains(event.target as Node)) setIsOpen(false);
+    };
+    window.addEventListener("pointerdown", handleClickOutside);
+    return () => window.removeEventListener("pointerdown", handleClickOutside);
+  }, []);
+
+  const handleEnhance = async () => {
+    if (!promptText.trim() || isLoading) return;
     setIsLoading(true);
     try {
-      const res = await fetch(apiUrl('/api/enhancedPrompt'), {
+      const response = await fetch(apiUrl("/api/enhancedPrompt"), {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          prompt: promptText,
-        }),
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prompt: promptText }),
       });
-      const r = await res.json();
-      // 后端返回的字段是 enhancedPrompt
-      setInput(r.enhancedPrompt || r.text || promptText);
+      if (!response.ok) throw new Error(`Prompt enhancement failed: ${response.status}`);
+      const result = await response.json();
+      setInput(result.enhancedPrompt || result.text || promptText);
       setIsOpen(false);
     } catch (error) {
-      console.error(t('chat.optimizePrompt.error'), error);
+      console.error(t("chat.optimizePrompt.error", { defaultValue: "提示词优化失败" }), error);
     } finally {
       setIsLoading(false);
     }
   };
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (
-        popoverRef.current &&
-        !popoverRef.current.contains(event.target as Node)
-      ) {
-        setIsOpen(false);
-      }
-    };
-
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
 
   return (
-    <div className="relative">
+    <div ref={popoverRef} className="relative">
+      <button
+        type="button"
+        onClick={() => setIsOpen((current) => !current)}
+        className="inline-flex h-7 items-center gap-1.5 rounded-full border border-border/65 bg-background/75 px-2.5 text-[11px] text-muted-foreground shadow-sm backdrop-blur transition-colors hover:bg-muted/70 hover:text-foreground"
+      >
+        <Sparkles className="h-3 w-3" />
+        {t("chat.optimizePrompt.button", { defaultValue: "优化提示词" })}
+      </button>
+
       {isOpen ? (
-        <div
-          className={`absolute left-0 bottom-full mb-2 w-96 bg-white/80 dark:bg-[#1a1a1c] backdrop-blur-md rounded-lg shadow-xl p-4 border border-gray-200/50 dark:border-gray-700/50 transition-all duration-200 ease-in-out transform origin-bottom
-          ${
-            isOpen
-              ? "opacity-100 translate-y-0 scale-100"
-              : "opacity-0 translate-y-2 scale-95 pointer-events-none"
-          }`}
-          ref={popoverRef}
-        >
-          <h3 className="text-sm font-medium mb-2 text-gray-700 dark:text-gray-200">
-            {t('chat.optimizePrompt.title')}
-          </h3>
+        <div className="arc-popover absolute bottom-9 left-0 z-50 w-[420px] max-w-[calc(100vw-32px)] p-3">
+          <div className="flex items-center justify-between gap-3 px-1 pb-2">
+            <div>
+              <div className="text-xs font-semibold text-foreground">
+                {t("chat.optimizePrompt.title", { defaultValue: "优化提示词" })}
+              </div>
+              <div className="mt-0.5 text-[10px] text-muted-foreground">
+                补充任务目标、约束和期望输出格式
+              </div>
+            </div>
+            <button
+              type="button"
+              className="arc-icon-button h-7 w-7"
+              onClick={() => setIsOpen(false)}
+              aria-label="关闭"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          </div>
           <textarea
-            className="w-full h-32 p-2.5 text-xs border rounded-lg bg-white/50 dark:bg-gray-700/50 dark:border-gray-600/50 dark:text-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none transition-all duration-200"
+            autoFocus
+            className="h-32 w-full resize-none rounded-xl border border-border bg-background/70 p-3 text-xs leading-5 text-foreground outline-none transition-colors placeholder:text-muted-foreground focus:border-foreground/20"
             value={promptText}
-            onChange={(e) => setPromptText(e.target.value)}
-            placeholder={t('chat.optimizePrompt.placeholder')}
-            onKeyDown={async (e) => {
-              if (e.key === "Enter" && !e.shiftKey) {
-                e.preventDefault();
-                await handleClick();
+            onChange={(event) => setPromptText(event.target.value)}
+            placeholder={t("chat.optimizePrompt.placeholder", {
+              defaultValue: "描述你希望 Agent 完成的任务…",
+            })}
+            onKeyDown={(event) => {
+              if (event.key === "Enter" && !event.shiftKey) {
+                event.preventDefault();
+                void handleEnhance();
               }
             }}
           />
-          <div className="flex justify-end gap-2 mt-3">
-            <button
-              className="px-2.5 py-1.5 text-xs text-gray-600 hover:text-gray-700 dark:text-gray-300 dark:hover:text-gray-100 transition-colors duration-200"
-              onClick={() => setIsOpen(false)}
-              disabled={isLoading}
-            >
-              {t('chat.optimizePrompt.cancel')}
-            </button>
-            <button
-              className={`px-3 py-1.5 text-xs text-white bg-blue-500/90 rounded hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 transition-all duration-200 ${
-                isLoading ? "opacity-70 cursor-not-allowed" : ""
-              }`}
-              onClick={handleClick}
-              disabled={isLoading}
-            >
-              {isLoading ? (
-                <span className="flex items-center gap-1">
-                  <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
-                    <circle
-                      className="opacity-25"
-                      cx="12"
-                      cy="12"
-                      r="10"
-                      stroke="currentColor"
-                      strokeWidth="4"
-                      fill="none"
-                    />
-                    <path
-                      className="opacity-75"
-                      fill="currentColor"
-                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                    />
-                  </svg>
-                  {t('chat.optimizePrompt.processing')}
-                </span>
-              ) : (
-                t('chat.optimizePrompt.confirm')
-              )}
-            </button>
+          <div className="mt-3 flex justify-end gap-2">
+            <Button variant="ghost" size="sm" onClick={() => setIsOpen(false)} disabled={isLoading}>
+              {t("chat.optimizePrompt.cancel", { defaultValue: "取消" })}
+            </Button>
+            <Button size="sm" onClick={() => void handleEnhance()} disabled={isLoading || !promptText.trim()}>
+              {isLoading ? <LoaderCircle className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
+              {isLoading
+                ? t("chat.optimizePrompt.processing", { defaultValue: "正在优化" })
+                : t("chat.optimizePrompt.confirm", { defaultValue: "开始优化" })}
+            </Button>
           </div>
         </div>
       ) : null}
-      <div
-        className="mb-1 px-2 py-1 text-blue-500 text-xs rounded bg-blue-50 dark:bg-blue-500/20 dark:text-blue-400 w-fit cursor-pointer hover:bg-blue-100 dark:hover:bg-blue-500/30 transition-all duration-200 ease-in-out flex items-center gap-1"
-        onClick={() => {
-          setPromptText(input)
-          setIsOpen(!isOpen);
-        }}
-      >
-        <svg
-          className="w-3.5 h-3.5"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-          xmlns="http://www.w3.org/2000/svg"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={2}
-            d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
-          />
-        </svg>
-        {t('chat.optimizePrompt.button')}
-      </div>
     </div>
   );
 };

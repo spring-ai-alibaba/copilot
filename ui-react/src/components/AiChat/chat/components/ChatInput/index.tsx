@@ -1,6 +1,6 @@
 import React, {useCallback, useEffect, useRef, useState} from "react";
-import {Code2, FileIcon, MessageSquare} from "lucide-react";
-import {toast} from "react-hot-toast";
+import {FileIcon, LoaderCircle} from "lucide-react";
+import {toast} from "react-toastify";
 import {uploadImage} from "@/api/chat";
 import classNames from "classnames";
 import {useFileStore} from "../../../../WeIde/stores/fileStore";
@@ -15,7 +15,6 @@ import useChatModeStore from "../../../../../stores/chatModeSlice";
 import useThemeStore from "@/stores/themeSlice";
 import {v4 as uuidv4} from "uuid";
 import OptimizedPromptWord from "./OptimizedPromptWord";
-import useUserStore from "@/stores/userSlice";
 
 // import type { ModelOption } from './UploadButtons';
 
@@ -53,7 +52,6 @@ export const ChatInput: React.FC<ChatInputPropsType> = ({
   const sketchInputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const { t } = useTranslation();
-  const { user } = useUserStore();
   const [showMentionMenu, setShowMentionMenu] = useState(false);
   const [selectedMentionIndex, setSelectedMentionIndex] = useState(0);
   const [mentionPosition, setMentionPosition] = useState({ top: 0, left: 0 });
@@ -67,7 +65,7 @@ export const ChatInput: React.FC<ChatInputPropsType> = ({
   const [mentions, setMentions] = useState<
     Array<{ start: number; end: number; path: string }>
   >([]);
-  const { mode: chatMode, setMode } = useChatModeStore();
+  const { mode: chatMode } = useChatModeStore();
   const { isDarkMode } = useThemeStore();
 
   const getFileOptions = () => {
@@ -374,9 +372,16 @@ export const ChatInput: React.FC<ChatInputPropsType> = ({
     return () => window.removeEventListener("resize", handleResize);
   }, [showMentionMenu, updateMentionPosition]);
 
+  useEffect(() => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+    textarea.style.height = "0px";
+    textarea.style.height = `${Math.min(200, Math.max(72, textarea.scrollHeight))}px`;
+  }, [input]);
+
   return (
-    <div className="px-1 py-2 ">
-      <div className="max-w-[640px] w-full mx-auto bg-[#fff] dark:bg-[#18181a]">
+    <div className="shrink-0 px-3 pb-4 pt-2 sm:px-5">
+      <div className="mx-auto w-full max-w-[760px]">
         <ErrorDisplay
           errors={errors}
           onAttemptFix={async (error, index) => {
@@ -387,16 +392,11 @@ export const ChatInput: React.FC<ChatInputPropsType> = ({
           onRemoveError={removeError}
         />
 
-        <ImagePreviewGrid
-          uploadedImages={uploadedImages}
-          onRemoveImage={removeImage}
-        />
-
-          <div className="flex flex-row">
-        <OptimizedPromptWord input={input} setInput={setInput}></OptimizedPromptWord>
+        <div className="mb-1.5 flex items-center">
+          <OptimizedPromptWord input={input} setInput={setInput} />
         </div>
 
-        <div className="relative bg-transparent dark:bg-[#1a1a1c] rounded-lg border border-gray-600/30">
+        <div className="arc-composer-card relative overflow-visible">
           <div
             className={classNames(
               "relative",
@@ -404,11 +404,21 @@ export const ChatInput: React.FC<ChatInputPropsType> = ({
             )}
           >
             {isUploading && (
-              <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/20">
-                <div className="w-8 h-8 border-2 border-gray-400 rounded-full animate-spin border-t-transparent"></div>
+              <div className="absolute inset-0 z-40 flex items-center justify-center rounded-[inherit] bg-background/65 backdrop-blur-sm">
+                <div className="flex items-center gap-2 rounded-full border border-border bg-popover px-3 py-1.5 text-xs text-muted-foreground shadow-lg">
+                  <LoaderCircle className="h-3.5 w-3.5 animate-spin" />
+                  正在上传附件
+                </div>
               </div>
             )}
-            <div className="relative ">
+
+            {uploadedImages.length ? (
+              <div className="px-3 pt-3">
+                <ImagePreviewGrid uploadedImages={uploadedImages} onRemoveImage={removeImage} />
+              </div>
+            ) : null}
+
+            <div className="relative">
               <textarea
                 ref={textareaRef}
                 value={input}
@@ -416,30 +426,25 @@ export const ChatInput: React.FC<ChatInputPropsType> = ({
                 onKeyDown={handleKeyDown}
                 placeholder={t(
                   chatMode === ChatMode.Chat
-                    ? t(modePlaceholders[ChatMode.Chat])
-                    : t(modePlaceholders[ChatMode.Builder])
+                    ? modePlaceholders[ChatMode.Chat]
+                    : modePlaceholders[ChatMode.Builder],
                 )}
                 className={classNames(
-                  "w-full p-4 bg-transparent text-gray-900 dark:text-gray-100 focus:outline-none resize-none text-sm",
-                  "placeholder-gray-500 dark:placeholder-gray-400",
-                  "hover:bg-gray-50/50 dark:hover:bg-white/[0.03]",
-                  "focus:bg-gray-50/80 dark:focus:bg-white/[0.05]",
-                  "transition-colors duration-200",
-                  "relative z-10",
-                  isLoading && "opacity-50"
+                  "relative z-10 block w-full resize-none overflow-y-auto bg-transparent px-4 pb-2 pt-3.5 text-[14px] leading-6 text-foreground outline-none",
+                  "placeholder:text-muted-foreground/70",
+                  "[scrollbar-width:thin]",
                 )}
-                rows={3}
+                rows={2}
                 style={{
-                  minHeight: "60px",
+                  minHeight: "72px",
                   maxHeight: "200px",
                   caretColor: isDarkMode ? "white" : "black",
                 }}
-                disabled={isLoading}
               />
 
               {highlightRange && (
                 <div
-                  className="absolute top-0 bottom-0 left-0 right-0 p-4 text-sm break-words whitespace-pre-wrap pointer-events-none"
+                  className="pointer-events-none absolute inset-0 px-4 pb-2 pt-3.5 text-[14px] leading-6"
                   style={{
                     fontFamily: "inherit",
                     lineHeight: "inherit",
@@ -449,7 +454,7 @@ export const ChatInput: React.FC<ChatInputPropsType> = ({
                   <span className="invisible">
                     {input.substring(0, highlightRange.start)}
                   </span>
-                  <span className="text-transparent bg-blue-500/20">
+                  <span className="rounded bg-foreground/10 text-transparent">
                     {input.substring(highlightRange.start, highlightRange.end)}
                   </span>
                   <span className="invisible">
@@ -463,22 +468,23 @@ export const ChatInput: React.FC<ChatInputPropsType> = ({
               <div
                 className="absolute z-50 transition-all duration-100"
                 style={{
-                  top: `${mentionPosition.top + 100}px`,
-                  left: `${mentionPosition.left + 40}px`,
+                  top: `${mentionPosition.top + 22}px`,
+                  left: `${mentionPosition.left + 16}px`,
                   maxHeight: "200px",
-                  width: "200px",
+                  width: "240px",
                 }}
               >
-                <div className="dark:bg-[#1c1c1c] bg-transparent rounded-md border border-gray-600/30 shadow-lg overflow-hidden">
-                  <div className="max-h-[150px] overflow-y-auto scrollbar-thin scrollbar-thumb-gray-600/50 scrollbar-track-transparent">
+                <div className="arc-popover overflow-hidden p-1.5">
+                  <div className="max-h-[180px] overflow-y-auto">
                     {filteredMentionOptions.map((option, index) => (
-                      <div
+                      <button
+                        type="button"
                         key={option.id}
                         className={classNames(
-                          "px-2 py-1.5 flex items-center gap-2 text-xs cursor-pointer",
+                          "flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs transition-colors",
                           selectedMentionIndex === index
-                            ? "bg-blue-500/20 text-blue-400"
-                            : "text-gray-300 hover:bg-gray-700/30"
+                            ? "bg-foreground/[0.075] text-foreground"
+                            : "text-muted-foreground hover:bg-foreground/[0.045] hover:text-foreground"
                         )}
                         onClick={() => {
                           handleMentionSelect(option);
@@ -493,18 +499,16 @@ export const ChatInput: React.FC<ChatInputPropsType> = ({
                             : null
                         }
                       >
-                        {option.icon}
+                        <span className="[&>svg]:h-3.5 [&>svg]:w-3.5">{option.icon}</span>
                         <span className="truncate">{option.path}</span>
-                      </div>
+                      </button>
                     ))}
                   </div>
                 </div>
               </div>
             )}
-
-
-            <div className="flex items-center justify-between px-2 py-2 border-t border-gray-600/30">
-              <div className="flex items-center">
+            <div className="flex items-center justify-between gap-3 px-2.5 pb-2.5 pt-1">
+              <div className="flex min-w-0 items-center">
                 <UploadButtons
                   isLoading={isLoading}
                   isUploading={isUploading}
@@ -517,45 +521,25 @@ export const ChatInput: React.FC<ChatInputPropsType> = ({
                   onImageClick={() => fileInputRef.current?.click()}
                   onSketchClick={() => sketchInputRef.current?.click()}
                 />
-
-                <button
-                  className={classNames(
-                    "p-2 rounded-md transition-colors",
-                    "hover:bg-gray-700/30",
-                    "group relative",
-                    "hidden" // 隐藏模式切换按钮
-                  )}
-                  onClick={() => {
-                    setMode(
-                      chatMode === ChatMode.Chat
-                        ? ChatMode.Builder
-                        : ChatMode.Chat
-                    );
-                  }}
-                >
-                  {chatMode === ChatMode.Chat ? (
-                    <MessageSquare
-                      className={classNames("w-4 h-4", "text-blue-400")}
-                    />
-                  ) : (
-                    <Code2 className={classNames("w-4 h-4", "text-blue-400")} />
-                  )}
-                  <span className="absolute px-2 py-1 mb-2 text-xs text-gray-200 transition-opacity -translate-x-1/2 bg-gray-800 rounded opacity-0 bottom-full left-1/2 group-hover:opacity-100 whitespace-nowrap">
-                    {chatMode}
-                  </span>
-                </button>
               </div>
 
-              <SendButton
-                isLoading={isLoading}
-                stop={stopRuning}
-                isUploading={isUploading}
-                hasInput={!!(input?.trim())}
-                hasUploadingImages={uploadedImages.some(
-                  (img) => img.status === "uploading"
-                )}
-                onClick={handleSubmitWithFiles}
-              />
+              <div className="flex shrink-0 items-center gap-2">
+                <span className="hidden text-[10px] text-muted-foreground/65 sm:inline">
+                  {t("chat.buttons.composerHint", {
+                    defaultValue: "Enter 发送 · Shift + Enter 换行",
+                  })}
+                </span>
+                <SendButton
+                  isLoading={isLoading}
+                  stop={stopRuning}
+                  isUploading={isUploading}
+                  hasInput={
+                    Boolean(input?.trim()) || uploadedImages.some((image) => image.status === "done")
+                  }
+                  hasUploadingImages={uploadedImages.some((image) => image.status === "uploading")}
+                  onClick={handleSubmitWithFiles}
+                />
+              </div>
             </div>
           </div>
         </div>
@@ -568,8 +552,6 @@ export const ChatInput: React.FC<ChatInputPropsType> = ({
           multiple
           accept="image/*"
         />
-        
-        {/* fileInputRef这个应该是没有用的（没验证） */}
         <input
           ref={sketchInputRef}
           type="file"

@@ -144,10 +144,11 @@ const PreviewIframe: React.FC<PreviewIframeProps> = ({
 
   const openExternal = () => {
     const externalUrl = port ? `http://localhost:${port}/` : "http://localhost:5174/";
-    window.electron.ipcRenderer.send(
-      "open:external:url",
-      externalUrl
-    );
+    if (window.electron?.ipcRenderer) {
+      window.electron.ipcRenderer.send("open:external:url", externalUrl);
+      return;
+    }
+    window.open(externalUrl, "_blank", "noopener,noreferrer");
   };
 
   useEffect(() => {
@@ -240,8 +241,8 @@ const PreviewIframe: React.FC<PreviewIframeProps> = ({
   }, []);
 
   return (
-    <div     className="preview-container w-full h-full relative flex flex-col overflow-hidden">
-      <div className="browser-header bg-white dark:bg-[#1a1a1c] border-b border-gray-200 px-4 py-1 flex items-center space-x-2">
+    <div className="preview-container relative flex h-full w-full flex-col overflow-hidden bg-workbench-panel">
+      <div className="browser-header flex min-h-11 items-center space-x-2 border-b border-border/65 bg-workbench px-3 py-1">
         <div className="flex space-x-1.5">
           <div className="w-3 h-3 rounded-full bg-red-500"></div>
           <div className="w-3 h-3 rounded-full bg-yellow-500"></div>
@@ -252,7 +253,7 @@ const PreviewIframe: React.FC<PreviewIframeProps> = ({
         </div>
         <div className="relative">
           <button
-            className="ml-2 p-1.5 rounded hover:bg-gray-100 dark:hover:bg-[#2c2c2c] text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 flex items-center gap-2"
+            className="arc-icon-button ml-1 flex h-8 w-auto items-center gap-1 px-2"
             onClick={() =>
               setIsWindowSizeDropdownOpen(!isWindowSizeDropdownOpen)
             }
@@ -266,11 +267,11 @@ const PreviewIframe: React.FC<PreviewIframeProps> = ({
                 className="fixed inset-0 z-50"
                 onClick={() => setIsWindowSizeDropdownOpen(false)}
               />
-              <div className="absolute top-8 left-0 mt-2 z-50 min-w-[240px] bg-white dark:bg-black rounded-xl shadow-2xl border border-[#E5E7EB] dark:border-[rgba(255,255,255,0.1)] overflow-hidden">
+              <div className="arc-popover absolute left-0 top-8 z-50 mt-2 min-w-[240px] overflow-hidden p-1.5">
                 {WINDOW_SIZES.map((size) => (
                   <button
                     key={size.name}
-                    className="w-full px-4 py-3.5 text-left text-[#111827] dark:text-gray-300 text-sm whitespace-nowrap flex items-center gap-3 group hover:bg-[#F5EEFF] dark:hover:bg-gray-900 bg-white dark:bg-black"
+                    className="arc-popover-item group whitespace-nowrap"
                     onClick={async () => {
                       setSelectedSize(size);
                       setIsWindowSizeDropdownOpen(false);
@@ -282,10 +283,10 @@ const PreviewIframe: React.FC<PreviewIframeProps> = ({
                   >
                     <size.icon size={20} />
                     <div className="flex flex-col">
-                      <span className="font-medium group-hover:text-[#6D28D9] dark:group-hover:text-[#6D28D9] transition-colors duration-200">
+                      <span className="text-xs font-medium text-foreground">
                         {size.name}
                       </span>
-                      <span className="text-xs text-[#6B7280] dark:text-gray-400 group-hover:text-[#6D28D9] dark:group-hover:text-[#6D28D9] transition-colors duration-200">
+                      <span className="text-[10px] text-muted-foreground">
                         {size.width} × {size.height}
                       </span>
                     </div>
@@ -296,12 +297,12 @@ const PreviewIframe: React.FC<PreviewIframeProps> = ({
           )}
         </div>
         <div className="flex-1 ml-4 flex items-center">
-          <div className="px-3 py-1 rounded-md text-sm text-gray-800 dark:text-gray-50 border bg-gray-50 dark:bg-[#2c2c2c] border-gray-200 dark:border-black w-full truncate">
+          <div className="w-full truncate rounded-lg border border-border/70 bg-background/70 px-3 py-1 text-xs text-muted-foreground">
             {displayUrl}
           </div>
           <button
             onClick={handleRefresh}
-            className="ml-2 p-1 rounded hover:bg-gray-100 dark:hover:bg-[#2c2c2c] text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200"
+            className="arc-icon-button ml-1 h-7 w-7"
           >
             <svg
               xmlns="http://www.w3.org/2000/svg"
@@ -319,7 +320,7 @@ const PreviewIframe: React.FC<PreviewIframeProps> = ({
           <div className="ml-2 flex items-center space-x-1">
             <button
               onClick={handleZoomOut}
-              className="p-1 rounded hover:bg-gray-100 dark:hover:bg-[#2c2c2c] text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200"
+              className="arc-icon-button h-7 w-7"
               title="缩小"
             >
               <svg
@@ -337,13 +338,13 @@ const PreviewIframe: React.FC<PreviewIframeProps> = ({
             </button>
             <button
               onClick={handleZoomReset}
-              className="px-2 py-0.5 rounded hover:bg-gray-100 dark:hover:bg-[#2c2c2c] text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 text-xs"
+              className="h-7 rounded-lg px-2 text-[10px] text-muted-foreground transition-colors hover:bg-foreground/[0.055] hover:text-foreground"
             >
               {Math.round(scale * 100)}%
             </button>
             <button
               onClick={handleZoomIn}
-              className="p-1 rounded hover:bg-gray-100 dark:hover:bg-[#2c2c2c] text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200"
+              className="arc-icon-button h-7 w-7"
               title="放大"
             >
               <svg

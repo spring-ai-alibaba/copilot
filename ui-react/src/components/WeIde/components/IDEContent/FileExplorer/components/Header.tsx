@@ -2,7 +2,8 @@ import { useFileStore } from "@/components/WeIde/stores/fileStore";
 import { FolderTree, Settings, Upload, RefreshCw } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useState } from 'react';
-import { Tooltip, message } from 'antd';
+import { message } from 'antd';
+import { Tooltip } from '@/components/WeIde/components/Tooltip';
 import { FileUploadArea } from './FileUploadArea';
 import { ProjectRootSelector } from './ProjectRootSelector';
 import { refreshIndex, getWorkspacePath } from '@/api/knowledge';
@@ -55,31 +56,34 @@ export function Header() {
 
   return (
     <div>
-      <div className="flex items-center justify-between">
-        <h2 className="text-[13px] uppercase font-semibold mb-2 flex items-center text-[#424242] dark:text-gray-400 select-none">
-          <FolderTree className="w-4 h-4 mr-1.5" /> {t("explorer.explorer")}
+      <div className="space-y-1.5">
+        <h2 className="flex min-w-0 select-none items-center text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+          <FolderTree className="mr-1.5 h-3.5 w-3.5 shrink-0" />
+          <span className="truncate whitespace-nowrap">{t("explorer.explorer")}</span>
         </h2>
-        <div className="flex items-center mb-2 space-x-2">
-          <Settings
-            title={t("explorer.project_settings")}
-            className="w-4 h-4 text-[#616161] dark:text-gray-400 cursor-pointer hover:text-[#333] dark:hover:text-gray-300"
-            onClick={handleSettingsClick}
-          />
-          <Tooltip title="刷新知识库索引">
+        <div className="flex min-w-0 items-center justify-end gap-1">
+          <Tooltip content={t("explorer.project_settings")} side="bottom">
+            <Settings
+              className="h-3.5 w-3.5 cursor-pointer text-muted-foreground transition-colors hover:text-foreground"
+              onClick={handleSettingsClick}
+            />
+          </Tooltip>
+          <Tooltip content="刷新知识库索引" side="bottom">
             <RefreshCw
-              className={`w-4 h-4 text-[#616161] dark:text-gray-400 cursor-pointer hover:text-[#333] dark:hover:text-gray-300 ${isRefreshing ? 'animate-spin' : ''
+              className={`h-3.5 w-3.5 cursor-pointer text-muted-foreground transition-colors hover:text-foreground ${isRefreshing ? 'animate-spin' : ''
                 }`}
               onClick={handleRefreshIndex}
             />
           </Tooltip>
-          <Upload
-            title={t("explorer.upload_file")}
-            className="w-4 h-4 text-[#616161] dark:text-gray-400 cursor-pointer hover:text-[#333] dark:hover:text-gray-300"
-            onClick={handleUploadClick}
-          />
+          <Tooltip content={t("explorer.upload_file")} side="bottom">
+            <Upload
+              className="h-3.5 w-3.5 cursor-pointer text-muted-foreground transition-colors hover:text-foreground"
+              onClick={handleUploadClick}
+            />
+          </Tooltip>
           <span
             onClick={handleClearAll}
-            className="text-[10px] text-[#616161] dark:text-gray-400 cursor-pointer hover:text-[#333] dark:hover:text-gray-300"
+            className="ml-auto cursor-pointer whitespace-nowrap text-[9px] text-muted-foreground transition-colors hover:text-foreground"
           >
             {t("explorer.clear_all")}
           </span>

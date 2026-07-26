@@ -28,6 +28,7 @@ logs/
 *.tmp
 *.temp
 .cache/
+.pnpm-store/
 .claude
 # 环境配置
 .env

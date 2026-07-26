@@ -246,7 +246,7 @@
     flex-direction: column;
   }
 
-  .prompt-settings .w-1/4 {
+  .prompt-settings .w-1\/4 {
     width: 100%;
     border-right: none;
     border-bottom: 1px solid #e5e7eb;

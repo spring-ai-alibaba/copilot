@@ -18,7 +18,9 @@
       "title": "Enter website address",
       "placeholder": "Please enter the screenshot website address",
       "button": "Open website",
-      "errorInvalid": "Please enter a valid URL"
+      "errorInvalid": "Please enter a valid URL",
+      "errorEmpty": "Enter a website address",
+      "description": "Add a public webpage as context for this conversation."
     },
     "tips": {
       "title": "build you want",
@@ -27,13 +29,30 @@
       "uploadImg": "Upload Image",
       "uploadWebsite": "Upload Website",
       "game": "Generate a snake game",
-      "hello": "Generate a beautiful page"
+      "hello": "Generate a beautiful page",
+      "builderTitle": "What would you like to build?",
+      "chatTitle": "How can I help?",
+      "builderDescription": "Describe your goal or reference workspace files. The agent will create and run the project in the workspace.",
+      "chatDescription": "Ask a question, or add documents and images as context.",
+      "imageStartTitle": "Start from an image",
+      "imageStartDescription": "Upload a design or reference image",
+      "addImageTitle": "Add an image",
+      "addImageDescription": "Let the model inspect visual content",
+      "webTitle": "Reference a webpage",
+      "webDescription": "Add context from a public URL",
+      "projectAnalysis": "Analyze this project and suggest actionable improvements",
+      "summarize": "Summarize the key points in this material",
+      "breakDownTask": "Break down a complex task for me",
+      "ideas": "Suggest a few practical directions"
     },
     "errors": {
       "file_size_limit": "File {fileName} exceeds 5MB limit",
       "upload_failed": "Upload failed",
       "paste_failed": "Failed to paste image",
-      "add_image_failed": "Failed to add image"
+      "add_image_failed": "Failed to add image",
+      "auth_required": "Sign in before sending a message",
+      "request_failed": "Request failed. Please try again later.",
+      "view_problem": "View problem"
     },
     "success": {
       "images_uploaded": "Image uploaded successfully",
@@ -67,7 +86,17 @@
       "mcp_disabled": "MCP Tools Disabled",
       "mcp_tools": "MCP Tools",
       "not_support_mcp": "The current model does not support MCP tools",
-      "click_to_use_mcp": "Click to use MCP tools"
+      "click_to_use_mcp": "Click to use MCP tools",
+      "addContext": "Add context",
+      "addToConversation": "Add to conversation",
+      "importSketch": "Import Sketch",
+      "designContext": "Create design context",
+      "workspaceMention": "Type @ to reference workspace files",
+      "selectModel": "Select a model",
+      "availableModels": "Available models",
+      "stopReceiving": "Stop receiving",
+      "sendMessage": "Send message",
+      "composerHint": "Enter to send · Shift + Enter for a new line"
     },
     "examples": {
       "title": "You can ask me like this",
@@ -81,6 +110,19 @@
     },
     "loading": {
       "generating": "AI is generating response..."
+    },
+    "filesystem": {
+      "checking": "Checking file system status…"
+    },
+    "processing": {
+      "title": "Agent is working",
+      "description": "Analyzing context and preparing a response…"
+    },
+    "timeline": {
+      "reasoning": "Reasoning",
+      "collapse": "Collapse",
+      "expand": "Expand",
+      "runFailed": "Run failed"
     },
     "modePlaceholders": {
       "chat": "This is the chat mode. You can directly talk to the AI ​​and return the answer you want.",
@@ -102,6 +144,18 @@
   },
   "settings": {
     "title": "Settings",
+    "shell": {
+      "backToChat": "Back to chat",
+      "basicGroup": "Basics",
+      "intelligenceGroup": "Intelligence",
+      "generalDescription": "Appearance, language, and app behavior",
+      "modelsDescription": "Model providers and default parameters",
+      "mcpDescription": "External tools and service connections",
+      "knowledgeDescription": "Knowledge sources and retrieval",
+      "promptsDescription": "Reusable task instructions",
+      "memoryDescription": "Preference learning and long-term memory",
+      "storageNote": "Settings are saved in this browser. Items that require backend sync are marked in the API notes."
+    },
     "language": "Language",
     "general": "General",
     "General": "General",
@@ -466,6 +520,10 @@
     "close": "Close",
     "visitSite": "Visit Site",
     "open_directory": "Open Directory",
+    "projectActions": "Project actions",
+    "deployPendingDescription": "The deployment backend is not connected yet",
+    "pending": "Pending",
+    "openInFolder": "Open in folder",
     "error": {
       "open_directory": "Failed to open directory",
       "deploy_failed": "Deployment failed, please try again later"
@@ -487,6 +545,73 @@
     "drag_drop_text": "Drag and drop files or folders here, or click to select",
     "select_files": "Select Files",
     "select_folder": "Select Folder"
+  },
+  "appShell": {
+    "header": {
+      "openSidebar": "Open sidebar",
+      "builderWorkspace": "Development workspace",
+      "newConversation": "New conversation",
+      "modes": {
+        "chat": "Chat",
+        "builder": "Builder"
+      },
+      "switchToLight": "Switch to light mode",
+      "switchToDark": "Switch to dark mode",
+      "settings": "Settings",
+      "collapseProjectTools": "Collapse project tools",
+      "openProjectTools": "Open project tools"
+    },
+    "sidebar": {
+      "close": "Close sidebar",
+      "collapse": "Collapse sidebar",
+      "workspaceAgent": "Workspace Agent",
+      "workspace": "Workspace",
+      "newConversation": "New conversation",
+      "currentWorkspace": "Current workspace",
+      "noSearchResults": "No matching conversations",
+      "emptyConversations": "No conversations yet. Start a new task.",
+      "recentConversations": "Recent conversations",
+      "conversationActions": "Conversation actions",
+      "rename": "Rename",
+      "delete": "Delete",
+      "loadMore": "Load more",
+      "loadingMore": "Loading…",
+      "user": "User",
+      "signedIn": "Signed in",
+      "logout": "Sign out",
+      "guest": "Guest",
+      "signInToSync": "Sign in to send and sync",
+      "deleteDialog": {
+        "title": "Delete this conversation?",
+        "description": "“{{title}}” will be permanently deleted. This action cannot be undone.",
+        "confirm": "Delete"
+      },
+      "time": {
+        "justNow": "Just now",
+        "minutesAgo": "{{count}} min ago",
+        "yesterday": "Yesterday"
+      }
+    },
+    "dock": {
+      "tabs": {
+        "workspace": "Workspace",
+        "preview": "Preview",
+        "api": "API",
+        "changes": "Changes"
+      },
+      "close": "Close project tools",
+      "resize": "Resize project tools",
+      "addPending": "Add project tool (integration pending)",
+      "add": "Add project tool",
+      "collapse": "Collapse project tools",
+      "newTerminal": "New terminal",
+      "changes": {
+        "title": "Generated file changes",
+        "description": "Based on workspace snapshots from before and after this generation; the Git backend is not connected yet.",
+        "emptyTitle": "No changes to review",
+        "emptyDescription": "Changes will appear here after the agent writes or edits files."
+      }
+    }
   },
   "sidebar": {
     "start_new_chat": "Start New Chat",

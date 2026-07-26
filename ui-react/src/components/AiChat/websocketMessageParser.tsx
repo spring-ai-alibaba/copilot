@@ -449,7 +449,7 @@ export class WebSocketMessageParser {
    * 触发回调
    */
   private triggerCallback(event: EventName, data: OperationCallbackData, operationState: OperationState): void {
-    const callbackMap: Record<EventName, keyof ParserCallbacks> = {
+    const callbackMap: Record<EventName, Exclude<keyof ParserCallbacks, 'onError'>> = {
       'add-start': 'onAddStart',
       'add-progress': 'onAddProgress',
       'add-end': 'onAddEnd',

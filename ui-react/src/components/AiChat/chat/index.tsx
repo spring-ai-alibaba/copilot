@@ -16,19 +16,19 @@ import useUserStore from "../../../stores/userSlice";
 import {useLimitModalStore} from "../../UserModal";
 import {updateFileSystemNow} from "../../WeIde/services";
 import {parseMessages, streamingFileManager, normalizeFilePath} from "../useSseMessageParser";
-import {createMpIcon} from "@/utils/createWtrite";
 import {useTranslation} from "react-i18next";
 import { apiUrl } from "@/api/base";
 import useChatModeStore from "../../../stores/chatModeSlice";
 import useTerminalStore from "@/stores/terminalSlice";
 import {checkExecList, checkFinish} from "../utils/checkFinish";
 import {useUrlData} from "@/hooks/useUrlData";
-import {MCPTool} from "@/types/mcp";
 import useMCPTools from "@/hooks/useMCPTools";
 import {FileSystemStatus} from "./components/FileSystemStatus";
 import {handleFileSystemEvent, isFileSystemEvent} from "../utils/fileSystemEventHandler";
 import {useConversationStore} from "@/stores/conversationSlice";
 import {getConversationMessages} from "@/api/conversation";
+import { LoaderCircle } from "lucide-react";
+import { AppLogo } from "@/components/AppLogo";
 
 type WeMessages = (Message & {
     experimental_attachments?: Array<{
@@ -103,6 +103,8 @@ export const BaseChat = ({uuid: propUuid}: { uuid?: string }) => {
     const [checkCount, setCheckCount] = useState(0);
     // 切换会话/加载历史后，等消息真正渲染完成再滚动到底部（展示最新一条）
     const pendingScrollToBottomRef = useRef(false);
+    // 流内首次拿到会话 ID 时只同步选中态，不把它误判成用户主动切换会话。
+    const streamAssignedConversationIdRef = useRef<string | null>(null);
 
     const [baseModal, setBaseModal] = useState<IModelOption>({
         key: ModelTypes.Claude35sonnet,
@@ -409,6 +411,15 @@ export const BaseChat = ({uuid: propUuid}: { uuid?: string }) => {
 
     // 监听会话切换事件
     useEffect(() => {
+        const isStreamAssignment =
+            currentConversationId !== null &&
+            streamAssignedConversationIdRef.current === currentConversationId;
+        streamAssignedConversationIdRef.current = null;
+
+        if (isStreamAssignment) {
+            return;
+        }
+
         if (currentConversationId) {
             // 加载会话历史消息
             loadConversationHistory(currentConversationId);
@@ -464,21 +475,31 @@ export const BaseChat = ({uuid: propUuid}: { uuid?: string }) => {
         // 清理订阅
         return () => unsubscribe();
     }, [chatUuid, files]);
-    const token = useUserStore.getState().token;
+    const token = useUserStore((state) => state.token);
+    const isAuthenticated = useUserStore((state) => state.isAuthenticated);
+    const openLoginModal = useUserStore((state) => state.openLoginModal);
     const {openModal} = useLimitModalStore();
 
     const [messages, setMessagesa] = useState<WeMessages>([]);
     const {enabledMCPs} = useMCPTools()
 
-    const [mcpTools, setMcpTools] = useState<MCPTool[]>([])
-    useEffect(() => {
-        // MCP tools are not available in Web mode
-        setMcpTools([])
-    }, [enabledMCPs])
-
     // 自定义 fetch 函数来处理 SSE 流数据
     const customFetch = async (url: string, options: any) => {
         try {
+            const latestToken = useUserStore.getState().token;
+            if (!latestToken) {
+                useUserStore.getState().openLoginModal();
+                const authError = new Error(
+                    t("chat.errors.auth_required", {defaultValue: "请先登录后再发送消息"}),
+                );
+                (authError as Error & {status?: number}).status = 401;
+                throw authError;
+            }
+            options.headers = {
+                ...(options.headers || {}),
+                Authorization: `Bearer ${latestToken}`,
+            };
+
             // 解析原始请求体
             let requestBody;
             try {
@@ -523,6 +544,28 @@ export const BaseChat = ({uuid: propUuid}: { uuid?: string }) => {
 
             const response = await fetch(url, options);
 
+            if (!response.ok) {
+                const responseText = await response.text();
+                let errorMessage = responseText;
+                try {
+                    const payload = JSON.parse(responseText);
+                    errorMessage = payload.msg || payload.message || payload.error || responseText;
+                } catch {
+                    // 非 JSON 错误响应保留纯文本；HTML 等长响应改用统一提示。
+                    if (!responseText || responseText.length > 240) {
+                        errorMessage = "";
+                    }
+                }
+                const requestError = new Error(
+                    errorMessage ||
+                        t("chat.errors.request_failed", {
+                            defaultValue: "请求失败，请稍后重试",
+                        }),
+                );
+                (requestError as Error & {status?: number}).status = response.status;
+                throw requestError;
+            }
+
             // 如果不是流式响应，直接返回
             if (!response.body) {
                 return response;
@@ -533,113 +576,214 @@ export const BaseChat = ({uuid: propUuid}: { uuid?: string }) => {
             console.log('[customFetch] 原始流（AG-UI）:', originalStream);
             const reader = originalStream.getReader();
 
-            // AG-UI 工具调用 args 累积器：toolCallId -> {name, argsBuffer}
-            const toolCallStates = new Map<string, { name: string; argsBuffer: string }>();
+            // AG-UI 时间线累积器。文件操作仍由 handleToolCallEnd 驱动；
+            // 同时把工具参数、结果与 reasoning 编码进 AI SDK 的 text stream，供消息层结构化渲染。
+            const toolCallStates = new Map<
+                string,
+                { name: string; argsBuffer: string; ended: boolean }
+            >();
+            let reasoningBuffer = '';
 
+            const encodeTimelineBlock = (language: string, value: unknown) =>
+                `\n\n\`\`\`${language}\n${encodeURIComponent(
+                    typeof value === 'string'
+                        ? value
+                        : (JSON.stringify(value) ?? String(value ?? ''))
+                )}\n\`\`\`\n\n`;
+
+            const flushToolCall = (
+                toolCallId: string,
+                state: { name: string; argsBuffer: string; ended: boolean },
+                result?: unknown,
+            ) => {
+                let args: unknown = {};
+                try {
+                    args = state.argsBuffer ? JSON.parse(state.argsBuffer) : {};
+                } catch {
+                    args = { raw: state.argsBuffer };
+                }
+                return encodeTimelineBlock('arc-tool', {
+                    toolCallId,
+                    toolName: state.name,
+                    args,
+                    result,
+                    state: result === undefined ? (state.ended ? 'completed' : 'call') : 'result',
+                });
+            };
+
+            // 单个 decoder 贯穿整个响应，避免 UTF-8 多字节字符跨 chunk 时被截断。
+            const decoder = new TextDecoder();
             // SSE 帧累积缓冲（跨 chunk 的不完整帧）
             let sseBuffer = '';
+
+            const transformSseFrame = (frame: string) => {
+                if (!frame.trim()) return '';
+
+                let eventName = '';
+                let dataStr = '';
+                for (const line of frame.split(/\r?\n/)) {
+                    if (line.startsWith('event:')) {
+                        eventName = line.slice(6).trim();
+                    } else if (line.startsWith('data:')) {
+                        dataStr = line.slice(5).replace(/^\s/, '');
+                    }
+                }
+                if (!dataStr) return '';
+
+                // 后端会先发一个 conversationId 控制事件（旧协议残留，data 是 JSON）
+                let parsed: any;
+                try {
+                    parsed = JSON.parse(dataStr);
+                } catch (e) {
+                    // 可能是纯文本控制帧（如 [DONE]），忽略
+                    return '';
+                }
+
+                // 用 SSE event 名（UPPER 枚举名）路由；回退到 JSON.type
+                const type = (eventName || parsed.type || '').toUpperCase();
+                let transformedText = '';
+
+                // 会话ID控制事件：后端在新建会话时回传，前端需写入 store 以支撑后续多轮
+                if (eventName === 'conversation-id' && parsed.conversationId) {
+                    const conversationId = String(parsed.conversationId);
+                    if (useConversationStore.getState().currentConversationId !== conversationId) {
+                        streamAssignedConversationIdRef.current = conversationId;
+                        setCurrentConversation(conversationId);
+                    }
+                    return '';
+                }
+
+                if (type.startsWith('REASONING_')) {
+                    const delta = parsed.delta ?? parsed.content ?? parsed.text ?? '';
+                    if (typeof delta === 'string' && delta) reasoningBuffer += delta;
+                    if (type.endsWith('_END') && reasoningBuffer.trim()) {
+                        transformedText += encodeTimelineBlock(
+                            'arc-reasoning',
+                            reasoningBuffer,
+                        );
+                        reasoningBuffer = '';
+                    }
+                    return transformedText;
+                }
+
+                switch (type) {
+                    case 'TEXT_MESSAGE_CONTENT': {
+                        const delta = parsed.delta;
+                        if (delta) transformedText += delta;
+                        break;
+                    }
+                    case 'TOOL_CALL_START': {
+                        const tcId = parsed.toolCallId;
+                        const tcName = parsed.toolCallName;
+                        if (tcId && tcName) {
+                            toolCallStates.set(tcId, {
+                                name: tcName,
+                                argsBuffer: '',
+                                ended: false,
+                            });
+                        }
+                        break;
+                    }
+                    case 'TOOL_CALL_ARGS': {
+                        const tcId = parsed.toolCallId;
+                        const delta = parsed.delta;
+                        const st = tcId ? toolCallStates.get(tcId) : undefined;
+                        if (st && delta) {
+                            st.argsBuffer += delta;
+                        }
+                        break;
+                    }
+                    case 'TOOL_CALL_END': {
+                        const tcId = parsed.toolCallId;
+                        const st = tcId ? toolCallStates.get(tcId) : undefined;
+                        if (st) {
+                            handleToolCallEnd(st.name, st.argsBuffer);
+                            st.ended = true;
+                        }
+                        break;
+                    }
+                    case 'TOOL_CALL_RESULT': {
+                        const tcId = parsed.toolCallId;
+                        const st = tcId ? toolCallStates.get(tcId) : undefined;
+                        if (tcId && st) {
+                            transformedText += flushToolCall(tcId, st, parsed.content);
+                            toolCallStates.delete(tcId);
+                        } else {
+                            transformedText += encodeTimelineBlock('arc-tool', {
+                                toolCallId: tcId || `tool-${Date.now()}`,
+                                toolName: parsed.toolCallName || 'tool',
+                                args: {},
+                                result: parsed.content,
+                                state: 'result',
+                            });
+                        }
+                        break;
+                    }
+                    case 'RUN_FINISHED': {
+                        if (reasoningBuffer.trim()) {
+                            transformedText += encodeTimelineBlock(
+                                'arc-reasoning',
+                                reasoningBuffer,
+                            );
+                            reasoningBuffer = '';
+                        }
+                        toolCallStates.forEach((state, toolCallId) => {
+                            transformedText += flushToolCall(toolCallId, state);
+                        });
+                        toolCallStates.clear();
+                        transformedText += 'data: [DONE]\n\n';
+                        break;
+                    }
+                    case 'RUN_ERROR': {
+                        const errorMessage = parsed.message || parsed.error || 'Agent 运行失败';
+                        console.error('[AG-UI] run error:', errorMessage);
+                        transformedText += encodeTimelineBlock('arc-error', String(errorMessage));
+                        break;
+                    }
+                    default:
+                        // STEP / STATE 事件由后端配置关闭；保留前向兼容。
+                        break;
+                }
+
+                return transformedText;
+            };
+
+            const drainSseBuffer = (flush = false) => {
+                let transformedText = '';
+                let separator = sseBuffer.match(/\r?\n\r?\n/);
+
+                while (separator?.index !== undefined) {
+                    const frame = sseBuffer.slice(0, separator.index);
+                    sseBuffer = sseBuffer.slice(separator.index + separator[0].length);
+                    transformedText += transformSseFrame(frame);
+                    separator = sseBuffer.match(/\r?\n\r?\n/);
+                }
+
+                // 有些服务端在 EOF 前不会补最后一个空行，结束时仍需消费尾帧。
+                if (flush) {
+                    transformedText += transformSseFrame(sseBuffer);
+                    sseBuffer = '';
+                }
+
+                return transformedText;
+            };
 
             const stream = new ReadableStream({
                 start(controller) {
                     function pump(): Promise<void> {
                         return reader.read().then(({ done, value }) => {
                             if (done) {
+                                sseBuffer += decoder.decode();
+                                const transformedText = drainSseBuffer(true);
+                                if (transformedText) {
+                                    controller.enqueue(new TextEncoder().encode(transformedText));
+                                }
                                 controller.close();
                                 return;
                             }
 
-                            const text = new TextDecoder().decode(value, { stream: true });
-                            sseBuffer += text;
-
-                            let transformedText = '';
-
-                            // 按空行拆分完整帧（SSE 帧以 \n\n 分隔）
-                            let sepIndex: number;
-                            while ((sepIndex = sseBuffer.indexOf('\n\n')) !== -1) {
-                                const frame = sseBuffer.slice(0, sepIndex);
-                                sseBuffer = sseBuffer.slice(sepIndex + 2);
-                                if (!frame.trim()) continue;
-
-                                let eventName = '';
-                                let dataStr = '';
-                                for (const line of frame.split('\n')) {
-                                    if (line.startsWith('event:')) {
-                                        eventName = line.slice(6).trim();
-                                    } else if (line.startsWith('data:')) {
-                                        dataStr = line.slice(5).replace(/^\s/, '');
-                                    }
-                                }
-                                if (!dataStr) continue;
-
-                                // 后端会先发一个 conversationId 控制事件（旧协议残留，data 是 JSON）
-                                let parsed: any;
-                                try {
-                                    parsed = JSON.parse(dataStr);
-                                } catch (e) {
-                                    // 可能是纯文本控制帧（如 [DONE]），忽略
-                                    continue;
-                                }
-
-                                // 用 SSE event 名（UPPER 枚举名）路由；回退到 JSON.type
-                                const type = (eventName || parsed.type || '').toUpperCase();
-
-                                // 会话ID控制事件：后端在新建会话时回传，前端需写入 store 以支撑后续多轮
-                                if (eventName === 'conversation-id' && parsed.conversationId) {
-                                    setCurrentConversation(parsed.conversationId);
-                                    continue;
-                                }
-
-                                switch (type) {
-                                    case 'TEXT_MESSAGE_CONTENT': {
-                                        const delta = parsed.delta;
-                                        if (delta) transformedText += delta;
-                                        break;
-                                    }
-                                    case 'TOOL_CALL_START': {
-                                        const tcId = parsed.toolCallId;
-                                        const tcName = parsed.toolCallName;
-                                        if (tcId && tcName) {
-                                            toolCallStates.set(tcId, { name: tcName, argsBuffer: '' });
-                                        }
-                                        break;
-                                    }
-                                    case 'TOOL_CALL_ARGS': {
-                                        const tcId = parsed.toolCallId;
-                                        const delta = parsed.delta;
-                                        const st = tcId ? toolCallStates.get(tcId) : undefined;
-                                        if (st && delta) {
-                                            st.argsBuffer += delta;
-                                        }
-                                        break;
-                                    }
-                                    case 'TOOL_CALL_END': {
-                                        const tcId = parsed.toolCallId;
-                                        const st = tcId ? toolCallStates.get(tcId) : undefined;
-                                        if (st) {
-                                            handleToolCallEnd(st.name, st.argsBuffer);
-                                            toolCallStates.delete(tcId);
-                                        }
-                                        break;
-                                    }
-                                    case 'TOOL_CALL_RESULT': {
-                                        // 工具结果（list_files/grep 等）暂不渲染到聊天，仅日志
-                                        console.debug('[AG-UI] tool result:', parsed.toolCallId, parsed.content);
-                                        break;
-                                    }
-                                    case 'RUN_FINISHED': {
-                                        transformedText += 'data: [DONE]\n\n';
-                                        break;
-                                    }
-                                    case 'RUN_ERROR': {
-                                        console.error('[AG-UI] run error:', parsed.message || parsed);
-                                        break;
-                                    }
-                                    default:
-                                        // 其他事件（STEP_*/STATE_*/REASONING_* 等）暂不处理
-                                        break;
-                                }
-                            }
-
+                            sseBuffer += decoder.decode(value, { stream: true });
+                            const transformedText = drainSseBuffer();
                             if (transformedText) {
                                 controller.enqueue(new TextEncoder().encode(transformedText));
                             }
@@ -649,7 +793,10 @@ export const BaseChat = ({uuid: propUuid}: { uuid?: string }) => {
                         });
                     }
                     return pump();
-                }
+                },
+                cancel(reason) {
+                    return reader.cancel(reason);
+                },
             });
 
             // 返回修改后的响应
@@ -757,7 +904,7 @@ export const BaseChat = ({uuid: propUuid}: { uuid?: string }) => {
 
                 // 优化：已登录用户使用会话功能，消息已由后端自动保存，不需要保存到 IndexedDB
                 // 未登录用户继续使用 IndexedDB 作为本地存储
-                if (!currentConversationId) {
+                if (!useUserStore.getState().isAuthenticated) {
                     // 未登录用户：保存到 IndexedDB（本地存储）
                     let initMessage = [];
                     initMessage = [
@@ -784,48 +931,33 @@ export const BaseChat = ({uuid: propUuid}: { uuid?: string }) => {
             }
             setCheckCount(checkCount => checkCount + 1);
         },
-        // onError: (error: any) => {
+        onError: (error: Error & {status?: number}) => {
+            const message = error?.message || String(error);
+            console.error("Chat request failed", error);
 
-
-
-        //     const msg = error?.errors?.[0]?.responseBody || String(error);
-        //     console.log("error", error, msg);
-
-        //     // 添加更详细的错误日志
-        //     if (String(error).includes("Failed to parse stream string") || String(error).includes("Invalid code data")) {
-        //         console.error("Stream parsing error details:", {
-        //             error,
-        //             message: error.message,
-        //             stack: error.stack,
-        //             cause: error.cause,
-        //             name: error.name
-        //         });
-
-        //         // 尝试提供更有用的错误信息
-        //         let userMessage = "数据流解析失败";
-        //         if (String(error).includes("Invalid code data")) {
-        //             userMessage += "：后端返回了无效的编码数据";
-        //         } else if (String(error).includes("Failed to parse stream string")) {
-        //             userMessage += "：无法解析流数据格式";
-        //         }
-        //         userMessage += "，请检查后端返回格式或重试";
-
-        //         toast.error(userMessage);
-        //     } else {
-        //         toast.error(msg);
-        //     }
-
-        //     if (String(error).includes("Quota not enough")) {
-        //         openModal('limit');
-        //     }
-        //     if (String(error).includes("Authentication required")) {
-        //         openModal("login");
-        //     }
-        //     // 添加对 Ollama 错误的处理
-        //     if (baseModal.from === "ollama") {
-        //         toast.error("Ollama 服务器连接失败，请检查配置");
-        //     }
-        // },
+            if (
+                error?.status === 401 ||
+                /authentication required|unauthorized|not login|未登录/i.test(message)
+            ) {
+                openLoginModal();
+                toast.error(
+                    t("chat.errors.auth_required", {
+                        defaultValue: "请先登录后再发送消息",
+                    }),
+                );
+                return;
+            }
+            if (/quota not enough|quota|limit reached|次数已达上限/i.test(message)) {
+                openModal();
+                return;
+            }
+            toast.error(
+                message ||
+                    t("chat.errors.request_failed", {
+                        defaultValue: "请求失败，请稍后重试",
+                    }),
+            );
+        },
     });
     const {status, type} = useUrlData({append});
 
@@ -868,7 +1000,6 @@ export const BaseChat = ({uuid: propUuid}: { uuid?: string }) => {
         }
         if (!isLoading) {
             setMessagesa(realMessages as WeMessages);
-            createMpIcon(files);
             // 非流式状态下（加载历史/切换会话后），确保默认展示最新一条
             if (pendingScrollToBottomRef.current) {
                 pendingScrollToBottomRef.current = false;
@@ -884,6 +1015,17 @@ export const BaseChat = ({uuid: propUuid}: { uuid?: string }) => {
             }
         }
     }, [realMessages, isLoading]);
+
+    useEffect(() => {
+        if (isLoading) return;
+        const isMiniProgram = Object.keys(files).some(
+            (path) => path === "app.json" || path.endsWith("/app.json"),
+        );
+        if (!isMiniProgram) return;
+        void import("@/utils/createWtrite")
+            .then(({createMpIcon}) => createMpIcon(files))
+            .catch((error) => console.error("Failed to generate mini-program icons", error));
+    }, [files, isLoading]);
 
     const [userScrolling, setUserScrolling] = useState(false)
     const userScrollTimeoutRef = useRef<NodeJS.Timeout>()
@@ -933,6 +1075,19 @@ export const BaseChat = ({uuid: propUuid}: { uuid?: string }) => {
 
     // 跟踪list-progress事件的状态
     const [listProgressStates, setListProgressStates] = useState<Record<string, { filePath: string; content?: string; isLoading: boolean }>>({});
+    const composerOverlayRef = useRef<HTMLDivElement>(null);
+    const [composerOverlayHeight, setComposerOverlayHeight] = useState(190);
+
+    useEffect(() => {
+        const element = composerOverlayRef.current;
+        if (!element || typeof ResizeObserver === 'undefined') return;
+        const updateHeight = () => setComposerOverlayHeight(Math.ceil(element.getBoundingClientRect().height));
+        updateHeight();
+        const observer = new ResizeObserver(updateHeight);
+        observer.observe(element);
+        return () => observer.disconnect();
+    }, []);
+
     // 仅展示 user/assistant，过滤 tool/system/空消息
     const filterMessages = messages.filter(
         (e) => (e.role === "user" || e.role === "assistant") && !!e.content?.trim()
@@ -993,6 +1148,16 @@ export const BaseChat = ({uuid: propUuid}: { uuid?: string }) => {
         text?: string
     ) => {
         if (!text && !input.trim() && uploadedImages.length === 0) return;
+
+        if (!isAuthenticated || !token) {
+            openLoginModal();
+            toast.info(
+                t("chat.errors.auth_required", {
+                    defaultValue: "请先登录后再发送消息",
+                }),
+            );
+            return;
+        }
 
         // 检查模型列表是否为空
         if (!modelOptions || modelOptions.length === 0) {
@@ -1156,88 +1321,64 @@ export const BaseChat = ({uuid: propUuid}: { uuid?: string }) => {
         }
     };
 
-    const showJsx = useMemo(() => {
-        return (
-            <div
-                className="flex-1 overflow-y-auto px-1 py-2 message-container [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
-                onScroll={handleScroll}  // 添加滚动事件监听
-            >
-                        <Tips
-            append={append}
-            setInput={setInput}
-            handleFileSelect={handleFileSelect}
-          />
-                <div className="max-w-[640px] w-full mx-auto space-y-3">
+    const showJsx = (
+        <div
+            className="message-container min-h-0 flex-1 overflow-y-auto [scrollbar-width:thin]"
+            style={{ paddingBottom: composerOverlayHeight + 20 }}
+            onScroll={handleScroll}
+        >
+            <div className="mx-auto w-full max-w-[760px] px-3 pb-8 pt-6 sm:px-5">
+                {filterMessages.length === 0 && !isLoading ? (
+                    <Tips
+                        append={append}
+                        setInput={setInput}
+                        handleFileSelect={handleFileSelect}
+                    />
+                ) : null}
 
+                <div className="space-y-1">
                     {filterMessages.map((message, index) => (
                         <MessageItem
-                            handleRetry={() => {
-                                // 测试
-                                reload();
-                            }}
+                            handleRetry={() => reload()}
                             key={`${message.id}-${index}`}
                             message={message}
-                            isEndMessage={
-                                filterMessages[filterMessages.length - 1].id === message.id
-                            }
+                            isEndMessage={filterMessages[filterMessages.length - 1].id === message.id}
                             isLoading={isLoading}
                             listProgressStates={listProgressStates}
-                            onUpdateMessage={(messageId, content) => {
-                                append( {
+                            onUpdateMessage={(_messageId, content) => {
+                                append({
                                     role: "user",
                                     content: ` ${content?.[0]?.text}`,
-                                })
-
+                                });
                             }}
                         />
                     ))}
 
-                    {isLoading && (
-                        <div className="group" key="loading-indicator">
-                            <div
-                                className="flex items-start gap-2 px-2 py-1.5 rounded-lg hover:bg-white/[0.02] transition-colors">
-                                <div
-                                    className="w-6 h-6 rounded-md bg-[rgba(45,45,45)] text-gray-400 flex items-center justify-center text-xs border border-gray-700/50">
-                                    <svg
-                                        className="w-4 h-4 animate-spin"
-                                        viewBox="0 0 24 24"
-                                        fill="none"
-                                        stroke="currentColor"
-                                    >
-                                        <circle
-                                            className="opacity-25"
-                                            cx="12"
-                                            cy="12"
-                                            r="10"
-                                            stroke="currentColor"
-                                            strokeWidth="3"
-                                        />
-                                        <path
-                                            className="opacity-75"
-                                            fill="currentColor"
-                                            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                                        />
-                                    </svg>
+                    {isLoading ? (
+                        <div className="flex items-start gap-3 px-1 py-3" key="loading-indicator">
+                            <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-border/70 bg-card shadow-sm">
+                                <AppLogo className="h-7 w-7 rounded-lg border-0 shadow-none" />
+                            </div>
+                            <div className="min-w-0 pt-0.5">
+                                <div className="flex items-center gap-2 text-xs font-medium text-foreground/85">
+                                    <LoaderCircle className="h-3.5 w-3.5 animate-spin text-muted-foreground" />
+                                    {t("chat.processing.title", {
+                                        defaultValue: "Agent 正在处理",
+                                    })}
                                 </div>
-                                <div className="flex-1 min-w-0">
-                                    <div className="flex items-center gap-2">
-                                        <div className="w-24 h-4 rounded bg-gray-700/50 animate-pulse"/>
-                                        <div className="w-32 h-4 rounded bg-gray-700/50 animate-pulse"/>
-                                        <div className="w-16 h-4 rounded bg-gray-700/50 animate-pulse"/>
-                                    </div>
-                                    <div className="mt-2 space-y-2">
-                                        <div className="w-full h-3 rounded bg-gray-700/50 animate-pulse"/>
-                                        <div className="w-4/5 h-3 rounded bg-gray-700/50 animate-pulse"/>
-                                    </div>
+                                <div className="mt-1 text-[11px] text-muted-foreground">
+                                    {t("chat.processing.description", {
+                                        defaultValue: "正在分析上下文并准备回复…",
+                                    })}
                                 </div>
                             </div>
                         </div>
-                    )}
-                    <div ref={messagesEndRef} className="h-px"/>
+                    ) : null}
+                    <div ref={messagesEndRef} className="h-px" />
                 </div>
             </div>
-        );
-    }, [messages, isLoading, setInput, handleFileSelect]);
+        </div>
+    );
 
     // 显示引导弹窗
     const showGuide = () => {};
@@ -1248,37 +1389,43 @@ export const BaseChat = ({uuid: propUuid}: { uuid?: string }) => {
 
     return (
         <div
-            className="flex h-full flex-col dark:bg-[#18181a] max-w-full"
+            className="relative flex h-full max-w-full flex-col overflow-hidden bg-background"
             onDragOver={handleDragOver}
             onDrop={handleDrop}
         >
             {showJsx}
 
-            {/* 文件系统状态指示器 */}
-            <div className="fixed top-20 right-4 z-50">
+            <div className="absolute right-3 top-2 z-20">
                 <FileSystemStatus />
             </div>
 
-            <ChatInput
-                input={input}
-                setMessages={setMessages}
-                append={append}
-                messages={messages}
-                stopRuning={stop}
-                setInput={setInput}
-                isLoading={isLoading}
-                isUploading={isUploading}
-                uploadedImages={uploadedImages}
-                baseModal={baseModal}
-                handleInputChange={handleInputChange}
-                handleKeySubmit={handleKeySubmit}
-                handleSubmitWithFiles={handleSubmitWithFiles}
-                handleFileSelect={handleFileSelect}
-                removeImage={removeImage}
-                addImages={addImages}
-                setIsUploading={setIsUploading}
-                setBaseModal={setBaseModal}
-            />
+            <div
+                ref={composerOverlayRef}
+                className="pointer-events-none absolute inset-x-0 bottom-0 z-30 bg-gradient-to-t from-background via-background/95 to-transparent pt-9"
+            >
+                <div className="pointer-events-auto">
+                    <ChatInput
+                        input={input}
+                        setMessages={setMessages}
+                        append={append}
+                        messages={messages}
+                        stopRuning={stop}
+                        setInput={setInput}
+                        isLoading={isLoading}
+                        isUploading={isUploading}
+                        uploadedImages={uploadedImages}
+                        baseModal={baseModal}
+                        handleInputChange={handleInputChange}
+                        handleKeySubmit={handleKeySubmit}
+                        handleSubmitWithFiles={handleSubmitWithFiles}
+                        handleFileSelect={handleFileSelect}
+                        removeImage={removeImage}
+                        addImages={addImages}
+                        setIsUploading={setIsUploading}
+                        setBaseModal={setBaseModal}
+                    />
+                </div>
+            </div>
         </div>
     );
 };

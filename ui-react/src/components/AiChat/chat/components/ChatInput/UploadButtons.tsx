@@ -1,226 +1,242 @@
-import React, {useEffect, useRef, useState} from "react"
-import classNames from "classnames"
-import {Tooltip} from "antd"
-import {ChevronDown, Image} from "lucide-react"
-import type {UploadButtonsProps} from "./types"
+import React, { forwardRef, useEffect, useRef, useState } from "react";
+import {
+  Check,
+  ChevronDown,
+  Code2,
+  FileArchive,
+  Image,
+  MessageSquare,
+  Plus,
+} from "lucide-react";
+import { useTranslation } from "react-i18next";
+import useChatStore from "@/stores/chatSlice";
+import useChatModeStore from "@/stores/chatModeSlice";
+import { cn } from "@/utils/cn";
+import type { IModelOption } from "../..";
+import MCPToolsButton from "./MCPToolsButton";
+import { aiProvierIcon } from "./config";
+import type { UploadButtonsProps } from "./types";
 
-import {useTranslation} from "react-i18next"
-import {IModelOption} from "../.."
-import useChatStore from "@/stores/chatSlice"
-import {aiProvierIcon} from "./config"
-import MCPToolsButton from "./MCPToolsButton"
+const ToolbarButton = forwardRef<HTMLButtonElement, React.ButtonHTMLAttributes<HTMLButtonElement>>(
+  ({ className, children, ...props }, ref) => (
+    <button
+      ref={ref}
+      type="button"
+      className={cn("arc-composer-control", className)}
+      {...props}
+    >
+      {children}
+    </button>
+  ),
+);
+ToolbarButton.displayName = "ToolbarButton";
 
 export const UploadButtons: React.FC<UploadButtonsProps> = ({
   isLoading,
   isUploading,
-  append,
   onImageClick,
+  onSketchClick,
   baseModal,
-  messages,
-  handleSubmitWithFiles,
-  setMessages,
   setBaseModal,
 }) => {
-  const [isOpen, setIsOpen] = useState(false)
-  const { t } = useTranslation()
-  const dropdownRef = useRef<HTMLDivElement>(null)
-  const { modelOptions, clearImages } = useChatStore()
-  const [isFigmaModalOpen, setIsFigmaModalOpen] = useState(false)
-  const [figmaUrl, setFigmaUrl] = useState(() => localStorage.getItem('figmaUrl') || '')
-  const [figmaToken, setFigmaToken] = useState(() => localStorage.getItem('figmaToken') || '')
+  const [addMenuOpen, setAddMenuOpen] = useState(false);
+  const [modelMenuOpen, setModelMenuOpen] = useState(false);
+  const rootRef = useRef<HTMLDivElement>(null);
+  const { t } = useTranslation();
+  const { modelOptions, clearImages } = useChatStore();
+  const { mode, setMode } = useChatModeStore();
+  const canUseMCP = Boolean(baseModal.functionCall);
 
   useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (
-        dropdownRef.current &&
-        !dropdownRef.current.contains(event.target as Node)
-      ) {
-        setIsOpen(false)
-      }
-    }
-
-    document.addEventListener("mousedown", handleClickOutside)
-    return () => document.removeEventListener("mousedown", handleClickOutside)
-  }, [])
+    const handlePointerDown = (event: PointerEvent) => {
+      if (rootRef.current?.contains(event.target as Node)) return;
+      setAddMenuOpen(false);
+      setModelMenuOpen(false);
+    };
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      setAddMenuOpen(false);
+      setModelMenuOpen(false);
+    };
+    window.addEventListener("pointerdown", handlePointerDown);
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.removeEventListener("pointerdown", handlePointerDown);
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, []);
 
   const handleModelSelect = (model: IModelOption) => {
-    setBaseModal(model)
-    setIsOpen(false)
-    console.log("Selected model:", model.key)
-  }
+    setBaseModal(model);
+    clearImages();
+    setModelMenuOpen(false);
+  };
 
-  const handleFigmaSubmit = () => {
-    localStorage.setItem('figmaUrl', figmaUrl)
-    localStorage.setItem('figmaToken', figmaToken)
-    setIsFigmaModalOpen(false)
-  }
-
-  // 定义一个可复用的按钮样式组件
-  const ToolbarButton = React.forwardRef<HTMLButtonElement, any>((props, ref) => (
-    <button
-      ref={ref}
-      {...props}
-      className={classNames(
-        "p-2 text-gray-600 dark:text-gray-500 flex hover:text-gray-900 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-500/20 rounded-lg transition-all duration-200",
-        props.disabled && "opacity-50 cursor-not-allowed",
-        props.className
-      )}
-    >
-      {props.children}
-    </button>
-  ))
-  const isElectron = typeof window !== 'undefined' && !!window.electron;
-
-  const canUseMCP = isElectron && baseModal.functionCall;
-
+  const ProviderIcon = aiProvierIcon[(baseModal.provider || "").toLowerCase()];
+  const controlsDisabled = isLoading || isUploading;
 
   return (
-    <div className="flex items-center">
-      <div className="flex items-center gap-2">
-        {/* MCP Tools Button - Disabled when functionCall is false */}
-        {isElectron && (
-          <Tooltip
-            title={
-              <div className="text-xs">
-                <div className="font-medium mb-1">
-                  {!canUseMCP
-                    ? t("chat.buttons.mcp_disabled")
-                    : t("chat.buttons.mcp_tools")}
-                </div>
-                <div className="text-gray-300">
-                  {!canUseMCP
-                    ? t("chat.buttons.not_support_mcp")
-                    : t("chat.buttons.click_to_use_mcp")}
-                </div>
-              </div>
-            }
-            placement="bottom"
-          >
-            <span className={!canUseMCP ? "cursor-not-allowed" : ""}>
-              <MCPToolsButton
-                ToolbarButton={ToolbarButton}
-                disabled={!canUseMCP}
-              />
-            </span>
-          </Tooltip>
-        )}
-
-        {/* figma todo */}
-        {/* <Tooltip
-          title={
-            <div className="text-xs">
-              <div className="font-medium mb-1">
-                {t("chat.buttons.figma_integration")}
-              </div>
-            </div>
-          }
-          placement="bottom"
+    <div ref={rootRef} className="flex min-w-0 items-center gap-1">
+      <div className="relative">
+        <ToolbarButton
+          onClick={() => {
+            setAddMenuOpen((current) => !current);
+            setModelMenuOpen(false);
+          }}
+          disabled={controlsDisabled}
+          aria-label={t("chat.buttons.addContext", { defaultValue: "添加上下文" })}
+          title={t("chat.buttons.addContext", { defaultValue: "添加上下文" })}
+          data-active={addMenuOpen}
         >
-          <button
-            type="button"
-            onClick={() => setIsFigmaModalOpen(true)}
-            className="p-2 text-gray-600 dark:text-gray-500 flex hover:text-gray-900 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-500/20 rounded-lg transition-all duration-200"
-          >
-            <Figma className="w-4 h-4" />
-          </button>
-        </Tooltip> */}
+          <Plus className="h-4 w-4" />
+        </ToolbarButton>
 
-        <Tooltip
-          title={
-            <div className="text-xs">
-              <div className="font-medium mb-1">
-                {isLoading || isUploading || !baseModal.useImage
-                  ? t("chat.buttons.upload_disabled")
-                  : t("chat.buttons.upload_image")}
-              </div>
-              <div className="text-gray-300">
-                {isLoading || isUploading
-                  ? t("chat.buttons.waiting")
-                  : !baseModal.useImage
-                    ? t("chat.buttons.not_support_image")
-                    : t("chat.buttons.click_to_upload")}
-              </div>
+        {addMenuOpen ? (
+          <div className="arc-popover absolute bottom-10 left-0 z-50 w-56 p-1.5">
+            <div className="px-2 pb-1.5 pt-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground/65">
+              {t("chat.buttons.addToConversation", { defaultValue: "添加到对话" })}
             </div>
-          }
-          placement="bottom"
-        >
-          <ToolbarButton
-            type="button"
-            onClick={onImageClick}
-            disabled={isLoading || isUploading || !baseModal.useImage}
-            // className={classNames(
-            //   "p-2 text-gray-600 dark:text-gray-500 flex hover:text-gray-900 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-500/20 rounded-lg transition-all duration-200",
-            //   (isLoading || isUploading || !baseModal.useImage) &&
-            //   "opacity-50 cursor-not-allowed"
-            // )}
-          >
-            <Image className="w-4 h-4" />
-          </ToolbarButton>
-        </Tooltip>
-
+            <button
+              type="button"
+              onClick={() => {
+                setAddMenuOpen(false);
+                onImageClick();
+              }}
+              disabled={controlsDisabled || !baseModal.useImage}
+              className="arc-popover-item"
+            >
+              <Image className="h-4 w-4" />
+              <span className="min-w-0 flex-1">
+                <span className="block text-xs">
+                  {t("chat.buttons.upload_image", { defaultValue: "上传图片" })}
+                </span>
+                <span className="mt-0.5 block text-[10px] text-muted-foreground">
+                  PNG、JPG、WebP
+                </span>
+              </span>
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setAddMenuOpen(false);
+                onSketchClick();
+              }}
+              disabled={controlsDisabled}
+              className="arc-popover-item"
+            >
+              <FileArchive className="h-4 w-4" />
+              <span className="min-w-0 flex-1">
+                <span className="block text-xs">
+                  {t("chat.buttons.importSketch", { defaultValue: "导入 Sketch" })}
+                </span>
+                <span className="mt-0.5 block text-[10px] text-muted-foreground">
+                  {t("chat.buttons.designContext", {
+                    defaultValue: "生成设计上下文",
+                  })}
+                </span>
+              </span>
+            </button>
+            <div className="mx-1 my-1 h-px bg-border/70" />
+            <div className="px-2 py-1 text-[10px] leading-4 text-muted-foreground">
+              {t("chat.buttons.workspaceMention", {
+                defaultValue: "输入 @ 可引用工作区文件",
+              })}
+            </div>
+          </div>
+        ) : null}
       </div>
 
-      <div className="relative ml-2" ref={dropdownRef}>
+      <MCPToolsButton ToolbarButton={ToolbarButton} disabled={!canUseMCP || controlsDisabled} />
+
+      <div className="relative min-w-0">
         <button
           type="button"
-          onClick={() => setIsOpen(!isOpen)}
-          className={classNames(
-            "flex items-center justify-between w-[150px] px-2 py-1 text-[11px] text-gray-700 dark:text-gray-300 bg-transparent dark:bg-[#252525] rounded-md transition-colors duration-200",
-            isOpen
-              ? "bg-gray-100 dark:bg-[#252525]"
-              : "hover:bg-gray-100 dark:hover:bg-[#252525]"
+          onClick={() => {
+            setModelMenuOpen((current) => !current);
+            setAddMenuOpen(false);
+          }}
+          className={cn(
+            "arc-composer-model max-w-[210px]",
+            modelMenuOpen && "bg-foreground/[0.065] text-foreground",
           )}
+          aria-expanded={modelMenuOpen}
+          title={baseModal.name}
         >
-          <div className="flex items-center gap-2">
-            {(() => {
-              const Icon =
-                aiProvierIcon[(baseModal.provider || "").toLowerCase()];
-              return Icon ? <Icon className="w-4 h-4" /> : null;
-            })()}
-            <span>{baseModal.name}</span>
-          </div>
+          {ProviderIcon ? <ProviderIcon className="h-3.5 w-3.5 shrink-0" /> : null}
+          <span className="truncate">
+            {baseModal.name ||
+              t("chat.buttons.selectModel", { defaultValue: "选择模型" })}
+          </span>
           <ChevronDown
-            className={classNames(
-              "w-3 h-3 text-gray-500 dark:text-gray-400 transition-transform duration-200",
-              isOpen ? "-rotate-180" : "rotate-0"
+            className={cn(
+              "h-3 w-3 shrink-0 text-muted-foreground transition-transform",
+              modelMenuOpen && "rotate-180",
             )}
           />
         </button>
 
-        {isOpen && (
-          <div className="absolute bottom-full left-0 mb-1 w-[160px] bg-white dark:bg-[#18181a] border border-gray-200 dark:border-gray-600/30 rounded-lg shadow-lg overflow-hidden z-50">
-            <div className="flex flex-col w-full">
-              {modelOptions.map((model, index) => (
-                <button
-                  key={model.key || `model-${index}`}
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    e.preventDefault()
-                    handleModelSelect(model as IModelOption)
-                    clearImages()
-                  }}
-                  className={classNames(
-                    "w-full px-3 py-1.5 flex justify-between text-left text-[11px] transition-colors duration-200",
-                    "hover:bg-gray-100 dark:hover:bg-[#252525]",
-                    baseModal.key === model.key
-                      ? "text-blue-600 dark:text-blue-400"
-                      : "text-gray-700 dark:text-gray-300"
-                  )}
-                >
-                  <div className="flex items-center gap-2">
-                    {(() => {
-                      const Icon =
-                        aiProvierIcon[(model.provider || "").toLowerCase()];
-                      return Icon ? <Icon className="w-4 h-4" /> : null;
-                    })()}
-                    {model.name}
-                  </div>
-                </button>
-              ))}
+        {modelMenuOpen ? (
+          <div className="arc-popover absolute bottom-10 left-0 z-50 w-[280px] max-w-[calc(100vw-32px)] p-1.5">
+            <div className="mb-1.5 grid grid-cols-2 gap-1 rounded-lg bg-muted/65 p-1">
+              <button
+                type="button"
+                onClick={() => setMode("chat" as Parameters<typeof setMode>[0])}
+                className={cn(
+                  "flex h-8 items-center justify-center gap-1.5 rounded-md text-[11px] font-medium transition-colors",
+                  mode === "chat"
+                    ? "bg-background text-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground",
+                )}
+              >
+                <MessageSquare className="h-3.5 w-3.5" />
+                Chat
+              </button>
+              <button
+                type="button"
+                onClick={() => setMode("builder" as Parameters<typeof setMode>[0])}
+                className={cn(
+                  "flex h-8 items-center justify-center gap-1.5 rounded-md text-[11px] font-medium transition-colors",
+                  mode === "builder"
+                    ? "bg-background text-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground",
+                )}
+              >
+                <Code2 className="h-3.5 w-3.5" />
+                Builder
+              </button>
+            </div>
+            <div className="px-2 pb-1 pt-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground/65">
+              {t("chat.buttons.availableModels", { defaultValue: "可用模型" })}
+            </div>
+            <div className="max-h-64 overflow-y-auto">
+              {modelOptions.length ? (
+                modelOptions.map((model, index) => {
+                  const Icon = aiProvierIcon[(model.provider || "").toLowerCase()];
+                  const selected = baseModal.key === model.key;
+                  return (
+                    <button
+                      key={model.key || `model-${index}`}
+                      type="button"
+                      onClick={() => handleModelSelect(model as IModelOption)}
+                      className="arc-popover-item"
+                    >
+                      <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-muted/70">
+                        {Icon ? <Icon className="h-3.5 w-3.5" /> : <Code2 className="h-3.5 w-3.5" />}
+                      </span>
+                      <span className="min-w-0 flex-1 truncate text-xs">{model.name}</span>
+                      {selected ? <Check className="h-3.5 w-3.5" /> : null}
+                    </button>
+                  );
+                })
+              ) : (
+                <div className="px-3 py-5 text-center text-xs text-muted-foreground">
+                  {t("chat.models.empty", { defaultValue: "暂无可用模型，请先在设置中配置。" })}
+                </div>
+              )}
             </div>
           </div>
-        )}
+        ) : null}
       </div>
     </div>
-  )
-}
+  );
+};

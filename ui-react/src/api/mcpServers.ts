@@ -1,7 +1,7 @@
 import {apiUrl} from './base'
 import type {MCPServer, McpServerListResponse, McpToolInfo} from '@/types/mcp'
 
-export interface McpServerDTO extends MCPServer {
+export interface McpServerDTO extends Omit<MCPServer, 'id'> {
     id?: string | number
     createdAt?: string
     updatedAt?: string

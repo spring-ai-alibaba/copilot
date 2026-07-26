@@ -1,5 +1,7 @@
 // 提示词管理API接口
 
+import { apiUrl } from './base';
+
 export interface PromptTemplate {
   id: string;
   name: string;
@@ -350,7 +352,7 @@ export const getPromptCategories = async (): Promise<PromptCategory[]> => {
     return [...mockCategories];
   }
 
-  const response = await fetch(`${API_BASE_URL}/api/prompts/categories`, {
+  const response = await fetch(apiUrl('/api/prompts/categories'), {
     method: 'GET',
     headers: {
       'Content-Type': 'application/json',
@@ -374,9 +376,9 @@ export const getPrompts = async (category?: string): Promise<PromptTemplate[]> =
     return [...mockPrompts];
   }
 
-  const url = category 
-    ? `${API_BASE_URL}/api/prompts?category=${category}`
-    : `${API_BASE_URL}/api/prompts`;
+  const url = apiUrl(category
+    ? `/api/prompts?category=${category}`
+    : '/api/prompts');
 
   const response = await fetch(url, {
     method: 'GET',
@@ -409,7 +411,7 @@ export const createPrompt = async (data: PromptCreateRequest): Promise<PromptTem
     return newPrompt;
   }
 
-  const response = await fetch(`${API_BASE_URL}/api/prompts`, {
+  const response = await fetch(apiUrl('/api/prompts'), {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -440,7 +442,7 @@ export const updatePrompt = async (id: string, data: PromptUpdateRequest): Promi
     return mockPrompts[index];
   }
 
-  const response = await fetch(`${API_BASE_URL}/api/prompts/${id}`, {
+  const response = await fetch(apiUrl(`/api/prompts/${id}`), {
     method: 'PUT',
     headers: {
       'Content-Type': 'application/json',
@@ -466,7 +468,7 @@ export const deletePrompt = async (id: string): Promise<void> => {
     return;
   }
 
-  const response = await fetch(`${API_BASE_URL}/api/prompts/${id}`, {
+  const response = await fetch(apiUrl(`/api/prompts/${id}`), {
     method: 'DELETE',
   });
 
