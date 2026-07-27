@@ -66,7 +66,8 @@ export const mockDocuments: Record<string, KnowledgeDocument[]> = {
       fileType: 'Word',
       uploadedBy: 'architect',
       uploadedAt: '2024-01-18T09:15:00Z',
-      processStatus: 'PROCESSING'
+      processStatus: 'PROCESSING',
+      chunkCount: 0
     },
     {
       id: 'doc4',

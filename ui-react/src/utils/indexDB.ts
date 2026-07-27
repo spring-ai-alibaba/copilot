@@ -183,6 +183,41 @@ export class DBManager {
     });
   }
 
+  // Update the title on every snapshot that belongs to a local conversation.
+  async renameByUuid(uuid: string, title: string): Promise<void> {
+    if (this.isElectron()) {
+      const records = JSON.parse(localStorage.getItem('chatRecords') || '[]') as ChatRecord[];
+      const updatedRecords = records.map(record =>
+        record.uuid === uuid
+          ? {...record, data: {...record.data, title}}
+          : record
+      );
+      localStorage.setItem('chatRecords', JSON.stringify(updatedRecords));
+      this.notify();
+      return;
+    }
+
+    await this.ensureDB();
+    return new Promise((resolve, reject) => {
+      const transaction = this.db!.transaction([this.STORE_NAME], 'readwrite');
+      const store = transaction.objectStore(this.STORE_NAME);
+      const request = store.index('uuid').getAll(uuid);
+
+      request.onsuccess = () => {
+        (request.result as ChatRecord[]).forEach(record => {
+          store.put({...record, data: {...record.data, title}});
+        });
+      };
+      request.onerror = () => reject(request.error);
+      transaction.oncomplete = () => {
+        this.notify();
+        resolve();
+      };
+      transaction.onerror = () => reject(transaction.error);
+      transaction.onabort = () => reject(transaction.error);
+    });
+  }
+
   // Read all content for specified UUID
   async getByUuid(uuid: string): Promise<ChatRecord[]> {
     if (this.isElectron()) {

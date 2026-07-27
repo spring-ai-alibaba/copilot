@@ -1,6 +1,6 @@
 import React, {useEffect, useState} from "react";
 import {SquarePlus, Terminal as TerminalIcon, X} from "lucide-react";
-import weTerminal from "./utils/weTerminal"; // 导入 Terminal 类
+import type WeTerminal from "./utils/weTerminal";
 import useTerminalStore from "../../../../stores/terminalSlice";
 import "xterm/css/xterm.css";
 import "./styles.css";
@@ -8,11 +8,12 @@ import {cn} from "@/utils/cn";
 import {eventEmitter} from "@/components/AiChat/utils/EventEmitter";
 import useThemeStore from "@/stores/themeSlice";
 import {useFileStore} from "../../stores/fileStore";
+import {useTranslation} from "react-i18next";
 
 interface TerminalItem {
   processId: string; // 自增 id
   containerRef: React.RefObject<HTMLDivElement>; // 终端的容器
-  terminal: weTerminal; // Terminal 类实例
+  terminal: WeTerminal; // Terminal 类实例
 }
 
 // 终端的选项卡
@@ -27,7 +28,7 @@ function TerminalTab({
   changeTerminalTab: () => void;
   onClose: () => void;
   processId: string;
-  terminal: weTerminal;
+  terminal: WeTerminal;
 }) {
   const [isReady, setIsReady] = useState(terminal.getIsReady());
 
@@ -38,13 +39,10 @@ function TerminalTab({
   return (
     <div
       className={cn(
-        "flex items-center px-4 py-1.5 cursor-pointer transition-colors duration-200",
-        "border-b border-[#e5e5e5] dark:border-[#252525]",
+        "flex cursor-pointer items-center rounded-md px-2 py-1 transition-colors duration-150",
         processId == selectProcessId
-          ? "bg-[#ffffff] dark:bg-[#37373d] text-[#424242] dark:text-white"
-          : "bg-[#f5f5f5] dark:bg-[#252526] text-[#616161] dark:text-[#858585] hover:bg-[#e8e8e8] dark:hover:bg-[#2d2d2d]",
-        processId,
-        selectProcessId
+          ? "bg-workbench-active text-foreground"
+          : "text-muted-foreground hover:bg-foreground/[0.045] hover:text-foreground"
       )}
       onClick={changeTerminalTab}
     >
@@ -62,8 +60,8 @@ function TerminalTab({
           className={cn(
             "text-xs font-medium",
             processId == selectProcessId
-              ? "text-[#424242] dark:text-white"
-              : "text-[#616161] dark:text-[#858585]"
+              ? "text-foreground"
+              : "text-muted-foreground"
           )}
         >
           {/* Terminal {!isReady && '(Initializing...)'} */}
@@ -79,23 +77,21 @@ function TerminalTab({
         }}
         className={cn(
           "p-1 rounded transition-colors ml-auto",
-          "hover:bg-[#e5e5e5] dark:hover:bg-[#404040]",
+          "hover:bg-foreground/[0.07]",
           "group"
         )}
       >
         <X
           className={cn(
             "w-3 h-3",
-            "text-[#616161] dark:text-[#858585]",
-            "group-hover:text-[#424242] dark:group-hover:text-white"
+            "text-muted-foreground",
+            "group-hover:text-foreground"
           )}
         />
       </button>
     </div>
   );
 }
-
-let isInit = false;
 
 // 终端本体
 function TerminalItem({
@@ -107,7 +103,7 @@ function TerminalItem({
   containerRef: React.RefObject<HTMLDivElement>;
   processId: string;
   selectProcessId: string;
-  terminal: weTerminal;
+  terminal: WeTerminal;
 }) {
   const {isDarkMode} = useThemeStore()
 
@@ -124,7 +120,7 @@ function TerminalItem({
   return (
     <div
       ref={containerRef}
-      className="flex-1 overflow-hidden terminal-container bg-white dark:bg-[#18181a] px-2 py-1"
+      className="terminal-container flex-1 overflow-hidden bg-workbench-panel px-2 py-1"
       style={{
         display: processId == selectProcessId ? "block" : "none",
       }}
@@ -133,7 +129,8 @@ function TerminalItem({
 }
 
 export function Terminal() {
-  const { newTerminal, terminals, addTerminal, removeTerminal } =
+  const {t} = useTranslation();
+  const { newTerminal, terminals, removeTerminal } =
     useTerminalStore();
 
   const [selectProcessId, setSelectProcessId] = useState<string | null>(null);
@@ -143,10 +140,6 @@ export function Terminal() {
   // 初始化终端列表（其实不会初始化终端，只是用作渲染 显示终端）
 
   useEffect(() => {
-    if (!isInit) {
-      newTerminal();
-      isInit = true;
-    }
     const update = (processId: string) => {
       setSelectProcessId(processId);
       setUpdateCount((num) => num + 1);
@@ -190,7 +183,7 @@ export function Terminal() {
 
   // 添加一个终端
   const addTerminalHandle = async () => {
-    newTerminal((t: weTerminal) => {
+    newTerminal((t: WeTerminal) => {
       setSelectProcessId(t.getProcessId());
     });
   };
@@ -201,16 +194,8 @@ export function Terminal() {
   };
 
   return (
-    <div className={`w-full h-full flex flex-col`}>
-      <div
-        style={{
-          display: "flex",
-          flexDirection: "row",
-          alignItems: "center",
-          gap: "4px",
-          padding: "4px 8px",
-        }}
-      >
+    <div className="flex h-full w-full flex-col">
+      <div className="flex min-h-9 flex-row items-center gap-1 border-b border-border/65 px-2 py-1">
         {items.map((item) => (
           <TerminalTab
             key={item.processId}
@@ -222,10 +207,15 @@ export function Terminal() {
           />
         ))}
 
-        <SquarePlus
-          className="w-4 h-4 cursor-pointer"
+        <button
+          type="button"
           onClick={addTerminalHandle}
-        />
+          className="arc-icon-button h-7 w-7"
+          title={t("appShell.dock.newTerminal", {defaultValue: "新建终端"})}
+          aria-label={t("appShell.dock.newTerminal", {defaultValue: "新建终端"})}
+        >
+          <SquarePlus className="h-3.5 w-3.5" />
+        </button>
       </div>
 
       {/* 终端的本体 */}

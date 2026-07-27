@@ -1,6 +1,6 @@
-import useChatStore from '@/stores/chatSlice';
 import React, {KeyboardEvent, useState} from 'react';
 import {useTranslation} from 'react-i18next';
+import {Button} from '@/components/ui/button';
 
 interface UrlInputDialogProps {
   isOpen: boolean;
@@ -15,7 +15,6 @@ export const UrlInputDialog: React.FC<UrlInputDialogProps> = ({
   onSubmit,
 }) => {
   const { t } = useTranslation();
-  const { isDeepThinking } = useChatStore();
   const [url, setUrl] = useState('');
   const [error, setError] = useState('');
 
@@ -57,26 +56,28 @@ export const UrlInputDialog: React.FC<UrlInputDialogProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto">
-      {/* Backdrop */}
-      <div 
-        className="fixed inset-0 bg-black bg-opacity-50 transition-opacity"
+    <div className="fixed inset-0 z-[10010] overflow-y-auto">
+      <div
+        className="fixed inset-0 bg-black/35 backdrop-blur-sm transition-opacity"
         onClick={onClose}
       />
 
       {/* Dialog */}
       <div className="flex min-h-full items-center justify-center p-4">
-        <div 
-          className="relative w-full max-w-md transform overflow-hidden rounded-lg bg-white dark:bg-gray-800 p-6 text-left shadow-xl transition-all"
+        <div
+          className="arc-dialog-panel relative w-full max-w-md transform p-5 text-left transition-all"
           onClick={(e) => e.stopPropagation()}
         >
-          {/* Title */}
-          <h3 className="text-lg font-medium leading-6 text-gray-900 dark:text-gray-100 mb-4">
+          <h3 className="mb-1 text-sm font-semibold leading-6 text-foreground">
             {t('chat.urlInput.title')}
           </h3>
+          <p className="text-xs leading-5 text-muted-foreground">
+            {t('chat.urlInput.description', {
+              defaultValue: '添加公开网页作为本轮对话的参考上下文。',
+            })}
+          </p>
 
-          {/* Input */}
-          <div className="mt-2">
+          <div className="mt-4">
             <input
               type="url"
               value={url}
@@ -85,36 +86,27 @@ export const UrlInputDialog: React.FC<UrlInputDialogProps> = ({
                 setError('');
               }}
               onKeyDown={handleKeyDown}
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-gray-100 dark:placeholder-gray-400"
+              className="h-10 w-full rounded-xl border border-border bg-background px-3 text-sm text-foreground outline-none transition-colors placeholder:text-muted-foreground focus:border-foreground/20"
               placeholder={t('chat.urlInput.placeholder')}
               autoFocus
             />
             {error && (
-              <p className="mt-2 text-sm text-red-500">
+              <p className="mt-2 text-xs text-destructive">
                 {error}
               </p>
             )}
           </div>
 
-          {/* Buttons */}
-          <div className="mt-6 flex justify-end gap-3">
-            <button
-              type="button"
-              onClick={onClose}
-              className="inline-flex justify-center rounded-md border border-gray-300 dark:border-gray-600 px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-            >
+          <div className="mt-5 flex justify-end gap-2">
+            <Button variant="ghost" size="sm" onClick={onClose}>
               {t('common.cancel')}
-            </button>
-            <button
-              type="button"
-              onClick={handleSubmit}
-              className="inline-flex justify-center rounded-md border border-transparent bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-            >
+            </Button>
+            <Button size="sm" onClick={handleSubmit}>
               {t('common.confirm')}
-            </button>
+            </Button>
           </div>
         </div>
       </div>
     </div>
   );
-}; 
+};

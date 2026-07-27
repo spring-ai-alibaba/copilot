@@ -1,11 +1,13 @@
 import React, {useEffect, useState} from 'react';
 import {isFileSystemEnabled} from '@/api/filesystem';
+import {useTranslation} from 'react-i18next';
 
 interface FileSystemStatusProps {
   className?: string;
 }
 
 export const FileSystemStatus: React.FC<FileSystemStatusProps> = ({ className }) => {
+  const {t} = useTranslation();
   const [enabled, setEnabled] = useState(false);
   const [loading, setLoading] = useState(true);
 
@@ -28,7 +30,9 @@ export const FileSystemStatus: React.FC<FileSystemStatusProps> = ({ className })
     return (
       <div className={`flex items-center gap-2 text-sm text-gray-500 ${className || ''}`}>
         <div className="w-2 h-2 bg-gray-400 rounded-full animate-pulse" />
-        <span>检查文件系统状态...</span>
+        <span>
+          {t('chat.filesystem.checking', {defaultValue: '检查文件系统状态…'})}
+        </span>
       </div>
     );
   }

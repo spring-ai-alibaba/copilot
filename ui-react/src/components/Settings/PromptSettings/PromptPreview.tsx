@@ -167,7 +167,7 @@ export function PromptPreview({ visible, prompt, onCancel }: PromptPreviewProps)
                   <span className="font-medium">{t('prompts.form.tags')}: </span>
                   <Space wrap>
                     {prompt.tags.map(tag => (
-                      <Tag key={tag} size="small">{tag}</Tag>
+                      <Tag key={tag}>{tag}</Tag>
                     ))}
                   </Space>
                 </div>

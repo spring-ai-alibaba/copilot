@@ -67,7 +67,7 @@ mvn spring-boot:run -pl copilot-admin
 (♥◠‿◠)ﾉﾞ  Alibaba Copilot启动成功   ლ(´ڡ`ლ)ﾞ
 ```
 
-后端地址：`http://localhost:6039`
+后端地址：`http://localhost:6040`
 
 ### 第五步：启动前端
 
@@ -124,13 +124,13 @@ mysql -u root -p -e "SHOW DATABASES;"
 ### Q2: 前端无法连接后端
 
 **A:** 确认：
-1. 后端是否已启动（访问 http://localhost:6039）
+1. 后端是否已启动（访问 http://localhost:6040）
 2. 检查浏览器控制台是否有 CORS 错误
 3. 检查 `.env.local` 配置
 
 ```env
 # ui-react/.env.local
-APP_BASE_URL=http://localhost:6039
+APP_BASE_URL=http://localhost:6040
 ```
 
 ### Q3: AI 不响应或响应很慢

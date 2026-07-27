@@ -1,6 +1,7 @@
 import {useState} from "react";
 import {AnimatePresence, motion} from "framer-motion";
-import {FaCode} from "react-icons/fa6";
+import {X} from "lucide-react";
+import {AppLogo} from "@/components/AppLogo";
 import LoginForm from "./LoginForm";
 import RegisterForm from "./RegisterForm";
 import ForgotPassword from "./ForgotPassword";
@@ -60,7 +61,7 @@ const Login = ({isOpen, onClose}: LoginProps) => {
             animate={{opacity: 1}}
             exit={{opacity: 0}}
             onClick={handleClose}
-            className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm"
+            className="fixed inset-0 z-[10005] bg-black/35 backdrop-blur-sm"
           />
 
           {/* Modal */}
@@ -69,86 +70,51 @@ const Login = ({isOpen, onClose}: LoginProps) => {
             animate={{opacity: 1, scale: 1, y: 0}}
             exit={{opacity: 0, scale: 0.95, y: 20}}
             transition={{duration: 0.2}}
-            className="fixed inset-0 z-50 grid place-items-center p-4"
+            className="fixed inset-0 z-[10006] grid place-items-center p-4"
           >
             <div
               onClick={(e) => {
                 e.stopPropagation();
               }}
-              className="relative w-full max-w-md overflow-hidden rounded-lg border
-                border-gray-200 bg-white shadow-2xl
-                dark:border-[#333333] dark:bg-[#18181a]"
+              className="arc-dialog-panel relative w-full max-w-md overflow-hidden"
             >
-              {/* 品牌色渐变描边，与 Logo / Header 的蓝紫渐变一致 */}
-              <div className="h-0.5 bg-gradient-to-r from-blue-500 to-purple-500" />
-
-              {/* Close button */}
               <button
                 onClick={handleClose}
                 aria-label={t("common.close")}
-                className="absolute right-3 top-3.5 text-gray-400 transition-colors
-                  hover:text-gray-900 dark:text-[#666] dark:hover:text-white"
+                className="arc-icon-button absolute right-3 top-3 z-20"
               >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  className="h-5 w-5"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M6 18L18 6M6 6l12 12"
-                  />
-                </svg>
+                <X className="h-4 w-4" />
               </button>
 
-              <div className="px-8 pb-7 pt-9">
-                {/* Brand */}
+              <div className="px-8 pb-7 pt-8 max-sm:px-5">
                 <div className="flex flex-col items-center text-center">
-                  <div
-                    className="flex h-12 w-12 items-center justify-center rounded-lg
-                      bg-gradient-to-br from-blue-500 to-purple-500 shadow-lg shadow-blue-500/25"
-                  >
-                    <FaCode className="text-xl text-white" />
-                  </div>
-                  <h1
-                    className="mt-4 bg-gradient-to-r from-purple-500 to-purple-600 bg-clip-text
-                      text-[22px] font-bold text-transparent
-                      dark:from-blue-500 dark:to-purple-500"
-                  >
-                    Alibaba Copilot
+                  <AppLogo className="h-11 w-11 rounded-2xl" />
+                  <h1 className="mt-4 text-xl font-semibold tracking-tight text-foreground">
+                    {activeTab === "forgot" ? t("login.forgot_password") : "Alibaba Copilot"}
                   </h1>
-                  <p className="mt-1.5 text-sm text-gray-500 dark:text-[#8c8c8c]">
+                  <p className="mt-1.5 text-xs leading-5 text-muted-foreground">
                     {t("login.AI_powered_development_platform")}
                   </p>
                 </div>
 
-                {/* 登录 / 注册 分段切换（与 Settings 侧栏选中态同色） */}
                 {activeTab !== "forgot" && (
-                  <div
-                    className="mt-7 grid grid-cols-2 gap-1 rounded-lg bg-gray-100 p-1
-                      dark:bg-[#232324]"
-                  >
+                  <div className="mt-7 grid grid-cols-2 gap-1 rounded-lg bg-muted/75 p-1">
                     {tabs.map((tab) => (
                       <button
                         key={tab.key}
                         onClick={() => changeTab(tab.key)}
-                        className={`relative rounded-md py-1.5 text-sm transition-colors duration-200
+                        className={`relative rounded-md py-1.5 text-xs font-medium transition-colors duration-200
                           ${
                             activeTab === tab.key
-                              ? "text-gray-900 dark:text-white"
-                              : "text-gray-500 hover:text-gray-700 dark:text-[#8c8c8c] dark:hover:text-[#bbb]"
+                              ? "text-foreground"
+                              : "text-muted-foreground hover:text-foreground"
                           }`}
                       >
                         {activeTab === tab.key && (
                           <motion.span
                             layoutId="login-tab-pill"
                             transition={{type: "spring", stiffness: 500, damping: 38}}
-                            className="absolute inset-0 rounded-md bg-white shadow-sm
-                              dark:bg-[#333333]"
+                            className="absolute inset-0 rounded-md bg-background shadow-sm"
                           />
                         )}
                         <span className="relative">{tab.label}</span>

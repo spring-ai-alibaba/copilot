@@ -1,5 +1,6 @@
 import React from 'react';
 import {Button, Input, Radio, Select, Space, Upload} from 'antd';
+import type {RadioChangeEvent} from 'antd';
 import {DeleteOutlined, PlusOutlined, UploadOutlined} from '@ant-design/icons';
 import {BodyType, FormDataItem, RequestBody} from '../types';
 
@@ -12,7 +13,7 @@ interface BodyEditorProps {
 }
 
 function BodyEditor({ bodyType = 'none', body = {}, onUpdate }: BodyEditorProps): JSX.Element {
-  const handleBodyTypeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleBodyTypeChange = (e: RadioChangeEvent) => {
     const newBodyType = e.target.value as BodyType;
     onUpdate(newBodyType, body);
   };
@@ -71,7 +72,7 @@ function BodyEditor({ bodyType = 'none', body = {}, onUpdate }: BodyEditorProps)
         ) : (
           <Input
             placeholder="Value"
-            value={item.value}
+            value={item.value as string}
             onChange={(e) => {
               const newFormData = [...(body.formData || [])];
               newFormData[index] = { ...item, value: e.target.value };
@@ -147,4 +148,4 @@ function BodyEditor({ bodyType = 'none', body = {}, onUpdate }: BodyEditorProps)
   );
 }
 
-export default BodyEditor; 
+export default BodyEditor;

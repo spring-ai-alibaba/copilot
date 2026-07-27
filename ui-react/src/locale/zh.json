@@ -5,7 +5,9 @@
       "title": "输入网站地址",
       "placeholder": "请输入截图网站地址",
       "button": "打开网站",
-      "errorInvalid": "请输入有效的URL"
+      "errorInvalid": "请输入有效的URL",
+      "errorEmpty": "请输入网站地址",
+      "description": "添加公开网页作为本轮对话的参考上下文。"
     },
 
     "tips": {
@@ -15,13 +17,30 @@
       "uploadImg": "上传图片",
       "uploadWebsite": "上传网站",
       "game": "生成一个企业官网",
-      "hello": "生成基于ssa的翻译项目"
+      "hello": "生成基于ssa的翻译项目",
+      "builderTitle": "今天想构建什么？",
+      "chatTitle": "我能帮你做什么？",
+      "builderDescription": "描述目标、引用工作区文件，Agent 会在右侧工作区中创建并运行项目。",
+      "chatDescription": "提出问题，或者把资料和图片加入上下文。",
+      "imageStartTitle": "从图片开始",
+      "imageStartDescription": "上传设计稿或参考图",
+      "addImageTitle": "添加图片",
+      "addImageDescription": "让模型查看视觉内容",
+      "webTitle": "引用网页",
+      "webDescription": "从公开 URL 获取上下文",
+      "projectAnalysis": "分析当前项目并提出可以实施的改进",
+      "summarize": "总结这份材料的重点",
+      "breakDownTask": "帮我拆解一个复杂任务",
+      "ideas": "给我几个可落地的创意方向"
     },
     "errors": {
       "file_size_limit": "文件 {fileName} 超过5MB限制",
       "upload_failed": "上传失败",
       "paste_failed": "粘贴图片失败",
-      "add_image_failed": "添加图片失败"
+      "add_image_failed": "添加图片失败",
+      "auth_required": "请先登录后再发送消息",
+      "request_failed": "请求失败，请稍后重试",
+      "view_problem": "查看问题"
     },
     "success": {
       "images_uploaded": "图片上传成功",
@@ -55,7 +74,17 @@
       "mcp_disabled": "MCP 工具已禁用",
       "mcp_tools": "MCP 工具",
       "not_support_mcp": "当前模型不支持 MCP 工具",
-      "click_to_use_mcp": "点击使用 MCP 工具"
+      "click_to_use_mcp": "点击使用 MCP 工具",
+      "addContext": "添加上下文",
+      "addToConversation": "添加到对话",
+      "importSketch": "导入 Sketch",
+      "designContext": "生成设计上下文",
+      "workspaceMention": "输入 @ 可引用工作区文件",
+      "selectModel": "选择模型",
+      "availableModels": "可用模型",
+      "stopReceiving": "停止接收",
+      "sendMessage": "发送消息",
+      "composerHint": "Enter 发送 · Shift + Enter 换行"
     },
     "examples": {
       "title": "你可以这样问我",
@@ -69,6 +98,19 @@
     },
     "loading": {
       "generating": "AI正在生成回答..."
+    },
+    "filesystem": {
+      "checking": "检查文件系统状态…"
+    },
+    "processing": {
+      "title": "Agent 正在处理",
+      "description": "正在分析上下文并准备回复…"
+    },
+    "timeline": {
+      "reasoning": "思考过程",
+      "collapse": "收起",
+      "expand": "展开",
+      "runFailed": "运行失败"
     },
     "modePlaceholders": {
       "chat": "这是聊天模式。你可以直接与AI对话，并返回你想要的结果。",
@@ -90,6 +132,18 @@
   },
   "settings": {
     "title": "设置",
+    "shell": {
+      "backToChat": "返回对话",
+      "basicGroup": "基础",
+      "intelligenceGroup": "智能能力",
+      "generalDescription": "外观、语言与应用行为",
+      "modelsDescription": "模型服务与默认参数",
+      "mcpDescription": "外部工具与服务连接",
+      "knowledgeDescription": "知识来源与检索配置",
+      "promptsDescription": "可复用的任务指令",
+      "memoryDescription": "偏好学习与长期记忆",
+      "storageNote": "设置会保存在当前浏览器中；需要后端同步的项目已在接口文档中标记。"
+    },
     "language": "语言",
     "general": "常规",
     "General": "常规",
@@ -102,7 +156,7 @@
     "save": "保存",
     "themeMode": "主题模式",
     "themeModeLight": "明亮模式",
-    "themeModeDark": "暗黑模型",
+    "themeModeDark": "暗黑模式",
     "MCPServer": "MCP服务",
     "Memory": "长期记忆",
     "InvalidProxyUrl": "无效的代理URL",
@@ -456,6 +510,10 @@
     "close": "关闭",
     "visitSite": "访问网站",
     "open_directory": "打开目录",
+    "projectActions": "项目操作",
+    "deployPendingDescription": "部署后端尚未接入",
+    "pending": "待接入",
+    "openInFolder": "在文件夹中打开",
     "error": {
       "open_directory": "打开目录失败",
       "deploy_failed": "部署失败，请稍后重试"
@@ -490,6 +548,73 @@
     "close": "关闭",
     "format": "格式化",
     "formatting": "格式化中..."
+  },
+  "appShell": {
+    "header": {
+      "openSidebar": "打开侧栏",
+      "builderWorkspace": "开发工作区",
+      "newConversation": "新对话",
+      "modes": {
+        "chat": "Chat",
+        "builder": "Builder"
+      },
+      "switchToLight": "切换到亮色",
+      "switchToDark": "切换到暗色",
+      "settings": "设置",
+      "collapseProjectTools": "收起项目工具",
+      "openProjectTools": "打开项目工具"
+    },
+    "sidebar": {
+      "close": "关闭侧栏",
+      "collapse": "收起侧栏",
+      "workspaceAgent": "Workspace Agent",
+      "workspace": "Workspace",
+      "newConversation": "新对话",
+      "currentWorkspace": "当前工作区",
+      "noSearchResults": "没有匹配的对话",
+      "emptyConversations": "还没有对话，开始一个新任务吧",
+      "recentConversations": "最近对话",
+      "conversationActions": "会话操作",
+      "rename": "重命名",
+      "delete": "删除",
+      "loadMore": "加载更多",
+      "loadingMore": "正在加载…",
+      "user": "User",
+      "signedIn": "已登录",
+      "logout": "退出登录",
+      "guest": "Guest",
+      "signInToSync": "登录后发送并同步会话",
+      "deleteDialog": {
+        "title": "删除这个对话？",
+        "description": "“{{title}}”将被永久删除，此操作无法撤销。",
+        "confirm": "删除"
+      },
+      "time": {
+        "justNow": "刚刚",
+        "minutesAgo": "{{count}} 分钟前",
+        "yesterday": "昨天"
+      }
+    },
+    "dock": {
+      "tabs": {
+        "workspace": "工作区",
+        "preview": "预览",
+        "api": "API",
+        "changes": "变更"
+      },
+      "close": "关闭项目工具",
+      "resize": "调整项目工具宽度",
+      "addPending": "添加项目工具（接口待接入）",
+      "add": "添加项目工具",
+      "collapse": "收起项目工具",
+      "newTerminal": "新建终端",
+      "changes": {
+        "title": "生成文件变更",
+        "description": "基于本次生成前后的工作区快照；尚未连接 Git 后端。",
+        "emptyTitle": "没有待查看的变更",
+        "emptyDescription": "Agent 写入或编辑文件后，变更会出现在这里。"
+      }
+    }
   },
   "sidebar": {
     "start_new_chat": "开始新聊天",

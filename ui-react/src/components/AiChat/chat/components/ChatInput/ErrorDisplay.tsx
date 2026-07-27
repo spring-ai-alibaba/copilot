@@ -1,6 +1,7 @@
 import React, {useState} from "react";
 import {AlertTriangle} from "lucide-react";
 import classNames from "classnames";
+import {useTranslation} from "react-i18next";
 import type {ErrorDisplayProps} from "./types";
 
 export const ErrorDisplay: React.FC<ErrorDisplayProps> = ({
@@ -8,6 +9,7 @@ export const ErrorDisplay: React.FC<ErrorDisplayProps> = ({
   onAttemptFix,
   onRemoveError,
 }) => {
+  const {t} = useTranslation();
   const [expandedErrors, setExpandedErrors] = useState<Set<number>>(new Set());
   const [showProblems, setShowProblems] = useState<Set<number>>(new Set());
 
@@ -36,13 +38,13 @@ export const ErrorDisplay: React.FC<ErrorDisplayProps> = ({
   };
 
   return (
-    <div className="max-h-[50vh] overflow-y-auto">
+    <div className="max-h-[40vh] overflow-y-auto">
       {errors.map((error, index) => (
         <div
           key={index}
           className={classNames(
-            "mb-4 bg-[#1c1c1c] rounded-lg border transition-all duration-300 ease-in-out cursor-pointer",
-            error.severity === "error" ? "border-red-500/30" : "border-yellow-500/30",
+            "mb-1.5 cursor-pointer rounded-xl border bg-popover/95 shadow-lg transition-all duration-200",
+            error.severity === "error" ? "border-destructive/30" : "border-amber-500/30",
             expandedErrors.has(index) ? "p-3" : "p-1.5"
           )}
         >
@@ -50,7 +52,7 @@ export const ErrorDisplay: React.FC<ErrorDisplayProps> = ({
             className="flex items-center justify-between"
             onClick={() => toggleErrorExpanded(index)}
           >
-            <div className="flex items-center gap-1.5 text-red-400">
+            <div className="flex items-center gap-1.5 text-destructive">
               <AlertTriangle className="w-3.5 h-3.5" />
               <span className="font-medium text-xs">{error.message}</span>
             </div>
@@ -59,7 +61,7 @@ export const ErrorDisplay: React.FC<ErrorDisplayProps> = ({
                 e.stopPropagation();
                 toggleErrorExpanded(index);
               }}
-              className="text-gray-400 hover:text-gray-200 p-0.5"
+              className="p-0.5 text-muted-foreground hover:text-foreground"
             >
               <svg
                 className={classNames(
@@ -92,18 +94,20 @@ export const ErrorDisplay: React.FC<ErrorDisplayProps> = ({
               {expandedErrors.has(index) && (
                 <>
                   <button
-                    className="w-full text-left p-1.5 bg-[#252525] rounded-md flex items-center justify-between text-xs"
+                    className="flex w-full items-center justify-between rounded-lg bg-muted/65 p-2 text-left text-xs"
                     onClick={() => toggleProblemVisible(index)}
                   >
                     <div className="flex items-center gap-1.5">
-                      <span className="flex items-center justify-center w-4 h-4 rounded-full bg-[#333333] text-[white] text-[10px]">
+                      <span className="flex h-4 w-4 items-center justify-center rounded-full bg-foreground text-[10px] text-background">
                         {error.number || 1}
                       </span>
-                      <span className="text-white">Show problem</span>
+                      <span className="text-foreground">
+                        {t("chat.errors.view_problem", {defaultValue: "查看问题"})}
+                      </span>
                     </div>
                     <svg
                       className={classNames(
-                        "w-3.5 h-3.5 text-gray-400 transition-transform duration-300",
+                        "h-3.5 w-3.5 text-muted-foreground transition-transform duration-300",
                         showProblems.has(index)
                           ? "transform rotate-180"
                           : ""
@@ -130,16 +134,16 @@ export const ErrorDisplay: React.FC<ErrorDisplayProps> = ({
                     )}
                   >
                     {showProblems.has(index) && (
-                      <div className="mt-1.5 p-2 bg-[#1a1a1a] rounded border border-gray-700/50 text-xs">
+                      <div className="mt-1.5 rounded-lg border border-border/70 bg-muted/35 p-2 text-xs">
                         <div className="flex items-start gap-2">
-                          <div className="text-red-400 mt-0.5">
+                          <div className="mt-0.5 text-destructive">
                             <AlertTriangle className="w-3.5 h-3.5" />
                           </div>
                           <div className="flex-1">
-                            <p className="text-gray-200 mb-1">
+                            <p className="mb-1 text-foreground/85">
                               Error code: {error.code}
                             </p>
-                            <pre className="font-mono bg-[#151515] p-1.5 rounded text-gray-300 whitespace-pre-wrap break-words">
+                            <pre className="whitespace-pre-wrap break-words rounded bg-muted p-1.5 font-mono text-muted-foreground">
                               <code>{error.message}</code>
                             </pre>
                           </div>
@@ -152,15 +156,15 @@ export const ErrorDisplay: React.FC<ErrorDisplayProps> = ({
                     <div className="flex gap-1.5">
                       <button
                         onClick={() => onAttemptFix(error, index)}
-                        className="px-2 py-1 bg-[#333333] rounded text-white hover:bg-[#404040] transition-colors text-xs"
+                        className="rounded-lg bg-foreground px-2.5 py-1.5 text-xs text-background transition-colors hover:bg-foreground/85"
                       >
-                        Attempt fix
+                        尝试修复
                       </button>
                       <button
                         onClick={() => onRemoveError(index)}
-                        className="px-2 py-1 bg-[#333333] rounded text-white hover:bg-[#404040] transition-colors text-xs"
+                        className="rounded-lg bg-muted px-2.5 py-1.5 text-xs text-foreground transition-colors hover:bg-muted/75"
                       >
-                        Clear
+                        清除
                       </button>
                     </div>
                   </div>
@@ -172,4 +176,4 @@ export const ErrorDisplay: React.FC<ErrorDisplayProps> = ({
       ))}
     </div>
   );
-}; 
+};

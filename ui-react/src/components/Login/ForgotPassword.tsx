@@ -1,6 +1,6 @@
 import {useState} from "react";
 import {FaEnvelope, FaLock} from "react-icons/fa6";
-import {toast} from "react-hot-toast";
+import {toast} from "react-toastify";
 import {useTranslation} from "react-i18next";
 import {authService} from "../../api/auth";
 import type {TabType} from "./index";
@@ -35,7 +35,7 @@ const ForgotPassword = ({onTabChange}: ForgotPasswordProps) => {
 
   return (
     <div>
-      <h2 className="mb-4 text-center text-base font-semibold text-gray-900 dark:text-white">
+      <h2 className="mb-4 text-center text-base font-semibold text-foreground">
         {t("forgotPassword.title")}
       </h2>
 
@@ -81,8 +81,7 @@ const ForgotPassword = ({onTabChange}: ForgotPasswordProps) => {
           <button
             type="button"
             onClick={() => onTabChange("login")}
-            className="w-full text-sm text-gray-500 transition-colors
-              hover:text-gray-900 dark:text-[#8c8c8c] dark:hover:text-white"
+            className="w-full text-sm text-muted-foreground transition-colors hover:text-foreground"
           >
             {t("forgotPassword.backToLogin")}
           </button>

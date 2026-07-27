@@ -243,13 +243,13 @@ export default function KnowledgeSettings() {
                         e?.stopPropagation();
                         handleDeleteKB(kb.key);
                       }}
-                      onClick={(e) => e?.stopPropagation()}
                     >
                       <Button 
                         type="text" 
                         danger 
                         icon={<DeleteOutlined />}
                         size="small"
+                        onClick={(e) => e.stopPropagation()}
                       />
                     </Popconfirm>
                   ]}

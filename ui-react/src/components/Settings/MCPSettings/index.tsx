@@ -5,7 +5,6 @@ import {ShopOutlined, ToolOutlined} from '@ant-design/icons'
 import InstallNpxUv from './InstallNpxUv'
 import McpToolsTab from './McpToolsTab'
 import McpMarketsTab from './McpMarketsTab'
-import useThemeStore from "@/stores/themeSlice"
 
 interface MCPSettingsProps {
     isActive?: boolean
@@ -13,7 +12,6 @@ interface MCPSettingsProps {
 
 const MCPSettings: FC<MCPSettingsProps> = ({isActive = false}) => {
     const {t} = useTranslation()
-    const {isDarkMode} = useThemeStore()
     const [activeKey, setActiveKey] = useState('tools')
 
     const tabItems = [
@@ -43,27 +41,27 @@ const MCPSettings: FC<MCPSettingsProps> = ({isActive = false}) => {
         <ConfigProvider
             theme={{
                 token: {
-                    colorPrimary: '#9333EA',
-                    colorPrimaryHover: '#A855F7',
-                    colorPrimaryActive: '#7E22CE',
-                    colorLink: '#9333EA',
-                    colorLinkHover: '#A855F7',
-                    colorLinkActive: '#7E22CE',
+                    colorPrimary: 'hsl(var(--foreground))',
+                    colorPrimaryHover: 'hsl(var(--foreground) / 0.82)',
+                    colorPrimaryActive: 'hsl(var(--foreground) / 0.72)',
+                    colorLink: 'hsl(var(--foreground))',
+                    colorLinkHover: 'hsl(var(--foreground) / 0.82)',
+                    colorLinkActive: 'hsl(var(--foreground) / 0.72)',
                 },
                 components: {
                     Button: {
-                        colorPrimary: '#9333EA',
-                        colorPrimaryHover: '#A855F7',
-                        colorPrimaryActive: '#7E22CE',
+                        colorPrimary: 'hsl(var(--foreground))',
+                        colorPrimaryHover: 'hsl(var(--foreground) / 0.82)',
+                        colorPrimaryActive: 'hsl(var(--foreground) / 0.72)',
                         borderRadius: 8,
                     },
                     Tag: {
                         borderRadiusSM: 12,
                     },
                     Tabs: {
-                        itemSelectedColor: '#9333EA',
-                        itemHoverColor: '#A855F7',
-                        inkBarColor: '#9333EA',
+                        itemSelectedColor: 'hsl(var(--foreground))',
+                        itemHoverColor: 'hsl(var(--foreground) / 0.82)',
+                        inkBarColor: 'hsl(var(--foreground))',
                     },
                 },
             }}

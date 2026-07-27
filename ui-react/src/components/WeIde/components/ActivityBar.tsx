@@ -16,23 +16,18 @@ export function ActivityBar({
   onToggleTerminal,
   showTerminal
 }: ActivityBarProps) {
-  // GitHub 仓库链接
-  const handleGithubClick = () => {
-    window.open('https://github.com/we0-dev/we0', '_blank');
-  };
-
   return (
-    <div className="w-12 bg-[#f6f6f6] dark:bg-[#1a1a1c] flex flex-col items-center py-2 border-r border-[#e4e4e4] dark:border-[#18181a]">
+    <div className="flex w-11 flex-col items-center border-r border-border/65 bg-workbench py-2">
       <Tooltip content="File Explorer" side="right">
         <button
           aria-label="File Explorer"
           className={cn(
-            "p-1.5 rounded-md mb-2 transition-all duration-200 relative group",
+            "group relative mb-1.5 rounded-lg p-1.5 transition-colors",
             activeView === "files"
-              ? "bg-white dark:bg-[#37373D] text-[#424242] dark:text-white"
-              : "text-[#616161] dark:text-[#858585] hover:text-[#424242] hover:bg-[#e8e8e8] dark:hover:text-white dark:hover:bg-[#37373D]",
+              ? "bg-workbench-active text-foreground"
+              : "text-muted-foreground hover:bg-foreground/[0.055] hover:text-foreground",
             activeView === "files" &&
-              "before:absolute before:left-0 before:top-[20%] before:h-[60%] before:w-[2px] before:bg-[#424242] dark:before:bg-white before:-ml-2"
+              "before:absolute before:-left-2 before:top-[25%] before:h-1/2 before:w-0.5 before:rounded-full before:bg-foreground"
           )}
           onClick={() => onViewChange("files")}
         >
@@ -44,12 +39,12 @@ export function ActivityBar({
         <button
           aria-label="Search"
           className={cn(
-            "p-1.5 rounded-md mb-2 transition-all duration-200 relative group",
+            "group relative mb-1.5 rounded-lg p-1.5 transition-colors",
             activeView === "search"
-              ? "bg-white dark:bg-[#37373D] text-[#424242] dark:text-white"
-              : "text-[#616161] dark:text-[#858585] hover:text-[#424242] hover:bg-[#e8e8e8] dark:hover:text-white dark:hover:bg-[#37373D]",
+              ? "bg-workbench-active text-foreground"
+              : "text-muted-foreground hover:bg-foreground/[0.055] hover:text-foreground",
             activeView === "search" &&
-              "before:absolute before:left-0 before:top-[20%] before:h-[60%] before:w-[2px] before:bg-[#424242] dark:before:bg-white before:-ml-2"
+              "before:absolute before:-left-2 before:top-[25%] before:h-1/2 before:w-0.5 before:rounded-full before:bg-foreground"
           )}
           onClick={() => onViewChange("search")}
         >
@@ -65,12 +60,12 @@ export function ActivityBar({
         <button
           aria-label="Terminal"
           className={cn(
-            "p-1.5 opacity-70 rounded-md mb-2 transition-all duration-200 relative group ",
+            "group relative mb-1.5 rounded-lg p-1.5 transition-colors",
             showTerminal
-              ? "bg-white dark:bg-[#37373D] text-[#424242] dark:text-white"
-              : "text-[#616161] dark:text-[#858585] hover:text-[#424242] hover:bg-[#e8e8e8] dark:hover:text-white dark:hover:bg-[#37373D]",
+              ? "bg-workbench-active text-foreground"
+              : "text-muted-foreground hover:bg-foreground/[0.055] hover:text-foreground",
               showTerminal &&
-              "before:absolute before:left-0 before:top-[20%] before:h-[60%] before:w-[2px] before:bg-[#424242] dark:before:bg-white before:-ml-2"
+              "before:absolute before:-left-2 before:top-[25%] before:h-1/2 before:w-0.5 before:rounded-full before:bg-foreground"
           )}
           onClick={onToggleTerminal}
         >

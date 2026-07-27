@@ -150,8 +150,7 @@ export const ArtifactView: React.FC<ArtifactViewProps> = ({
 
     setIsLoadingFromFileSystem(true);
     try {
-      const workspacePath = `${userId}/${conversationId}`;
-      const response = await getWorkspaceFiles(workspacePath);
+      const response = await getWorkspaceFiles();
 
       if (response.success && response.files) {
         // 将服务器文件同步到前端文件存储
