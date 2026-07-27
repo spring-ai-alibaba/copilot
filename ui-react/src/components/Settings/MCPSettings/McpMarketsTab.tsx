@@ -475,6 +475,7 @@ const McpMarketsTab: FC = () => {
 
             {/* 市场工具列表弹窗 */}
             <Modal
+              zIndex={10100}
                 title={
                     <Space>
                         <AppstoreOutlined/>

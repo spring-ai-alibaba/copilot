@@ -96,6 +96,7 @@ export function AddMcpServerModal({visible, server, onCancel, onOk}: AddMcpServe
 
     return (
         <Modal
+          zIndex={10100}
             title={server ? t('settings.mcp.editServer') : t('settings.mcp.addServer')}
             open={visible}
             onOk={handleOk}

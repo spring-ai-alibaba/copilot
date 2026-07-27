@@ -631,6 +631,7 @@ export default function ModelSettings() {
         }}
         footer={null}
         width={600}
+        zIndex={10100}
       >
         <Form
           form={form}
@@ -721,6 +722,7 @@ export default function ModelSettings() {
         }}
         footer={null}
         width={480}
+        zIndex={10100}
       >
         <div className="api-config-section">
           {selectedProvider?.providerCode === 'OpenAiCompatible' ? (
@@ -804,6 +806,7 @@ export default function ModelSettings() {
         }}
         footer={null}
         width={480}
+        zIndex={10100}
       >
         <Form
           form={addModelForm}
@@ -885,6 +888,7 @@ export default function ModelSettings() {
         }}
         footer={null}
         width={480}
+        zIndex={10100}
       >
         <Form
           form={editModelForm}

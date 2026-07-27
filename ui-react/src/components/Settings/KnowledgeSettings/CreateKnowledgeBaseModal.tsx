@@ -29,6 +29,7 @@ export function CreateKnowledgeBaseModal({ visible, onCancel, onOk }: CreateKnow
 
   return (
     <Modal
+      zIndex={10100}
       title={t('knowledge.create_kb')}
       open={visible}
       onCancel={handleCancel}

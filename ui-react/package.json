@@ -83,6 +83,7 @@
     "@iconify/json": "^2.2.300",
     "@iconify/tailwind": "^1.2.0",
     "@originjs/vite-plugin-commonjs": "^1.0.3",
+    "@rollup/pluginutils": "^5.4.0",
     "@types/lodash": "^4.17.13",
     "@types/node": "^22.10.2",
     "@types/react": "^18.2.43",

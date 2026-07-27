@@ -461,6 +461,7 @@ const McpToolsTab: FC = () => {
 
             {/* 详情弹框 */}
             <Modal
+              zIndex={10100}
                 title={t('settings.mcp.tools.detail.title')}
                 open={detailModalVisible}
                 onCancel={() => setDetailModalVisible(false)}

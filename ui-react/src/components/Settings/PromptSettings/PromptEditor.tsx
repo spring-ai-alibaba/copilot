@@ -96,6 +96,7 @@ export function PromptEditor({ visible, prompt, categories, onSave, onCancel }: 
 
   return (
     <Modal
+      zIndex={10100}
       title={prompt ? t('prompts.edit_prompt') : t('prompts.create_prompt')}
       open={visible}
       onCancel={handleCancel}

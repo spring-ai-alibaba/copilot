@@ -131,6 +131,7 @@ export function KnowledgePreview({ visible, onCancel, document, kbKey }: Knowled
 
   return (
     <Modal
+      zIndex={10100}
       title={
         <div className="flex items-center gap-2">
           <FileTextOutlined />
