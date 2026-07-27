@@ -82,3 +82,5 @@ application-prod.properties
 CLAUDE.md
 /workspace/
 /.claude/
+/.codegraph/
+/copilot-admin/workspace/
