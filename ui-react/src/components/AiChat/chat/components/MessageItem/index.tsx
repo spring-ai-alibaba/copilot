@@ -5,15 +5,14 @@ import {ImageGrid} from "../ImageGrid";
 import {Message} from "ai";
 
 import classNames from "classnames";
-import useUserStore from "../../../../../stores/userSlice";
 import useThemeStore from "@/stores/themeSlice";
-import hljs from "highlight.js";
+import hljs from "highlight.js/lib/common";
 import remarkGfm from "remark-gfm";
 import "highlight.js/styles/github.css"; // 亮色主题
 import "highlight.js/styles/github-dark.css"; // 暗色主题
-import {message} from "antd";
 import {useTranslation} from 'react-i18next';
 import { safeJsonParse } from '@/utils/safeJsonParse';
+import { AppLogo } from "@/components/AppLogo";
 
 const codeStyles = `
   .hljs-attr {
@@ -49,20 +48,20 @@ const codeStyles = `
   }
 `;
 
-function filterContent(message) {
-  let cloneMessage
+function filterContent(message: Message) {
+  let cloneMessage: Message | undefined;
   if (message.role === 'user') {
     cloneMessage = JSON.parse(JSON.stringify(message))
     // 使用正则表达式移除<weD2c>标签及其内容，添加 s 标志以匹配多行内容
     const weD2cRegex = /<weD2c>[\s\S]*?<\/weD2c>/g;
     cloneMessage.content = cloneMessage.content.replace(weD2cRegex, '');
-    cloneMessage.parts = cloneMessage.parts.map(item => {
+    cloneMessage.parts = cloneMessage.parts?.map(item => {
       if(item.type === 'text'){
         item.text = item.text.replace(weD2cRegex, '')
         return item
       }
       return item
-    })
+    }) ?? [];
   }
   return cloneMessage ? cloneMessage : message;
 }
@@ -104,6 +103,14 @@ export const processStreamParts = (parts: Message["parts"]): string => {
     artifactIndex > 0 ? result.substring(0, artifactIndex) : result;
   return preContent.trim();
 };
+
+function getDisplayContent(message: Message) {
+  const filteredMessage = filterContent(message);
+  const streamContent = processStreamParts(filteredMessage.parts);
+  const rawContent = typeof filteredMessage.content === "string" ? filteredMessage.content : "";
+  const content = streamContent || rawContent;
+  return isThinkContent(content) ? processThinkContent(content) : content;
+}
 
 interface MessageItemProps {
   message: Message & {
@@ -183,20 +190,6 @@ const ImagePreview = ({
   );
 };
 
-// 添加获取首字母的辅助函数
-const getInitial = (name: string | null | undefined): string => {
-  if (!name) return "U";
-
-  // 尝试获取第一个英文字母
-  const englishMatch = name.match(/[a-zA-Z]/);
-  if (englishMatch) {
-    return englishMatch[0].toUpperCase();
-  }
-
-  // 如果没有英文字母，返回第一个字符
-  return name.charAt(0).toUpperCase();
-};
-
 // 添加自定义样式处理
 const customHighlight = (code: string, language: string) => {
   try {
@@ -231,6 +224,71 @@ const customHighlight = (code: string, language: string) => {
   } catch (e) {
     return code;
   }
+};
+
+function decodeTimelinePayload(content: string) {
+  try {
+    return decodeURIComponent(content.trim());
+  } catch {
+    return content.trim();
+  }
+}
+
+const ReasoningCard = ({ content }: { content: string }) => {
+  const [open, setOpen] = useState(false);
+  const { t } = useTranslation();
+  return (
+    <div className="my-3 overflow-hidden rounded-xl border border-border/70 bg-muted/35">
+      <button
+        type="button"
+        onClick={() => setOpen((current) => !current)}
+        className="flex w-full items-center gap-2.5 px-3 py-2.5 text-left transition-colors hover:bg-foreground/[0.035]"
+        aria-expanded={open}
+      >
+        <span className="flex h-6 w-6 items-center justify-center rounded-md bg-background text-muted-foreground shadow-sm">
+          <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M9.5 4.5a3.5 3.5 0 0 1 5.7 2.72A3.5 3.5 0 0 1 17 13.75V16a2 2 0 0 1-2 2h-1l-2 2-2-2H9a2 2 0 0 1-2-2v-2.25A3.5 3.5 0 0 1 9.5 4.5Z" />
+          </svg>
+        </span>
+        <span className="flex-1 text-xs font-medium text-foreground/85">
+          {t("chat.timeline.reasoning", { defaultValue: "思考过程" })}
+        </span>
+        <span className="text-[10px] text-muted-foreground">
+          {open
+            ? t("chat.timeline.collapse", { defaultValue: "收起" })
+            : t("chat.timeline.expand", { defaultValue: "展开" })}
+        </span>
+        <svg
+          className={classNames("h-3.5 w-3.5 text-muted-foreground transition-transform", open && "rotate-180")}
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+        >
+          <path d="m6 9 6 6 6-6" />
+        </svg>
+      </button>
+      {open ? (
+        <div className="whitespace-pre-wrap border-t border-border/60 px-3 py-3 text-xs leading-5 text-muted-foreground">
+          {content}
+        </div>
+      ) : null}
+    </div>
+  );
+};
+
+const RunErrorCard = ({ message: errorMessage }: { message: string }) => {
+  const { t } = useTranslation();
+  return (
+    <div className="my-3 rounded-xl border border-destructive/25 bg-destructive/[0.06] px-3 py-2.5">
+      <div className="text-xs font-medium text-destructive">
+        {t("chat.timeline.runFailed", { defaultValue: "运行失败" })}
+      </div>
+      <div className="mt-1 whitespace-pre-wrap text-[11px] leading-5 text-destructive/85">
+        {errorMessage}
+      </div>
+    </div>
+  );
 };
 
 // 使用 memo 包裹 CodeBlock 组件以避免不必要的重渲染
@@ -268,25 +326,25 @@ export const CodeBlock = memo(
     return (
       <>
         <style>{codeStyles}</style>
-        <div className="my-1">
-          <div className="rounded-lg overflow-hidden group border border-[#E1E4E8] dark:border-[#333] shadow-sm">
-            <div className="flex items-center justify-between px-2 py-0.5 border-b border-[#E1E4E8] dark:border-[#333] bg-[#F6F8FA] dark:bg-[#2d2d2d]">
+        <div className="my-2">
+          <div className="group overflow-hidden rounded-xl border border-border/75 bg-card shadow-sm">
+            <div className="flex min-h-9 items-center justify-between border-b border-border/70 bg-muted/65 px-3 py-1">
               <div className="flex items-center gap-2.5">
                 {filePath ? (
                   <div className="flex items-center gap-2">
                     <svg
-                      className="w-4 h-4 text-[#6e7681] dark:text-gray-400"
+                      className="h-3.5 w-3.5 text-muted-foreground"
                       viewBox="0 0 16 16"
                       fill="currentColor"
                     >
                       <path d="M2 1.75C2 .784 2.784 0 3.75 0h6.586c.464 0 .909.184 1.237.513l2.914 2.914c.329.328.513.773.513 1.237v9.586A1.75 1.75 0 0 1 13.25 16h-9.5A1.75 1.75 0 0 1 2 14.25Zm1.75-.25a.25.25 0 0 0-.25.25v12.5c0 .138.112.25.25.25h9.5a.25.25 0 0 0 .25-.25V6h-2.75A1.75 1.75 0 0 1 9 4.25V1.5Zm6.75.062V4.25c0 .138.112.25.25.25h2.688l-.011-.013-2.914-2.914-.013-.011Z" />
                     </svg>
-                    <span className="text-xs font-medium text-gray-600 dark:text-gray-400">
+                    <span className="text-[11px] font-medium text-muted-foreground">
                       {filePath}
                     </span>
                   </div>
                 ) : language ? (
-                  <div className="text-xs font-medium text-gray-600 dark:text-gray-400">
+                  <div className="text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
                     {language}
                   </div>
                 ) : null}
@@ -296,7 +354,7 @@ export const CodeBlock = memo(
                 {isJson && (
                   <button
                     onClick={() => setIsExpanded(!isExpanded)}
-                    className="flex items-center justify-center w-6 h-6 p-1 text-gray-500 transition-opacity opacity-0 group-hover:opacity-100 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
+                    className="flex h-6 w-6 items-center justify-center rounded-md p-1 text-muted-foreground opacity-0 transition-opacity hover:bg-foreground/[0.055] hover:text-foreground group-hover:opacity-100"
                     title={isExpanded ? "折叠" : "展开"}
                   >
                     <svg
@@ -316,7 +374,7 @@ export const CodeBlock = memo(
                 )}
                 <button
                   onClick={handleCopy}
-                  className="flex items-center justify-center w-6 h-6 p-1 text-gray-500 transition-opacity opacity-0 group-hover:opacity-100 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
+                  className="flex h-6 w-6 items-center justify-center rounded-md p-1 text-muted-foreground opacity-0 transition-opacity hover:bg-foreground/[0.055] hover:text-foreground group-hover:opacity-100"
                 >
                   {copied ? (
                     <svg
@@ -347,23 +405,23 @@ export const CodeBlock = memo(
                 </button>
               </div>
             </div>
-            <div className="overflow-hidden bg-[#FAFBFC] dark:bg-[#1E1E1E]">
+            <div className="overflow-hidden bg-workbench-panel">
               <div
-                className={`overflow-x-auto scrollbar-none px-3 py-1 ${
+                className={`overflow-x-auto px-3 py-2.5 [scrollbar-width:thin] ${
                   isDarkMode ? "hljs-dark" : "hljs-light"
                 }`}
               >
-                <pre className={`!m-0 leading-[1.2] transition-all duration-200 ${
+                <pre className={`!m-0 leading-[1.45] transition-all duration-200 ${
                   isJson && !isExpanded ? 'max-h-0' : 'max-h-none'
                 }`}>
                   <code
                     dangerouslySetInnerHTML={{ __html: highlightedCode }}
-                    className={`language-${language || "plaintext"} text-xs text-[#1A1A1A] dark:text-[#D4D4D4]`}
+                    className={`language-${language || "plaintext"} text-xs text-foreground/90`}
                   />
                 </pre>
                 {/* JSON 内容折叠时显示渐变遮罩 */}
                 {isJson && !isExpanded && (
-                  <div className="h-8 -mt-8 bg-gradient-to-t from-[#FAFBFC] dark:from-[#1E1E1E] to-transparent pointer-events-none" />
+                  <div className="pointer-events-none -mt-8 h-8 bg-gradient-to-t from-workbench-panel to-transparent" />
                 )}
               </div>
             </div>
@@ -422,14 +480,12 @@ export const processThinkContent = (content: string) => {
   return result.trim();
 };
 
-// 修改 ToolInvocationCard 组件
 const ToolInvocationCard = ({
   toolInvocation,
-  messageId,
-  onUpdateMessage,
 }: {
   toolInvocation: {
     args: any;
+    result?: unknown;
     state: string;
     step?: number;
     toolCallId: string;
@@ -441,80 +497,77 @@ const ToolInvocationCard = ({
     type: string;
   }[]) => void;
 }) => {
-  const [isLoading, setIsLoading] = useState(false);
-  const [hasInvoked, setHasInvoked] = useState(false);  // 添加状态跟踪是否已调用
-  const { t } = useTranslation();
-  const toolName = toolInvocation.toolName.split('.');
-  if (toolName.length > 2){
-    throw new Error(`Tool name: ${toolInvocation.toolName} must be 'string.string'`);
-  }
-  const handleRetry = async () => {
-    try {
-      setIsLoading(true);
-      // MCP tool calls are not available in Web mode
-      message.error(t('settings.mcp.notAvailableInWebMode') || 'MCP tools are not available in Web mode');
-    } catch (error) {
-      message.error(t('settings.mcp.addError'));
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  const [expanded, setExpanded] = useState(false);
+  const segments = toolInvocation.toolName.split(".").filter(Boolean);
+  const displayName = segments.pop() || toolInvocation.toolName || "Tool";
+  const namespace = segments.join(" · ");
+  const completed =
+    toolInvocation.result !== undefined ||
+    ["result", "output-available", "completed"].includes(toolInvocation.state);
 
   return (
-    <div className="flex flex-col gap-2 mb-4">
-      {/* MCP 工具使用提示 */}
-      <div className="text-xs text-gray-500 dark:text-gray-400">
-        {toolName?.[1]} {t('chat.buttons.mcp_tools')}: {toolName?.[2]}
-      </div>
-
-      <div className="relative rounded-lg border dark:border-gray-700 bg-gray-50 dark:bg-[#1e1e1e] overflow-hidden">
-        <div className="flex items-center gap-2 px-3 py-2 border-b dark:border-gray-700 bg-white dark:bg-[#2d2d2d]">
-          <svg className="w-4 h-4 text-gray-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+    <div className="my-3 overflow-hidden rounded-xl border border-border/70 bg-card/65">
+      <button
+        type="button"
+        onClick={() => setExpanded((current) => !current)}
+        className="flex w-full items-center gap-2.5 px-3 py-2.5 text-left transition-colors hover:bg-foreground/[0.035]"
+        aria-expanded={expanded}
+      >
+        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
+          <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" />
           </svg>
-          <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-            {toolName?.[2] || t('settings.mcp.title')}
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block truncate text-xs font-medium text-foreground">{displayName}</span>
+          <span className="mt-0.5 block truncate text-[10px] text-muted-foreground">
+            {namespace || "Agent tool"}
           </span>
-        </div>
-        <div className="p-3">
-          <pre className="whitespace-pre-wrap text-sm text-gray-700 dark:text-gray-300 font-mono">
-            {JSON.stringify(toolInvocation?.args, null, 2)}
-          </pre>
-        </div>
-
-        {/* 右下角按钮 - 只在未调用过时显示 */}
-        {!hasInvoked && (
-          <div className="absolute bottom-3 right-3">
-            <button
-              onClick={handleRetry}
-              disabled={isLoading}
-              className={classNames(
-                "flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-md transition-colors",
-                "text-white bg-purple-600 hover:bg-purple-700 dark:bg-purple-600 dark:hover:bg-purple-700",
-                "disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
-              )}
-            >
-              {isLoading ? (
-                <svg className="w-3 h-3 animate-spin" viewBox="0 0 24 24" fill="none">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                  <path
-                    className="opacity-75"
-                    fill="currentColor"
-                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                  />
-                </svg>
-              ) : (
-                <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
-              )}
-              <span>
-                {isLoading ? t('settings.mcp.invoke_tooling') : t('settings.mcp.invoke_tool')}
-              </span>
-            </button>
+        </span>
+        <span
+          className={classNames(
+            "rounded-full px-2 py-0.5 text-[9px] font-medium",
+            completed
+              ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-300"
+              : "bg-amber-500/10 text-amber-600 dark:text-amber-300",
+          )}
+        >
+          {completed ? "完成" : "运行中"}
+        </span>
+        <svg
+          className={classNames("h-3.5 w-3.5 text-muted-foreground transition-transform", expanded && "rotate-180")}
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+        >
+          <path d="m6 9 6 6 6-6" />
+        </svg>
+      </button>
+      {expanded ? (
+        <div className="space-y-3 border-t border-border/65 px-3 py-3">
+          <div>
+            <div className="mb-1.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+              参数
+            </div>
+            <pre className="max-h-52 overflow-auto whitespace-pre-wrap rounded-lg bg-muted/65 p-2.5 font-mono text-[11px] leading-5 text-foreground/85">
+              {JSON.stringify(toolInvocation.args ?? {}, null, 2)}
+            </pre>
           </div>
-        )}
-      </div>
+          {toolInvocation.result !== undefined ? (
+            <div>
+              <div className="mb-1.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+                结果
+              </div>
+              <pre className="max-h-64 overflow-auto whitespace-pre-wrap rounded-lg bg-muted/65 p-2.5 font-mono text-[11px] leading-5 text-foreground/85">
+                {typeof toolInvocation.result === "string"
+                  ? toolInvocation.result
+                  : JSON.stringify(toolInvocation.result, null, 2)}
+              </pre>
+            </div>
+          ) : null}
+        </div>
+      ) : null}
     </div>
   );
 };
@@ -532,23 +585,23 @@ const ListProgressCard = ({
   const { t } = useTranslation();
 
   return (
-    <div className="flex flex-col gap-2 mb-4">
-      {/* 列表操作提示 */}
-      <div className="text-xs text-gray-500 dark:text-gray-400">
-        {t('chat.list_operation', 'List Operation')}: {filePath}
-      </div>
-
-      <div className="relative rounded-lg border dark:border-gray-700 bg-gray-50 dark:bg-[#1e1e1e] overflow-hidden">
-        <div className="flex items-center gap-2 px-3 py-2 border-b dark:border-gray-700 bg-white dark:bg-[#2d2d2d]">
-          <svg className="w-4 h-4 text-blue-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+    <div className="mb-3 ml-10 overflow-hidden rounded-xl border border-border/70 bg-card/65">
+      <div className="flex items-center gap-2.5 px-3 py-2.5">
+          <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
+          <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
           </svg>
-          <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-            {t('chat.list_progress', 'List Progress')}
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block text-xs font-medium text-foreground">
+              {t('chat.list_progress', 'List Progress')}
+            </span>
+            <span className="mt-0.5 block truncate font-mono text-[10px] text-muted-foreground">
+              {filePath}
+            </span>
           </span>
           {isLoading && (
-            <div className="ml-auto">
-              <svg className="w-4 h-4 animate-spin text-blue-500" viewBox="0 0 24 24" fill="none">
+              <svg className="h-3.5 w-3.5 animate-spin text-muted-foreground" viewBox="0 0 24 24" fill="none">
                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                 <path
                   className="opacity-75"
@@ -556,22 +609,20 @@ const ListProgressCard = ({
                   d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
                 />
               </svg>
-            </div>
           )}
-        </div>
-        <div className="p-3">
+      </div>
+        <div className="border-t border-border/65 p-3">
           {content ? (
-            <pre className="whitespace-pre-wrap text-sm text-gray-700 dark:text-gray-300 font-mono">
+            <pre className="max-h-52 overflow-auto whitespace-pre-wrap rounded-lg bg-muted/65 p-2.5 font-mono text-[11px] leading-5 text-foreground/85">
               {content}
             </pre>
           ) : (
-            <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
-              <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse" />
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <div className="h-1.5 w-1.5 animate-pulse rounded-full bg-foreground/45" />
               <span>{t('chat.loading_list', 'Loading list content...')}</span>
             </div>
           )}
         </div>
-      </div>
     </div>
   );
 };
@@ -584,52 +635,33 @@ export const MessageItem: React.FC<MessageItemProps> = ({
   listProgressStates = {},
   onUpdateMessage,
 }) => {
-  const { user } = useUserStore();
   const [previewImage, setPreviewImage] = useState<string | null>(null);
   const [isCollapsed, setIsCollapsed] = useState<boolean>(false);
   const [copied, setCopied] = useState(false);
   const isUser = message.role === "user";
   const handleCopyMessage = useCallback(async () => {
     try {
-      const textContent = processStreamParts(message.parts);
+      const textContent = getDisplayContent(message);
       await navigator.clipboard.writeText(textContent);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch (err) {
       console.error("复制失败:", err);
     }
-  }, [message.parts]);
+  }, [message]);
 
-  const initial = isUser ? getInitial(user?.username) : "AI";
-  const avatarColor = isUser
-    ? "bg-purple-500 dark:bg-purple-600"
-    : "bg-gray-100 dark:bg-[rgba(45,45,45)]";
   return (
-    <div className="group relative">
-      <div className="flex flex-col gap-2 px-2 py-1.5 rounded-lg hover:bg-gray-50 dark:hover:bg-white/[0.02] transition-colors">
-        <div className="flex items-start gap-2">
+    <div className={classNames("group relative py-2", isUser && "flex justify-end")}>
+      <div className={classNames("flex min-w-0 items-start gap-3", isUser ? "max-w-[86%] flex-row-reverse" : "w-full")}>
+        {!isUser ? <AppLogo className="h-7 w-7 rounded-lg" /> : null}
           <div
             className={classNames(
-              "w-6 h-6 rounded-full flex items-center justify-center text-xs border border-gray-200 dark:border-gray-700/50 overflow-hidden",
-              avatarColor,
-              isUser ? "text-white" : "text-gray-700 dark:text-gray-300"
+              "min-w-0",
+              isUser
+                ? "rounded-2xl rounded-br-md border border-border/55 bg-muted/70 px-3.5 py-2.5 shadow-sm"
+                : "flex-1 pt-0.5",
             )}
           >
-            {isUser ? (
-              user?.avatar ? (
-                <img
-                  src={user.avatar}
-                  alt={user.username || "User"}
-                  className="object-cover w-full h-full"
-                />
-              ) : (
-                <span className="font-medium">{initial}</span>
-              )
-            ) : (
-              <span className="font-medium">AI</span>
-            )}
-          </div>
-          <div className="flex-1 min-w-0">
             {isArtifactContent(message.content) ? (
               <ArtifactView
                 isUser={isUser}
@@ -641,7 +673,7 @@ export const MessageItem: React.FC<MessageItemProps> = ({
               />
             ) : (
               <div className="flex flex-col gap-1">
-                <div className="leading-relaxed prose-sm prose text-gray-900 dark:text-gray-100 dark:prose-invert max-w-none">
+                <div className="arc-message-markdown prose prose-sm max-w-none leading-relaxed text-foreground dark:prose-invert">
                   {/* 修改工具调用卡片的渲染 */}
                   {message.parts?.map((part, index) => {
                     if (part.type === "tool-invocation") {
@@ -669,7 +701,7 @@ export const MessageItem: React.FC<MessageItemProps> = ({
                         if (isInline) {
                           return (
                             <code
-                              className="font-mono text-sm px-1.5 py-0.5 rounded bg-gray-50 dark:bg-[#282828] text-gray-800 dark:text-gray-300"
+                              className="rounded bg-muted px-1.5 py-0.5 font-mono text-[0.9em] text-foreground"
                               {...props}
                             >
                               {children}
@@ -683,6 +715,29 @@ export const MessageItem: React.FC<MessageItemProps> = ({
                         const content = Array.isArray(children)
                           ? children.join("")
                           : String(children).replace(/\n$/, "");
+
+                        if (language === "arc-reasoning") {
+                          return <ReasoningCard content={decodeTimelinePayload(content)} />;
+                        }
+
+                        if (language === "arc-error") {
+                          return <RunErrorCard message={decodeTimelinePayload(content)} />;
+                        }
+
+                        if (language === "arc-tool") {
+                          try {
+                            const invocation = safeJsonParse(decodeTimelinePayload(content));
+                            return (
+                              <ToolInvocationCard
+                                toolInvocation={invocation}
+                                messageId={message.id}
+                                onUpdateMessage={onUpdateMessage}
+                              />
+                            );
+                          } catch (error) {
+                            console.error("Failed to decode AG-UI tool timeline", error);
+                          }
+                        }
 
                         return (
                           <CodeBlock language={language} filePath={filePath}>
@@ -713,7 +768,7 @@ export const MessageItem: React.FC<MessageItemProps> = ({
                       },
                       li({ children }) {
                         return (
-                          <li className="text-gray-700 dark:text-gray-300">
+                          <li className="text-foreground/90">
                             {children}
                           </li>
                         );
@@ -722,7 +777,7 @@ export const MessageItem: React.FC<MessageItemProps> = ({
                         return (
                           <a
                             href={href}
-                            className="text-purple-600 dark:text-purple-400 hover:text-purple-700 dark:hover:text-purple-300 hover:underline"
+                            className="text-foreground underline decoration-border underline-offset-4 hover:decoration-foreground"
                             target="_blank"
                             rel="noopener noreferrer"
                           >
@@ -732,7 +787,7 @@ export const MessageItem: React.FC<MessageItemProps> = ({
                       },
                       blockquote({ children }) {
                         return (
-                          <blockquote className="relative py-2 pl-4 my-2 text-sm text-gray-600 border-l-4 border-purple-200 rounded dark:border-purple-800 dark:text-gray-400 bg-purple-50 dark:bg-purple-900/10 group">
+                          <blockquote className="relative my-2 rounded-xl border border-border/65 bg-muted/45 py-2 pl-4 pr-9 text-sm text-muted-foreground">
                             <div
                               className={`overflow-hidden transition-all duration-200 ${
                                 isCollapsed ? "h-4" : "max-h-none"
@@ -742,12 +797,12 @@ export const MessageItem: React.FC<MessageItemProps> = ({
                             </div>
                             {/* 渐变遮罩 */}
                             {isCollapsed && (
-                              <div className="absolute bottom-0 left-0 right-0 h-12 bg-gradient-to-t from-purple-50 dark:from-[rgba(88,28,135,0.1)] to-transparent" />
+                              <div className="absolute bottom-0 left-0 right-0 h-12 bg-gradient-to-t from-muted to-transparent" />
                             )}
                             {/* 折叠/展开按钮 */}
                             <button
                               onClick={() => setIsCollapsed(!isCollapsed)}
-                              className="absolute p-1 text-purple-600 rounded-full bottom-1 right-2 dark:text-purple-400 hover:text-purple-700 dark:hover:text-purple-300 hover:bg-purple-100 dark:hover:bg-purple-900/20"
+                              className="absolute bottom-1 right-2 rounded-full p-1 text-muted-foreground hover:bg-foreground/[0.06] hover:text-foreground"
                             >
                               <svg
                                 className="w-4 h-4"
@@ -783,7 +838,7 @@ export const MessageItem: React.FC<MessageItemProps> = ({
                       table({ children }) {
                         return (
                           <div className="my-4 overflow-x-auto">
-                            <table className="min-w-full border-collapse border dark:border-gray-700">
+                            <table className="min-w-full border-collapse overflow-hidden rounded-lg border border-border">
                               {children}
                             </table>
                           </div>
@@ -791,35 +846,35 @@ export const MessageItem: React.FC<MessageItemProps> = ({
                       },
                       thead({ children }) {
                         return (
-                          <thead className="bg-purple-50 dark:bg-purple-900/20">
+                          <thead className="bg-muted/65">
                             {children}
                           </thead>
                         );
                       },
                       tbody({ children }) {
                         return (
-                          <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+                          <tbody className="divide-y divide-border">
                             {children}
                           </tbody>
                         );
                       },
                       tr({ children }) {
                         return (
-                          <tr className="hover:bg-gray-50 dark:hover:bg-gray-800/50">
+                          <tr className="hover:bg-muted/45">
                             {children}
                           </tr>
                         );
                       },
                       th({ children }) {
                         return (
-                          <th className="px-4 py-2 text-sm font-medium text-left text-purple-700 dark:text-purple-200 border dark:border-gray-700">
+                          <th className="border border-border px-4 py-2 text-left text-sm font-medium text-foreground">
                             {children}
                           </th>
                         );
                       },
                       td({ children }) {
                         return (
-                          <td className="px-4 py-2 text-sm text-gray-700 dark:text-gray-300 border dark:border-gray-700">
+                          <td className="border border-border px-4 py-2 text-sm text-foreground/85">
                             {children}
                           </td>
                         );
@@ -827,8 +882,7 @@ export const MessageItem: React.FC<MessageItemProps> = ({
                     }}
                   >
                     {(() => {
-                      const filterMessages = filterContent(message)
-                      return processStreamParts(filterMessages.parts);
+                      return getDisplayContent(message);
                     })()}
                   </ReactMarkdown>
                 </div>
@@ -845,7 +899,6 @@ export const MessageItem: React.FC<MessageItemProps> = ({
                 </div>
               )}
           </div>
-        </div>
       </div>
       {previewImage && (
         <ImagePreview
@@ -855,21 +908,21 @@ export const MessageItem: React.FC<MessageItemProps> = ({
       )}
 
       {/* 渲染list-progress卡片 */}
-      {Object.entries(listProgressStates).map(([operationId, state]) => (
+      {!isUser && isEndMessage ? Object.entries(listProgressStates).map(([operationId, state]) => (
         <ListProgressCard
           key={operationId}
           filePath={state.filePath}
           content={state.content}
           isLoading={state.isLoading}
         />
-      ))}
+      )) : null}
 
       <>
         {!isArtifactContent(message.content) ? (
-          <div className="flex items-center justify-end ">
+          <div className={classNames("flex items-center gap-0.5", isUser ? "justify-end" : "ml-10 justify-start")}>
             <button
               onClick={handleCopyMessage}
-              className="opacity-0 group-hover:opacity-100 transition-opacity p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800"
+              className="rounded-lg p-1.5 text-muted-foreground opacity-0 transition-opacity hover:bg-foreground/[0.055] hover:text-foreground group-hover:opacity-100"
             >
               {copied ? (
                 <svg
@@ -887,7 +940,7 @@ export const MessageItem: React.FC<MessageItemProps> = ({
                 </svg>
               ) : (
                 <svg
-                  className="w-4 h-4 text-gray-500 dark:text-gray-400"
+                  className="h-3.5 w-3.5"
                   viewBox="0 0 24 24"
                   fill="none"
                   stroke="currentColor"
@@ -903,11 +956,11 @@ export const MessageItem: React.FC<MessageItemProps> = ({
                 onClick={() => {
                   handleRetry?.()
                 }}
-                className="opacity-0 group-hover:opacity-100 transition-opacity p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800"
+                className="rounded-lg p-1.5 text-muted-foreground opacity-0 transition-opacity hover:bg-foreground/[0.055] hover:text-foreground group-hover:opacity-100"
                 title="重试"
               >
                 <svg
-                  className="w-4 h-4 text-gray-500 dark:text-gray-400"
+                  className="h-3.5 w-3.5"
                   viewBox="0 0 24 24"
                   fill="none"
                   stroke="currentColor"

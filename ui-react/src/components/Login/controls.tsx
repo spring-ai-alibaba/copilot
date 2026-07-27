@@ -4,21 +4,14 @@ import {FaSpinner} from "react-icons/fa6";
 
 /**
  * 登录弹窗内部共享的表单控件。
- * 视觉规范与 Settings / Header 保持一致：
- *  - 卡片/输入框圆角 rounded-lg
- *  - 暗色：#222 输入框、#333 边框、#666 次级文字
- *  - 亮色：white 输入框、gray-200 边框、gray-400 次级文字
- *  - 聚焦/强调色：#3B82F6
- *  - 主按钮：品牌渐变 blue-500 → purple-500
+ * 登录弹窗共享控件，统一使用全局语义色。
  */
 
 const inputClass = `
-  w-full rounded-lg border border-gray-200 dark:border-[#333]
-  bg-white dark:bg-[#222] py-3 pl-11 pr-4 text-sm
-  text-gray-900 dark:text-white
-  placeholder:text-gray-400 dark:placeholder:text-[#666]
-  focus:outline-none focus:border-[#3B82F6] focus:ring-1 focus:ring-[#3B82F6]
-  transition-all duration-200
+  h-11 w-full rounded-xl border border-border bg-background/70 py-2.5 pl-10 pr-3 text-sm
+  text-foreground placeholder:text-muted-foreground/65 outline-none
+  transition-[border-color,background-color,box-shadow] duration-150
+  hover:bg-background focus:border-foreground/20 focus:ring-2 focus:ring-foreground/[0.06]
 `;
 
 type LoginInputProps = React.InputHTMLAttributes<HTMLInputElement> & {
@@ -28,9 +21,7 @@ type LoginInputProps = React.InputHTMLAttributes<HTMLInputElement> & {
 export const LoginInput = ({icon, className, ...props}: LoginInputProps) => (
   <div className="group relative">
     <span
-      className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2
-        text-gray-400 dark:text-[#666] transition-colors duration-200
-        group-focus-within:text-[#3B82F6]"
+      className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground transition-colors group-focus-within:text-foreground [&>svg]:h-3.5 [&>svg]:w-3.5"
     >
       {icon}
     </span>
@@ -64,12 +55,10 @@ export const PrimaryButton = ({
     whileHover={{scale: 1.01}}
     whileTap={{scale: 0.98}}
     className={`
-      flex w-full items-center justify-center gap-2 rounded-lg py-3
-      bg-gradient-to-r from-blue-500 to-purple-500
-      text-sm font-medium text-white shadow-lg shadow-blue-500/25
-      transition-colors duration-200
-      hover:from-blue-600 hover:to-purple-600
-      disabled:cursor-not-allowed disabled:opacity-60 disabled:shadow-none
+      flex h-11 w-full items-center justify-center gap-2 rounded-xl
+      bg-foreground text-sm font-medium text-background shadow-sm
+      transition-[background-color,opacity,transform] duration-150 hover:bg-foreground/85
+      disabled:cursor-not-allowed disabled:opacity-45
       ${className ?? ""}
     `}
   >
@@ -89,9 +78,7 @@ export const ErrorBanner = ({message}: {message: string}) => (
     initial={{opacity: 0, y: -4}}
     animate={{opacity: 1, y: 0}}
     transition={{duration: 0.2}}
-    className="rounded-lg border border-red-200 bg-red-50 px-3 py-2
-      text-sm text-red-500
-      dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-400"
+    className="rounded-xl border border-destructive/25 bg-destructive/[0.06] px-3 py-2 text-xs leading-5 text-destructive"
   >
     {message}
   </motion.div>

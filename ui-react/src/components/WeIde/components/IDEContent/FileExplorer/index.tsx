@@ -13,15 +13,6 @@ export function FileExplorer({ onFileSelect }: FileExplorerProps) {
   const [createDialog, setCreateDialog] = useState<'file' | 'folder' | null>(null);
   // 使用 selector 正确订阅 files 状态变化
   const files = useFileStore((state) => state.files);
-  const fileStore = useFileStore();
-
-  // Debug: log current files in store to help diagnose UI not showing files
-  try {
-    // eslint-disable-next-line no-console
-    console.log('FileExplorer render - files count:', Object.keys(files).length, Object.keys(files));
-  } catch (e) {
-    // ignore
-  }
 
   const handleContextMenu = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -41,13 +32,13 @@ export function FileExplorer({ onFileSelect }: FileExplorerProps) {
 
   return (
     <div 
-      className="h-full w-full flex flex-col bg-[#f6f6f6] dark:bg-[#1a1a1c] border-r border-[#e4e4e4] dark:border-[#252525]"
+      className="flex h-full w-full flex-col bg-workbench"
       onContextMenu={handleContextMenu}
     >
-      <div className="p-2 flex-shrink-0 text-[#424242] dark:text-white">
+      <div className="flex-shrink-0 p-2 text-foreground">
         <Header />
       </div>
-      <div className="flex-1 overflow-y-auto min-h-0 bg-[#f6f6f6] dark:bg-[#1a1a1c]">
+      <div className="min-h-0 flex-1 overflow-y-auto bg-workbench">
         <FileList files={files} onFileSelect={onFileSelect} />
       </div>
 

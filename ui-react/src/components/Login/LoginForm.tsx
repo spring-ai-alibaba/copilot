@@ -1,7 +1,7 @@
 import {useEffect, useState} from "react";
 import {FaLock, FaUser} from "react-icons/fa6";
 import {authService} from "../../api/auth";
-import {toast} from "react-hot-toast";
+import {toast} from "react-toastify";
 import useUserStore from "../../stores/userSlice";
 import {useTranslation} from "react-i18next";
 import type {TabType} from ".";
@@ -126,15 +126,13 @@ const LoginForm = ({onSuccess, onTabChange}: LoginFormProps) => {
 
       <div className="flex items-center justify-between text-sm">
         <label
-          className="flex cursor-pointer select-none items-center gap-2
-            text-gray-500 transition-colors hover:text-gray-700
-            dark:text-[#8c8c8c] dark:hover:text-[#bbb]"
+          className="flex cursor-pointer select-none items-center gap-2 text-xs text-muted-foreground transition-colors hover:text-foreground"
         >
           <input
             type="checkbox"
             checked={rememberMe}
             onChange={(e) => setRememberMeState(e.target.checked)}
-            className="h-3.5 w-3.5 rounded accent-[#3B82F6]"
+            className="h-3.5 w-3.5 rounded accent-foreground"
           />
           {t("login.remember_me")}
         </label>
@@ -149,13 +147,13 @@ const LoginForm = ({onSuccess, onTabChange}: LoginFormProps) => {
         {t("login.sign_in")}
       </PrimaryButton>
 
-      <p className="pt-1 text-center text-xs leading-relaxed text-gray-400 dark:text-[#5c5c63]">
+      <p className="pt-1 text-center text-[10px] leading-5 text-muted-foreground/75">
         {t("login.By_signing_in_you_agree_to_our")}{" "}
-        <a href="#" className="text-[#3B82F6] hover:underline">
+        <a href="#" className="text-foreground underline decoration-border underline-offset-2">
           {t("login.terms_of_service")}
         </a>{" "}
         {t("login.and")}{" "}
-        <a href="#" className="text-[#3B82F6] hover:underline">
+        <a href="#" className="text-foreground underline decoration-border underline-offset-2">
           {t("login.privacy_policy")}
         </a>
       </p>

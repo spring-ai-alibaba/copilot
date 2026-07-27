@@ -847,6 +847,81 @@
   color: #bfbfbf;
 }
 
+/* ArcForge-style semantic surface overrides. Keep the existing model business logic,
+   but prevent the legacy Ant palette from leaking into the new full-screen settings page. */
+.arc-settings-page .model-settings {
+  min-height: 560px;
+  overflow: hidden;
+  border: 1px solid hsl(var(--border) / 0.72);
+  border-radius: 14px;
+  background: hsl(var(--card));
+}
+
+.arc-settings-page .model-settings .model-sidebar,
+.arc-settings-page .model-settings .provider-models-list,
+.arc-settings-page .model-settings .setting-value,
+.arc-settings-page .model-settings .setting-value pre {
+  border-color: hsl(var(--border) / 0.72);
+  background: hsl(var(--muted) / 0.52);
+}
+
+.arc-settings-page .model-settings .provider-detail-panel,
+.arc-settings-page .model-settings .provider-card,
+.arc-settings-page .model-settings .model-card,
+.arc-settings-page .model-settings .detail-panel {
+  border-color: hsl(var(--border) / 0.72);
+  background: hsl(var(--card));
+}
+
+.arc-settings-page .model-settings .sidebar-header,
+.arc-settings-page .model-settings .middle-header,
+.arc-settings-page .model-settings .detail-header {
+  border-color: hsl(var(--border) / 0.72);
+}
+
+.arc-settings-page .model-settings :is(
+  .sidebar-title,
+  .middle-title,
+  .provider-name,
+  .section-title,
+  .model-card-title,
+  .model-card-name,
+  .sidebar-item-title,
+  .detail-title,
+  .detail-value,
+  .provider-model-name
+) {
+  color: hsl(var(--foreground));
+}
+
+.arc-settings-page .model-settings :is(
+  .provider-empty,
+  .provider-description,
+  .provider-model-meta,
+  .model-card-label,
+  .model-card-value,
+  .sidebar-item-subtitle,
+  .detail-subtitle,
+  .detail-label
+) {
+  color: hsl(var(--muted-foreground));
+}
+
+.arc-settings-page .model-settings .sidebar-model-item:hover,
+.arc-settings-page .model-settings .model-card:hover {
+  border-color: hsl(var(--foreground) / 0.1);
+  background: hsl(var(--muted) / 0.5);
+}
+
+.arc-settings-page .model-settings .sidebar-model-item.active {
+  border-left-color: hsl(var(--foreground));
+  background: hsl(var(--foreground) / 0.065);
+}
+
+.arc-settings-page .model-settings .ant-switch-checked {
+  background: hsl(var(--foreground));
+}
+
 .dark .model-settings .json-editor::placeholder {
   color: #595959;
 }

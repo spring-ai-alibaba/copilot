@@ -1,5 +1,6 @@
 {
   "compilerOptions": {
+    "target": "ES2020",
     "noImplicitAny": false,
     "module": "ESNext",
     "strict": false,
@@ -16,6 +17,7 @@
       "vite/client"
     ],
     "moduleResolution": "Bundler",
+    "skipLibCheck": true,
     "outDir": "./dist",
     "baseUrl": ".",
     "paths": {
@@ -30,7 +32,9 @@
   "exclude": [
     "**/**/node_modules/*",
     "**/**/58d2c/*",
-    "**/**/SketchEditor/*"
+    "**/**/SketchEditor/*",
+    "**/*.test.*",
+    "**/*.spec.*"
   ],
   "include": [
     "src",

@@ -1,7 +1,8 @@
 import React from "react";
-import classNames from "classnames";
-import type {SendButtonProps} from "./types";
-import {useTranslation} from "react-i18next";
+import { ArrowUp, Square } from "lucide-react";
+import { cn } from "@/utils/cn";
+import type { SendButtonProps } from "./types";
+import { useTranslation } from "react-i18next";
 
 export const SendButton: React.FC<SendButtonProps> = ({
   isLoading,
@@ -9,58 +10,31 @@ export const SendButton: React.FC<SendButtonProps> = ({
   hasInput,
   hasUploadingImages,
   onClick,
-  stop
+  stop,
 }) => {
   const { t } = useTranslation();
+  const disabled = !isLoading && (!hasInput || isUploading || hasUploadingImages);
+  const label = isLoading
+    ? t("chat.buttons.stopReceiving", { defaultValue: "停止接收" })
+    : t("chat.buttons.sendMessage", { defaultValue: "发送消息" });
 
   return (
     <button
-      type="submit"
-      onClick={(e) => {
-        isLoading ? stop() : onClick(e);
-      }}
-      // disabled={(!hasInput && !hasUploadingImages) || isUploading}
-      className={classNames(
-        "p-2 rounded-lg transition-all duration-200 flex items-center gap-2",
-        isLoading 
-          ? "bg-red-500 hover:bg-red-600 text-white"
-          : hasInput && !isUploading && !hasUploadingImages
-            ? "bg-purple-500 dark:bg-purple-600 hover:bg-purple-600 dark:hover:bg-purple-700 text-white"
-            : "bg-gray-100 dark:bg-gray-500/20 text-gray-400 dark:text-gray-500 cursor-not-allowed",
-        isUploading && "opacity-50 cursor-not-allowed"
+      type="button"
+      onClick={(event) => (isLoading ? stop() : onClick(event))}
+      disabled={disabled}
+      className={cn(
+        "flex h-8 w-8 shrink-0 items-center justify-center rounded-full transition-[background-color,color,transform,opacity] duration-150 active:scale-95",
+        isLoading
+          ? "bg-destructive text-destructive-foreground hover:bg-destructive/90"
+          : disabled
+            ? "cursor-not-allowed bg-foreground/[0.075] text-muted-foreground/55"
+            : "bg-foreground text-background hover:bg-foreground/85",
       )}
+      title={label}
+      aria-label={label}
     >
-      {isLoading ? (
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          viewBox="0 0 24 24"
-          fill="currentColor"
-          stroke="currentColor"
-          className="w-4 h-4 text-white"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={2}
-            d="M6 4h4v16H6zM14 4h4v16h-4z"
-          />
-        </svg>
-      ) : (
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          className="w-4 h-4"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={2}
-            d="M5 12h14M12 5l7 7-7 7"
-          />
-        </svg>
-      )}
+      {isLoading ? <Square className="h-3 w-3 fill-current" /> : <ArrowUp className="h-4 w-4" />}
     </button>
   );
 };

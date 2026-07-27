@@ -193,7 +193,7 @@ export default function PromptSettings() {
         <div className="prompt-title">
           {prompt.title}
           {prompt.isSystem && (
-            <Tag color="blue" size="small" className="ml-2">
+            <Tag color="blue" className="ml-2">
               {t('prompts.system')}
             </Tag>
           )}
@@ -214,7 +214,7 @@ export default function PromptSettings() {
 
       <div className="prompt-tags">
         {prompt.tags.map(tag => (
-          <Tag key={tag} size="small">{tag}</Tag>
+          <Tag key={tag}>{tag}</Tag>
         ))}
       </div>
 

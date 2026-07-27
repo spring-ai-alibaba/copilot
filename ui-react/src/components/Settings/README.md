@@ -109,9 +109,9 @@ api/
 NODE_ENV=development
 
 # API地址配置
-# 开发模式：不设置 APP_BASE_URL，所有请求通过 Vite 代理到后端 6039
+# 开发模式：不设置 APP_BASE_URL，所有请求通过 Vite 代理到后端 6040
 # 生产/直连：设置为后端基址，例如：
-# APP_BASE_URL=http://localhost:6039
+# APP_BASE_URL=http://localhost:6040
 ```
 
 ## 使用指南

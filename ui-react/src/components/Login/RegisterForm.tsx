@@ -2,7 +2,7 @@ import {motion} from "framer-motion";
 import {FaEnvelope, FaLock, FaUser} from "react-icons/fa6";
 import {authService} from "../../api/auth";
 import {useState} from "react";
-import {toast} from "react-hot-toast";
+import {toast} from "react-toastify";
 import {useTranslation} from "react-i18next";
 import type {TabType} from ".";
 import {ErrorBanner, LoginInput, PrimaryButton} from "./controls";
@@ -75,15 +75,14 @@ const RegisterForm = ({onSuccess, onTabChange}: RegisterFormProps) => {
           initial={{scale: 0.5, opacity: 0}}
           animate={{scale: 1, opacity: 1}}
           transition={{type: "spring", stiffness: 400, damping: 22}}
-          className="mx-auto flex h-14 w-14 items-center justify-center rounded-full
-            bg-green-500/10 text-2xl text-green-500"
+          className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-emerald-500/10 text-2xl text-emerald-500"
         >
           ✓
         </motion.div>
-        <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
+        <h2 className="text-xl font-semibold text-foreground">
           {t("register.register_success")}
         </h2>
-        <p className="text-sm text-gray-500 dark:text-[#8c8c8c]">
+        <p className="text-sm text-muted-foreground">
           {t("register.register_success_account")}
         </p>
         <PrimaryButton onClick={() => onTabChange("login")}>
@@ -149,12 +148,12 @@ const RegisterForm = ({onSuccess, onTabChange}: RegisterFormProps) => {
         {t("register.create_account_button")}
       </PrimaryButton>
 
-      <p className="pt-1 text-center text-xs text-gray-400 dark:text-[#5c5c63]">
+      <p className="pt-1 text-center text-xs text-muted-foreground">
         {t("register.already_account")}{" "}
         <button
           type="button"
           onClick={() => onTabChange("login")}
-          className="text-[#3B82F6] hover:underline"
+          className="text-foreground underline decoration-border underline-offset-2"
         >
           {t("login.sign_in")}
         </button>

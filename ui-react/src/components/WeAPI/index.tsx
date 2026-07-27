@@ -213,13 +213,13 @@ export default function WeAPI(): React.ReactElement {
   };
 
   return (
-    <div className="dark:border-[3px] border-[2px]  h-full dark:border-[#1a1a1a]">
+    <div className="h-full bg-workbench-panel text-foreground">
       <ConfigProvider
         theme={{
           algorithm: isDarkMode ? theme.darkAlgorithm : theme.defaultAlgorithm,
         }}
       >
-        <div className="flex h-screen rounded-lg">
+        <div className="flex h-full min-h-0">
           <ApiList
             ref={apiListRef}
             apiList={apiList.children}
@@ -234,10 +234,10 @@ export default function WeAPI(): React.ReactElement {
               }
             }}
           />
-          <div className="flex-1 p-6 overflow-auto">
+          <div className="min-w-0 flex-1 overflow-auto p-4">
             {selectedApi && (
               <>
-                <div className="flex justify-between items-center mb-5 bg-gray-50 dark:bg-[#1a1a1c] p-4 rounded-lg">
+                <div className="mb-5 flex items-center justify-between rounded-xl border border-border/65 bg-muted/45 p-4">
                   <div className="flex items-center gap-4">
                     <div>
                       <span
@@ -251,7 +251,7 @@ export default function WeAPI(): React.ReactElement {
                     </div>
                     <div>
                       <h2 className="m-0">{selectedApi.name}</h2>
-                      <p className="mt-1 mb-0 text-gray-500">
+                      <p className="mb-0 mt-1 text-xs text-muted-foreground">
                         {selectedApi.url}
                       </p>
                     </div>

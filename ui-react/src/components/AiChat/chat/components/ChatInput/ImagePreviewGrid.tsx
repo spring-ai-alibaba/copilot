@@ -9,7 +9,7 @@ export const ImagePreviewGrid: React.FC<ImagePreviewGridProps> = ({
   if (uploadedImages.length === 0) return null;
   
   return (
-    <div className="mb-4 flex flex-wrap gap-2">
+    <div className="mb-1 flex flex-wrap gap-2">
       {uploadedImages.map((file) => (
         <ImagePreview
           key={file.id}
@@ -19,4 +19,4 @@ export const ImagePreviewGrid: React.FC<ImagePreviewGridProps> = ({
       ))}
     </div>
   );
-}; 
+};

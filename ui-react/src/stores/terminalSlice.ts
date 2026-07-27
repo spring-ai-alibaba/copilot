@@ -1,17 +1,19 @@
 import React from 'react'
 import {create} from 'zustand';
-import weTerminal from '../components/WeIde/components/Terminal/utils/weTerminal';
+import type WeTerminal from '../components/WeIde/components/Terminal/utils/weTerminal';
+
+let resetTerminalPromise: Promise<WeTerminal> | null = null;
 
 interface TerminalState {
   isDarkMode: boolean;
-  terminals: Map<string | null, weTerminal>;
+  terminals: Map<string | null, WeTerminal>;
   newTerminal: (callback?: Function) => void;
-  getEndTerminal: () => weTerminal | undefined;
+  getEndTerminal: () => WeTerminal | undefined;
   resetTerminals: () => void;
-  addTerminal: (container: React.RefObject<HTMLDivElement>) => Promise<weTerminal>;
+  addTerminal: (container: React.RefObject<HTMLDivElement>) => Promise<WeTerminal>;
   removeTerminal: (processId: string) => void;
   setTheme: (isDark: boolean) => void;
-  getTerminal: (index: number) => weTerminal | undefined;
+  getTerminal: (index: number) => WeTerminal | undefined;
 }
 
 
@@ -20,13 +22,20 @@ const useTerminalStore = create<TerminalState>((set, get) => ({
   terminals: new Map(),
 
   resetTerminals: () => {
+    if (resetTerminalPromise && get().terminals.size === 0) return;
+
     get().terminals.forEach((terminal) => {
       terminal.destroy()
     })
 
     set({ terminals: new Map() });
-
-    get().newTerminal()
+    const pending = get().addTerminal(React.createRef<HTMLDivElement>());
+    resetTerminalPromise = pending;
+    void pending
+      .catch((error) => console.error('Failed to reset terminal', error))
+      .finally(() => {
+        if (resetTerminalPromise === pending) resetTerminalPromise = null;
+      });
   },
 
   getEndTerminal: () => {
@@ -56,7 +65,8 @@ const useTerminalStore = create<TerminalState>((set, get) => ({
   addTerminal: async (containerRef: React.RefObject<HTMLDivElement>) => {
 
     // 实例化一个新的终端
-    const terminal = new weTerminal(null);
+    const {default: WeTerminal} = await import('../components/WeIde/components/Terminal/utils/weTerminal');
+    const terminal = new WeTerminal(null);
 
     const processId = Math.random().toString(36).substr(2, 9);;
     // 初始化得到 processId
@@ -76,7 +86,7 @@ const useTerminalStore = create<TerminalState>((set, get) => ({
   removeTerminal: (processId: string) => {
     const newTerminals = new Map(get().terminals); // 获取当前的 terminals
 
-    const terminal = newTerminals.get(processId) as weTerminal
+    const terminal = newTerminals.get(processId) as WeTerminal
 
     terminal?.destroy()
     newTerminals.delete(processId); // 移除指定的终端

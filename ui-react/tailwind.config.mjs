@@ -42,9 +42,22 @@ const config = {
           DEFAULT: "hsl(var(--destructive))",
           foreground: "hsl(var(--destructive-foreground))",
         },
+        success: "hsl(var(--success))",
+        warning: "hsl(var(--warning))",
+        running: "hsl(var(--running))",
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
         ring: "hsl(var(--ring))",
+        sidebar: "hsl(var(--sidebar-bg))",
+        chip: {
+          DEFAULT: "hsl(var(--chip-bg))",
+          hover: "hsl(var(--chip-bg-hover))",
+        },
+        workbench: {
+          DEFAULT: "hsl(var(--workbench-bg))",
+          panel: "hsl(var(--workbench-panel))",
+          active: "hsl(var(--workbench-active))",
+        },
         chart: {
           1: "hsl(var(--chart-1))",
           2: "hsl(var(--chart-2))",
