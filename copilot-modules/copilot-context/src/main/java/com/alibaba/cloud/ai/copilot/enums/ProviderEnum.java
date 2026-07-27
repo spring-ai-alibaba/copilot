@@ -9,6 +9,7 @@ public enum ProviderEnum {
     ALIBAILIAN("ALiBaiLian"),
     DEEPSEEK("DeepSeek"),
     OPENAI("OpenAI"),
+    ANTHROPIC("Anthropic"),
     SILICONFLOW("SILICONFLOW"),
     OPENAI_COMPATIBLE("OpenAiCompatible");
     
