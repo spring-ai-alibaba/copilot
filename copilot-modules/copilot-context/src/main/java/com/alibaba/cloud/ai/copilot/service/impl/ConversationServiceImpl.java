@@ -40,6 +40,10 @@ public class ConversationServiceImpl extends ServiceImpl<ConversationMapper, Con
     @Override
     @Transactional(rollbackFor = Exception.class)
     public String createConversation(Long userId, CreateConversationRequest request) {
+        if (userId == null) {
+            throw new IllegalArgumentException("用户未登录或登录状态已失效");
+        }
+
         // 生成会话ID
         String conversationId = UUID.randomUUID().toString().replace("-", "");
 
@@ -179,4 +183,3 @@ public class ConversationServiceImpl extends ServiceImpl<ConversationMapper, Con
             .build();
     }
 }
-

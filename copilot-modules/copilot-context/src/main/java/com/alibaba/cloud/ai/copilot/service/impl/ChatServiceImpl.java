@@ -56,19 +56,22 @@ public class ChatServiceImpl implements ChatService {
     @Override
     public void handleBuilderMode(ChatRequest request, SseEmitter emitter) {
         try {
+            Long userIdLong = LoginHelper.getUserId();
+            if (userIdLong == null) {
+                throw new IllegalStateException("登录状态异常，请重新登录后再试");
+            }
+
             // 1. 获取或创建会话
             String conversationId = request.getConversationId();
             if (conversationId == null || conversationId.isEmpty()) {
                 CreateConversationRequest createRequest = new CreateConversationRequest();
                 createRequest.setModelConfigId(request.getModelConfigId());
-                Long userIdLong = LoginHelper.getUserId();
                 conversationId = conversationService.createConversation(userIdLong, createRequest);
                 log.info("创建新会话: conversationId={}, userId={}", conversationId, userIdLong);
             } else {
                 log.debug("使用现有会话: conversationId={}", conversationId);
             }
 
-            Long userIdLong = LoginHelper.getUserId();
             final String finalConversationId = conversationId;
             final String userMessageContent = request.getMessage().getContent();
 
@@ -127,6 +130,8 @@ public class ChatServiceImpl implements ChatService {
                     event -> sendAguiEvent(emitter, event, assistantText),
                     error -> {
                         log.error("Agent 执行出错: conversationId={}", finalConversationId, error);
+                        sseEventService.sendRunError(
+                                emitter, "模型调用失败，请检查模型配置或稍后重试");
                         sseEventService.sendComplete(emitter);
                     },
                     () -> {
@@ -139,6 +144,11 @@ public class ChatServiceImpl implements ChatService {
 
         } catch (Exception e) {
             log.error("Unexpected error in builder mode", e);
+            String clientMessage = e instanceof IllegalArgumentException
+                    || e instanceof IllegalStateException
+                    ? e.getMessage()
+                    : "聊天处理失败，请稍后重试";
+            sseEventService.sendRunError(emitter, clientMessage);
             sseEventService.sendComplete(emitter);
         }
     }

@@ -128,4 +128,12 @@ public class SseEventServiceImpl implements SseEventService {
         }
     }
 
+    @Override
+    public void sendRunError(SseEmitter emitter, String message) {
+        String safeMessage = message == null || message.isBlank()
+                ? "聊天处理失败，请稍后重试"
+                : message;
+        sendSseEvent(emitter, "RUN_ERROR", Map.of("message", safeMessage));
+    }
+
 }

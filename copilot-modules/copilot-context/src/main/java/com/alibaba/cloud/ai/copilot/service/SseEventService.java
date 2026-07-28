@@ -32,6 +32,11 @@ public interface SseEventService {
     void sendComplete(SseEmitter emitter);
 
     /**
+     * 发送可由前端渲染的 AG-UI 运行错误。
+     */
+    void sendRunError(SseEmitter emitter, String message);
+
+    /**
      * 发送通用 SSE 事件
      * @param emitter SSE 发射器
      * @param eventName 事件名称
