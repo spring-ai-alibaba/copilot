@@ -21,6 +21,12 @@ import org.springframework.stereotype.Component;
 public class AnthropicProvider extends AbstractOpenAiCompatibleProvider {
 
     private static final String DEFAULT_BASE_URL = "https://api.anthropic.com";
+    /**
+     * Coding agents often place the generated file content inside a tool-call JSON argument.
+     * A 4K output budget can truncate that JSON before it is closed, causing the tool parser to
+     * receive an empty argument map. Keep enough room for a complete, moderately sized tool call.
+     */
+    static final int MIN_TOOL_CALL_MAX_TOKENS = 16_384;
 
     public AnthropicProvider(LlmService llmService) {
         super(llmService);
@@ -61,9 +67,12 @@ public class AnthropicProvider extends AbstractOpenAiCompatibleProvider {
     @Override
     public GenerateOptions createChatOptions(
             ModelConfigEntity config, Integer maxTokens, Double temperature) {
+        int effectiveMaxTokens = maxTokens != null
+                ? maxTokens
+                : Math.max(getDefaultMaxTokens(config), MIN_TOOL_CALL_MAX_TOKENS);
         return GenerateOptions.builder()
                 .modelName(config.getModelKey())
-                .maxTokens(maxTokens != null ? maxTokens : getDefaultMaxTokens(config))
+                .maxTokens(effectiveMaxTokens)
                 .temperature(temperature != null ? temperature : DEFAULT_TEMPERATURE)
                 .topP(DEFAULT_TOP_P)
                 .build();

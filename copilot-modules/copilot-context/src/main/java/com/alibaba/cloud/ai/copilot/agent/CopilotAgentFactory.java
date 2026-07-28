@@ -167,13 +167,19 @@ public class CopilotAgentFactory {
                 : conversationId.replaceAll("[^A-Za-z0-9_-]", "_");
     }
 
-    private String buildSystemPrompt(
+    String buildSystemPrompt(
             String rootDirectory,
             String planDirectory,
             boolean planModeEnabled,
             boolean planningPhaseActive) {
         String basePrompt = "【基础约束】\n" +
                 "你是编程agent，使用工具在项目根目录（" + rootDirectory + "）内完成编程任务。\n\n" +
+                "【工具调用约束 - 必须遵守】\n" +
+                "1. 每次工具调用都必须输出完整、合法的 JSON 参数，所有必填字段和引号必须完整闭合。\n" +
+                "2. 单次 write_file 或 edit_file 携带的文件内容不得超过 8000 个字符。\n" +
+                "3. 大文件先用 write_file 创建可运行的精简骨架，再按工具参数规范调用 edit_file 分段完善；" +
+                "每段成功后再继续下一段，禁止一次生成完整的大型页面。\n" +
+                "4. 参数校验失败时，必须检查必填字段并缩小单次内容，禁止使用相同参数原样重试。\n\n" +
                 "【前端开发规范 - 必须遵守】\n" +
                 "1. 禁止手写大量CSS！必须使用 Tailwind CSS 框架\n" +
                 "2. HTML页面必须引入 Tailwind CSS CDN：<script src=\"https://cdn.tailwindcss.com\"></script>\n" +
