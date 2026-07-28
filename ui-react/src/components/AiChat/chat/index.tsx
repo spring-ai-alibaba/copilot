@@ -18,7 +18,9 @@ import {updateFileSystemNow} from "../../WeIde/services";
 import {parseMessages, streamingFileManager, normalizeFilePath} from "../useSseMessageParser";
 import {useTranslation} from "react-i18next";
 import { apiUrl } from "@/api/base";
-import useChatModeStore from "../../../stores/chatModeSlice";
+import useChatModeStore, {
+    ExecutionMode,
+} from "../../../stores/chatModeSlice";
 import useTerminalStore from "@/stores/terminalSlice";
 import {checkExecList, checkFinish} from "../utils/checkFinish";
 import {useUrlData} from "@/hooks/useUrlData";
@@ -85,6 +87,11 @@ export interface IModelOption {
     functionCall?: boolean;
 }
 
+type PlanDecision = {
+    action: "APPROVE" | "REJECT";
+    feedback?: string;
+};
+
 function convertToBoltAction(obj: Record<string, string>): string {
     return Object.entries(obj)
         .filter(([filePath]) => !excludeFiles.includes(filePath))
@@ -127,7 +134,7 @@ export const BaseChat = ({uuid: propUuid}: { uuid?: string }) => {
         clearErrors,
         setOldFiles
     } = useFileStore();
-    const {mode} = useChatModeStore();
+    const {mode, executionMode} = useChatModeStore();
     // 使用全局状态
     const {
         uploadedImages,
@@ -158,10 +165,16 @@ export const BaseChat = ({uuid: propUuid}: { uuid?: string }) => {
     const fetchingRef = useRef(false);
     const lastModeRef = useRef<ChatMode | null>(null);
     const modeRef = useRef(mode);
+    const executionModeRef = useRef(executionMode);
+    const pendingPlanDecisionRef = useRef<PlanDecision | null>(null);
 
     useEffect(() => {
         modeRef.current = mode;
     }, [mode]);
+
+    useEffect(() => {
+        executionModeRef.current = executionMode;
+    }, [executionMode]);
 
     const fetchModelList = useCallback(() => {
         if (fetchingRef.current) {
@@ -523,6 +536,7 @@ export const BaseChat = ({uuid: propUuid}: { uuid?: string }) => {
 
                 // 修改请求体格式：用message替换messages数组
                 const memoryFlags = useMemoryStore.getState();
+                const pendingPlanDecision = pendingPlanDecisionRef.current;
                 const modifiedBody = {
                     ...requestBody,
                     message: latestMessage, // 单个消息对象
@@ -531,11 +545,17 @@ export const BaseChat = ({uuid: propUuid}: { uuid?: string }) => {
                     tools: toolsForBackend, // 添加启用的 MCP 工具
                     enablePreferences: memoryFlags.enablePreferencesInChat,
                     enablePreferenceLearning: memoryFlags.enablePreferenceLearningInChat,
+                    planMode:
+                        executionModeRef.current === ExecutionMode.Plan ||
+                        Boolean(pendingPlanDecision),
+                    planAction: pendingPlanDecision?.action,
+                    planFeedback: pendingPlanDecision?.feedback,
                 };
                 delete modifiedBody.messages; // 删除原来的messages数组
 
                 // 更新options中的body
                 options.body = JSON.stringify(modifiedBody);
+                pendingPlanDecisionRef.current = null;
 
                 if (toolsForBackend.length > 0) {
                     console.log('[customFetch] 发送 MCP 工具到后端:', toolsForBackend);
@@ -731,7 +751,10 @@ export const BaseChat = ({uuid: propUuid}: { uuid?: string }) => {
                             transformedText += flushToolCall(toolCallId, state);
                         });
                         toolCallStates.clear();
-                        transformedText += 'data: [DONE]\n\n';
+                        break;
+                    }
+                    case 'PLAN-REVIEW': {
+                        transformedText += encodeTimelineBlock('arc-plan', parsed);
                         break;
                     }
                     case 'RUN_ERROR': {
@@ -1090,7 +1113,10 @@ export const BaseChat = ({uuid: propUuid}: { uuid?: string }) => {
 
     // 仅展示 user/assistant，过滤 tool/system/空消息
     const filterMessages = messages.filter(
-        (e) => (e.role === "user" || e.role === "assistant") && !!e.content?.trim()
+        (e) =>
+            (e.role === "user" || e.role === "assistant") &&
+            !!e.content?.trim() &&
+            !e.content.includes("<planDecision>")
     );
     // 修改上传处理函数
     const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -1199,6 +1225,28 @@ export const BaseChat = ({uuid: propUuid}: { uuid?: string }) => {
         } catch (error) {
             toast.error("Failed to upload files");
         }
+    };
+
+    const handlePlanDecision = (decision: PlanDecision) => {
+        if (isLoading) {
+            return;
+        }
+        if (!currentConversationId) {
+            toast.error(
+                t("chat.planMode.missingConversation", {
+                    defaultValue: "当前计划缺少会话信息，请重新生成计划",
+                }),
+            );
+            return;
+        }
+
+        pendingPlanDecisionRef.current = decision;
+        append({
+            role: "user",
+            content: `<planDecision>${encodeURIComponent(
+                JSON.stringify(decision),
+            )}</planDecision>`,
+        });
     };
 
     // 修改键盘提交处理
@@ -1351,6 +1399,7 @@ export const BaseChat = ({uuid: propUuid}: { uuid?: string }) => {
                                     content: ` ${content?.[0]?.text}`,
                                 });
                             }}
+                            onPlanDecision={handlePlanDecision}
                         />
                     ))}
 

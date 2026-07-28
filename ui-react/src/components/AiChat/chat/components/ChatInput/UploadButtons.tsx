@@ -2,15 +2,20 @@ import React, { forwardRef, useEffect, useRef, useState } from "react";
 import {
   Check,
   ChevronDown,
+  CirclePlay,
   Code2,
   FileArchive,
   Image,
+  ListTodo,
   MessageSquare,
   Plus,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import useChatStore from "@/stores/chatSlice";
-import useChatModeStore from "@/stores/chatModeSlice";
+import useChatModeStore, {
+  ChatMode,
+  ExecutionMode,
+} from "@/stores/chatModeSlice";
 import { cn } from "@/utils/cn";
 import type { IModelOption } from "../..";
 import MCPToolsButton from "./MCPToolsButton";
@@ -41,10 +46,11 @@ export const UploadButtons: React.FC<UploadButtonsProps> = ({
 }) => {
   const [addMenuOpen, setAddMenuOpen] = useState(false);
   const [modelMenuOpen, setModelMenuOpen] = useState(false);
+  const [executionMenuOpen, setExecutionMenuOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
   const { t } = useTranslation();
   const { modelOptions, clearImages } = useChatStore();
-  const { mode, setMode } = useChatModeStore();
+  const { mode, setMode, executionMode, setExecutionMode } = useChatModeStore();
   const canUseMCP = Boolean(baseModal.functionCall);
 
   useEffect(() => {
@@ -52,11 +58,13 @@ export const UploadButtons: React.FC<UploadButtonsProps> = ({
       if (rootRef.current?.contains(event.target as Node)) return;
       setAddMenuOpen(false);
       setModelMenuOpen(false);
+      setExecutionMenuOpen(false);
     };
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key !== "Escape") return;
       setAddMenuOpen(false);
       setModelMenuOpen(false);
+      setExecutionMenuOpen(false);
     };
     window.addEventListener("pointerdown", handlePointerDown);
     window.addEventListener("keydown", handleKeyDown);
@@ -82,6 +90,7 @@ export const UploadButtons: React.FC<UploadButtonsProps> = ({
           onClick={() => {
             setAddMenuOpen((current) => !current);
             setModelMenuOpen(false);
+            setExecutionMenuOpen(false);
           }}
           disabled={controlsDisabled}
           aria-label={t("chat.buttons.addContext", { defaultValue: "添加上下文" })}
@@ -154,6 +163,7 @@ export const UploadButtons: React.FC<UploadButtonsProps> = ({
           onClick={() => {
             setModelMenuOpen((current) => !current);
             setAddMenuOpen(false);
+            setExecutionMenuOpen(false);
           }}
           className={cn(
             "arc-composer-model max-w-[210px]",
@@ -237,6 +247,116 @@ export const UploadButtons: React.FC<UploadButtonsProps> = ({
           </div>
         ) : null}
       </div>
+
+      {mode === ChatMode.Builder ? (
+        <div className="relative shrink-0">
+          <button
+            type="button"
+            onClick={() => {
+              setExecutionMenuOpen((current) => !current);
+              setAddMenuOpen(false);
+              setModelMenuOpen(false);
+            }}
+            disabled={controlsDisabled}
+            className={cn(
+              "arc-composer-model",
+              executionMode === ExecutionMode.Plan &&
+                "bg-amber-500/10 text-amber-700 hover:bg-amber-500/15 dark:text-amber-300",
+              executionMenuOpen && "bg-foreground/[0.065]",
+            )}
+            aria-expanded={executionMenuOpen}
+            aria-label={t("chat.planMode.selector", {
+              defaultValue: "选择执行模式",
+            })}
+            title={
+              executionMode === ExecutionMode.Plan
+                ? t("chat.planMode.planDescription", {
+                    defaultValue: "先规划，审批后执行",
+                  })
+                : t("chat.planMode.executeDescription", {
+                    defaultValue: "直接分析并执行任务",
+                  })
+            }
+          >
+            {executionMode === ExecutionMode.Plan ? (
+              <ListTodo className="h-3.5 w-3.5 shrink-0" />
+            ) : (
+              <CirclePlay className="h-3.5 w-3.5 shrink-0" />
+            )}
+            <span>
+              {executionMode === ExecutionMode.Plan
+                ? t("chat.planMode.plan", { defaultValue: "计划" })
+                : t("chat.planMode.execute", { defaultValue: "执行" })}
+            </span>
+            <ChevronDown
+              className={cn(
+                "h-3 w-3 shrink-0 text-muted-foreground transition-transform",
+                executionMenuOpen && "rotate-180",
+              )}
+            />
+          </button>
+
+          {executionMenuOpen ? (
+            <div className="arc-popover absolute bottom-10 left-0 z-50 w-[280px] max-w-[calc(100vw-32px)] p-1.5">
+              <div className="px-2 pb-1.5 pt-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground/65">
+                {t("chat.planMode.title", { defaultValue: "任务执行方式" })}
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setExecutionMode(ExecutionMode.Execute);
+                  setExecutionMenuOpen(false);
+                }}
+                className="arc-popover-item"
+                data-active={executionMode === ExecutionMode.Execute}
+              >
+                <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-muted/70">
+                  <CirclePlay className="h-3.5 w-3.5" />
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block text-xs font-medium">
+                    {t("chat.planMode.execute", { defaultValue: "执行模式" })}
+                  </span>
+                  <span className="mt-0.5 block text-[10px] leading-4 text-muted-foreground">
+                    {t("chat.planMode.executeDescription", {
+                      defaultValue: "直接分析并修改项目",
+                    })}
+                  </span>
+                </span>
+                {executionMode === ExecutionMode.Execute ? (
+                  <Check className="h-3.5 w-3.5" />
+                ) : null}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setExecutionMode(ExecutionMode.Plan);
+                  setExecutionMenuOpen(false);
+                }}
+                className="arc-popover-item"
+                data-active={executionMode === ExecutionMode.Plan}
+              >
+                <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-amber-500/10 text-amber-700 dark:text-amber-300">
+                  <ListTodo className="h-3.5 w-3.5" />
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block text-xs font-medium">
+                    {t("chat.planMode.plan", { defaultValue: "计划模式" })}
+                  </span>
+                  <span className="mt-0.5 block text-[10px] leading-4 text-muted-foreground">
+                    {t("chat.planMode.planDescription", {
+                      defaultValue: "只读探索并生成计划，批准后执行",
+                    })}
+                  </span>
+                </span>
+                {executionMode === ExecutionMode.Plan ? (
+                  <Check className="h-3.5 w-3.5" />
+                ) : null}
+              </button>
+            </div>
+          ) : null}
+        </div>
+      ) : null}
     </div>
   );
 };

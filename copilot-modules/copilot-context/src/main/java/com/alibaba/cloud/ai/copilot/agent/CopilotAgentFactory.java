@@ -41,6 +41,7 @@ public class CopilotAgentFactory {
     private final MysqlAgentStateStore agentStateStore;
 
     private static final String AGENT_NAME = "copilot_agent";
+    private static final String PLAN_ROOT_DIRECTORY = "plans";
 
     /**
      * 构建一个绑定指定模型配置的 HarnessAgent。
@@ -49,6 +50,37 @@ public class CopilotAgentFactory {
      * @return 新建的 HarnessAgent
      */
     public HarnessAgent buildAgent(String modelConfigId) {
+        return buildAgent(modelConfigId, "default", false);
+    }
+
+    /**
+     * 构建支持按会话隔离 Plan Mode 状态和计划文件的 HarnessAgent。
+     *
+     * @param modelConfigId 模型配置 ID
+     * @param conversationId 会话 ID
+     * @param planModeEnabled 是否注册 Plan Mode / Todo 工具
+     * @return 新建的 HarnessAgent
+     */
+    public HarnessAgent buildAgent(
+            String modelConfigId,
+            String conversationId,
+            boolean planModeEnabled) {
+        return buildAgent(
+                modelConfigId,
+                conversationId,
+                planModeEnabled,
+                planModeEnabled);
+    }
+
+    /**
+     * @param planningPhaseActive true 表示当前要生成或修订计划；
+     *                            false 表示计划已获批准、进入执行阶段
+     */
+    public HarnessAgent buildAgent(
+            String modelConfigId,
+            String conversationId,
+            boolean planModeEnabled,
+            boolean planningPhaseActive) {
         // 1. 获取 agentscope Model（缓存命中或按配置新建）
         Model model = dynamicModelService.getChatModelWithConfigId(modelConfigId);
 
@@ -71,7 +103,12 @@ public class CopilotAgentFactory {
                 .build();
 
         // 5. 系统 prompt（与原 ChatServiceImpl 一致）
-        String prompt = buildSystemPrompt(rootDirectory);
+        String planDirectory = planDirectory(conversationId);
+        String prompt = buildSystemPrompt(
+                rootDirectory,
+                planDirectory,
+                planModeEnabled,
+                planningPhaseActive);
 
         // 6. 构建 agent（FilesystemTool 由 HarnessAgent 在 build 时自动注册）
         //    stateStore：agentscope 自动按 sessionId(=conversationId) load/save AgentState（含消息历史），多轮对话天然连续
@@ -79,7 +116,7 @@ public class CopilotAgentFactory {
         Toolkit toolkit = new Toolkit();
         toolkit.registerTool(new DeleteFileTool(rootDirectory));
 
-        HarnessAgent agent = HarnessAgent.builder()
+        HarnessAgent.Builder builder = HarnessAgent.builder()
                 .name(AGENT_NAME)
                 .model(model)
                 .sysPrompt(prompt)
@@ -88,15 +125,47 @@ public class CopilotAgentFactory {
                 .toolkit(toolkit)
                 .compaction(compaction)
                 .stateStore(agentStateStore)
-                .maxIters(50)
-                .build();
+                .maxIters(50);
 
-        log.info("构建 HarnessAgent：modelConfigId={}, workspace={}", modelConfigId, rootDirectory);
+        if (planModeEnabled) {
+            builder.enablePlanMode()
+                    .enableTaskList()
+                    .planFileDirectory(planDirectory);
+        }
+
+        HarnessAgent agent = builder.build();
+
+        log.info(
+                "构建 HarnessAgent：modelConfigId={}, workspace={}, planMode={}",
+                modelConfigId,
+                rootDirectory,
+                planModeEnabled);
         return agent;
     }
 
-    private String buildSystemPrompt(String rootDirectory) {
-        return "【基础约束】\n" +
+    /**
+     * 返回某个会话的计划文件路径，供审批界面读取。
+     */
+    public Path resolvePlanFile(String conversationId) {
+        return Paths.get(System.getProperty("user.dir"), "workspace")
+                .resolve(planDirectory(conversationId))
+                .resolve("PLAN.md")
+                .normalize();
+    }
+
+    private String planDirectory(String conversationId) {
+        String safeConversationId = conversationId == null
+                ? "default"
+                : conversationId.replaceAll("[^A-Za-z0-9_-]", "_");
+        return PLAN_ROOT_DIRECTORY + "/" + safeConversationId;
+    }
+
+    private String buildSystemPrompt(
+            String rootDirectory,
+            String planDirectory,
+            boolean planModeEnabled,
+            boolean planningPhaseActive) {
+        String basePrompt = "【基础约束】\n" +
                 "你是编程agent，使用工具在项目根目录（" + rootDirectory + "）内完成编程任务。\n\n" +
                 "【前端开发规范 - 必须遵守】\n" +
                 "1. 禁止手写大量CSS！必须使用 Tailwind CSS 框架\n" +
@@ -104,5 +173,43 @@ public class CopilotAgentFactory {
                 "【技术栈】\n" +
                 "擅长 java+vue+element 技术栈，用户没有明确编程需求时正常对话即可，" +
                 "前端开发默认使用 HTML + Tailwind CSS，保持简洁专业的风格。";
+
+        if (!planModeEnabled) {
+            return basePrompt;
+        }
+
+        if (!planningPhaseActive) {
+            return basePrompt + "\n\n" +
+                    "【计划已批准 - 执行阶段】\n" +
+                    "人工已经批准 " + planDirectory + "/PLAN.md。你现在处于执行阶段，可以修改文件和运行命令。\n" +
+                    "先读取该计划，再调用 todo_write 创建 5-8 个可独立验证的任务；" +
+                    "每个任务包含文件路径，始终只保留一个 in_progress，并按计划逐项执行与验证。";
+        }
+
+        return basePrompt + "\n\n" +
+                "【Plan Mode - 必须遵守】\n" +
+                "你当前处于严格的只读计划阶段。先探索代码库，不得修改、创建或删除业务文件，" +
+                "不得执行会改变项目状态的命令。\n" +
+                "探索完成后必须调用 plan_write，并严格使用以下 Markdown 结构：\n\n" +
+                "## 任务理解\n" +
+                "- 要解决的问题是：\n" +
+                "- 涉及文件：（必须写实际路径，尽量带行号）\n" +
+                "- 不碰的范围：\n\n" +
+                "## 方案设计\n" +
+                "- 选择方案及原因：\n" +
+                "- 被排除的方案及原因：\n\n" +
+                "## 变更清单\n" +
+                "| 文件 | 操作 | 影响范围 |\n" +
+                "|------|------|----------|\n\n" +
+                "## 测试策略\n" +
+                "- 新增或更新的测试：\n" +
+                "- 手动验证：\n\n" +
+                "## 风险点\n" +
+                "- [ ] 数据库 migration 或不可逆操作\n" +
+                "- [ ] 外部 API 调用\n" +
+                "- [ ] 并发或线程安全问题\n\n" +
+                "## 回滚方案\n" +
+                "- 如果失败，如何恢复：\n\n" +
+                "写入完整计划后调用 plan_exit 请求人工审批。在审批通过前不要开始执行。";
     }
 }

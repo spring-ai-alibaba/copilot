@@ -13,6 +13,13 @@ import "highlight.js/styles/github-dark.css"; // 暗色主题
 import {useTranslation} from 'react-i18next';
 import { safeJsonParse } from '@/utils/safeJsonParse';
 import { AppLogo } from "@/components/AppLogo";
+import {
+  Check,
+  FileText,
+  ListTodo,
+  ShieldAlert,
+  X,
+} from "lucide-react";
 
 const codeStyles = `
   .hljs-attr {
@@ -131,6 +138,10 @@ interface MessageItemProps {
     text: string;
     type: string;
   }[]) => void;
+  onPlanDecision?: (decision: {
+    action: "APPROVE" | "REJECT";
+    feedback?: string;
+  }) => void;
 }
 
 const isArtifactContent = (content: string) => {
@@ -286,6 +297,176 @@ const RunErrorCard = ({ message: errorMessage }: { message: string }) => {
       </div>
       <div className="mt-1 whitespace-pre-wrap text-[11px] leading-5 text-destructive/85">
         {errorMessage}
+      </div>
+    </div>
+  );
+};
+
+type PlanReviewPayload = {
+  conversationId: string;
+  planFile?: string;
+  planContent: string;
+  affectedFiles?: string[];
+  riskLevel?: "LOW" | "MEDIUM" | "HIGH";
+  status?: string;
+};
+
+const PlanReviewCard = ({
+  review,
+  disabled,
+  onDecision,
+}: {
+  review: PlanReviewPayload;
+  disabled: boolean;
+  onDecision?: MessageItemProps["onPlanDecision"];
+}) => {
+  const { t } = useTranslation();
+  const [showFeedback, setShowFeedback] = useState(false);
+  const [feedback, setFeedback] = useState("");
+  const [submittedAction, setSubmittedAction] = useState<
+    "APPROVE" | "REJECT" | null
+  >(null);
+  const riskLevel = review.riskLevel || "LOW";
+  const riskClassName =
+    riskLevel === "HIGH"
+      ? "bg-destructive/10 text-destructive"
+      : riskLevel === "MEDIUM"
+        ? "bg-amber-500/10 text-amber-700 dark:text-amber-300"
+        : "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300";
+
+  const submitDecision = (action: "APPROVE" | "REJECT") => {
+    if (!onDecision || disabled || submittedAction) {
+      return;
+    }
+    if (action === "REJECT" && !feedback.trim()) {
+      setShowFeedback(true);
+      return;
+    }
+    setSubmittedAction(action);
+    onDecision({
+      action,
+      feedback: action === "REJECT" ? feedback.trim() : undefined,
+    });
+  };
+
+  return (
+    <div className="my-3 overflow-hidden rounded-2xl border border-amber-500/25 bg-card shadow-sm">
+      <div className="flex items-start gap-3 border-b border-border/65 bg-amber-500/[0.055] px-4 py-3">
+        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-amber-500/10 text-amber-700 dark:text-amber-300">
+          <ListTodo className="h-4 w-4" />
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block text-sm font-semibold text-foreground">
+            {t("chat.planMode.reviewTitle", { defaultValue: "计划等待审批" })}
+          </span>
+          <span className="mt-0.5 block text-[11px] leading-4 text-muted-foreground">
+            {t("chat.planMode.reviewDescription", {
+              defaultValue: "Agent 仍处于只读状态，批准后才会修改文件或运行命令。",
+            })}
+          </span>
+        </span>
+        <span
+          className={classNames(
+            "inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-1 text-[9px] font-semibold",
+            riskClassName,
+          )}
+        >
+          <ShieldAlert className="h-3 w-3" />
+          {riskLevel === "HIGH"
+            ? t("chat.planMode.highRisk", { defaultValue: "高风险" })
+            : riskLevel === "MEDIUM"
+              ? t("chat.planMode.mediumRisk", { defaultValue: "中风险" })
+              : t("chat.planMode.lowRisk", { defaultValue: "低风险" })}
+        </span>
+      </div>
+
+      <div className="space-y-3 px-4 py-3.5">
+        {review.affectedFiles?.length ? (
+          <div>
+            <div className="mb-1.5 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+              <FileText className="h-3 w-3" />
+              {t("chat.planMode.affectedFiles", { defaultValue: "预计影响文件" })}
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              {review.affectedFiles.slice(0, 8).map((file) => (
+                <span
+                  key={file}
+                  className="max-w-full truncate rounded-md border border-border/70 bg-muted/55 px-2 py-1 font-mono text-[10px] text-foreground/80"
+                  title={file}
+                >
+                  {file}
+                </span>
+              ))}
+            </div>
+          </div>
+        ) : null}
+
+        <div className="max-h-[360px] overflow-y-auto rounded-xl border border-border/65 bg-background/70 px-3.5 py-3 [scrollbar-width:thin]">
+          <div className="arc-message-markdown prose prose-sm max-w-none text-foreground dark:prose-invert">
+            <ReactMarkdown remarkPlugins={[remarkGfm]}>
+              {review.planContent || "PLAN.md 暂无内容"}
+            </ReactMarkdown>
+          </div>
+        </div>
+
+        {showFeedback && !submittedAction ? (
+          <div className="rounded-xl border border-border/70 bg-muted/35 p-2.5">
+            <label className="mb-1.5 block text-[11px] font-medium text-foreground">
+              {t("chat.planMode.feedbackLabel", {
+                defaultValue: "告诉 Agent 需要修改什么",
+              })}
+            </label>
+            <textarea
+              value={feedback}
+              onChange={(event) => setFeedback(event.target.value)}
+              className="min-h-20 w-full resize-y rounded-lg border border-border bg-background px-3 py-2 text-xs leading-5 text-foreground outline-none placeholder:text-muted-foreground focus:border-foreground/25 focus:ring-2 focus:ring-ring/20"
+              placeholder={t("chat.planMode.feedbackPlaceholder", {
+                defaultValue: "例如：不要修改数据库，补充回滚与单元测试方案",
+              })}
+              autoFocus
+            />
+          </div>
+        ) : null}
+
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          {submittedAction ? (
+            <span className="mr-auto text-[11px] text-muted-foreground">
+              {submittedAction === "APPROVE"
+                ? t("chat.planMode.approved", {
+                    defaultValue: "已批准，Agent 正在开始执行",
+                  })
+                : t("chat.planMode.rejected", {
+                    defaultValue: "已驳回，Agent 正在修改计划",
+                  })}
+            </span>
+          ) : null}
+          <button
+            type="button"
+            onClick={() => {
+              if (showFeedback) {
+                submitDecision("REJECT");
+              } else {
+                setShowFeedback(true);
+              }
+            }}
+            disabled={disabled || Boolean(submittedAction)}
+            className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-border bg-background px-3 text-xs font-medium text-foreground transition-colors hover:bg-muted disabled:pointer-events-none disabled:opacity-50"
+          >
+            <X className="h-3.5 w-3.5" />
+            {showFeedback
+              ? t("chat.planMode.submitFeedback", { defaultValue: "提交修改意见" })
+              : t("chat.planMode.reject", { defaultValue: "驳回修改" })}
+          </button>
+          <button
+            type="button"
+            onClick={() => submitDecision("APPROVE")}
+            disabled={disabled || Boolean(submittedAction)}
+            className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-foreground px-3 text-xs font-medium text-background transition-colors hover:bg-foreground/85 disabled:pointer-events-none disabled:opacity-50"
+          >
+            <Check className="h-3.5 w-3.5" />
+            {t("chat.planMode.approve", { defaultValue: "批准并执行" })}
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -634,6 +815,7 @@ export const MessageItem: React.FC<MessageItemProps> = ({
   handleRetry,
   listProgressStates = {},
   onUpdateMessage,
+  onPlanDecision,
 }) => {
   const [previewImage, setPreviewImage] = useState<string | null>(null);
   const [isCollapsed, setIsCollapsed] = useState<boolean>(false);
@@ -693,7 +875,7 @@ export const MessageItem: React.FC<MessageItemProps> = ({
                     remarkPlugins={[remarkGfm]}
                     components={{
                       code({ node, className, children, ...props }) {
-                        const match = /language-(\w+)(?::(.+))?/.exec(
+                        const match = /language-([\w-]+)(?::(.+))?/.exec(
                           className || ""
                         );
                         const isInline = !match;
@@ -722,6 +904,23 @@ export const MessageItem: React.FC<MessageItemProps> = ({
 
                         if (language === "arc-error") {
                           return <RunErrorCard message={decodeTimelinePayload(content)} />;
+                        }
+
+                        if (language === "arc-plan") {
+                          try {
+                            const review = safeJsonParse(
+                              decodeTimelinePayload(content),
+                            ) as PlanReviewPayload;
+                            return (
+                              <PlanReviewCard
+                                review={review}
+                                disabled={isLoading}
+                                onDecision={onPlanDecision}
+                              />
+                            );
+                          } catch (error) {
+                            console.error("Failed to decode plan review", error);
+                          }
                         }
 
                         if (language === "arc-tool") {

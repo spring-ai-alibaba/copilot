@@ -42,4 +42,31 @@ class ChatServiceImplTest {
         verify(sseEventService).sendRunError(emitter, "登录状态异常，请重新登录后再试");
         verify(sseEventService).sendComplete(emitter);
     }
+
+    @Test
+    void rejectsPlanApprovalWithoutConversationId() {
+        SseEventService sseEventService = mock(SseEventService.class);
+        ConversationService conversationService = mock(ConversationService.class);
+        ChatServiceImpl service = new ChatServiceImpl(
+                mock(CopilotAgentFactory.class),
+                sseEventService,
+                conversationService,
+                mock(ChatMessageMapper.class),
+                mock(AppProperties.class),
+                mock(KnowledgeAvailabilityChecker.class));
+        SseEmitter emitter = new SseEmitter();
+        ChatRequest request = new ChatRequest();
+        request.setPlanAction("APPROVE");
+        request.setPlanMode(true);
+
+        try (MockedStatic<LoginHelper> loginHelper = mockStatic(LoginHelper.class)) {
+            loginHelper.when(LoginHelper::getUserId).thenReturn(1L);
+
+            service.handleBuilderMode(request, emitter);
+        }
+
+        verifyNoInteractions(conversationService);
+        verify(sseEventService).sendRunError(emitter, "审批计划时缺少会话ID");
+        verify(sseEventService).sendComplete(emitter);
+    }
 }
