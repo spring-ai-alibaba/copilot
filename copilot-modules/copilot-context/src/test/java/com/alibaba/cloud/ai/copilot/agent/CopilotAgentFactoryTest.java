@@ -17,7 +17,8 @@ class CopilotAgentFactoryTest {
         Path workspace = Path.of(System.getProperty("user.dir"), "workspace").normalize();
 
         assertEquals(
-                workspace.resolve("plans/___conversation_42/PLAN.md"),
+                workspace.resolve(
+                        "___conversation_42/plans/___conversation_42/PLAN.md"),
                 planFile);
         assertFalse(planFile.toString().contains("../"));
     }

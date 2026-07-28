@@ -8,16 +8,44 @@ import com.alibaba.cloud.ai.copilot.mapper.ChatMessageMapper;
 import com.alibaba.cloud.ai.copilot.satoken.utils.LoginHelper;
 import com.alibaba.cloud.ai.copilot.service.ConversationService;
 import com.alibaba.cloud.ai.copilot.service.SseEventService;
+import io.agentscope.core.agui.event.AguiEvent;
 import org.junit.jupiter.api.Test;
 import org.mockito.MockedStatic;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 
 class ChatServiceImplTest {
+
+    @Test
+    void treatsPlanExitHumanConfirmationAsExpectedPause() {
+        ChatServiceImpl service = new ChatServiceImpl(
+                mock(CopilotAgentFactory.class),
+                mock(SseEventService.class),
+                mock(ConversationService.class),
+                mock(ChatMessageMapper.class),
+                mock(AppProperties.class),
+                mock(KnowledgeAvailabilityChecker.class));
+        AguiEvent.RunError planPause = new AguiEvent.RunError(
+                "thread",
+                "run",
+                "Agent is paused for human-in-the-loop confirmation: [plan_exit]",
+                "AGENT_PAUSED");
+        AguiEvent.RunError realError = new AguiEvent.RunError(
+                "thread",
+                "run",
+                "Provider request failed",
+                "MODEL_ERROR");
+
+        assertTrue(service.isExpectedPlanReviewPause(planPause, true));
+        assertFalse(service.isExpectedPlanReviewPause(planPause, false));
+        assertFalse(service.isExpectedPlanReviewPause(realError, true));
+    }
 
     @Test
     void returnsVisibleRunErrorWhenUserIdCannotBeResolved() {

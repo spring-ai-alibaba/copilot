@@ -30,6 +30,7 @@ import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -39,6 +40,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -59,6 +61,7 @@ import java.util.regex.Pattern;
 public class ChatServiceImpl implements ChatService {
 
     private static final int MAX_PLAN_CONTENT_LENGTH = 100_000;
+    private static final Duration AGENT_EVENT_IDLE_TIMEOUT = Duration.ofMinutes(2);
     private static final Pattern MARKDOWN_FILE_PATTERN =
             Pattern.compile("`([^`\\n]+(?:\\.[A-Za-z0-9_-]+)(?::\\d+(?:-\\d+)?)?)`");
 
@@ -155,13 +158,20 @@ public class ChatServiceImpl implements ChatService {
             // 8. 订阅 AG-UI 事件流，逐帧编码为 SSE 发往前端；并累积 assistant 文本以便落库
             final AtomicReference<StringBuilder> assistantText = new AtomicReference<>(new StringBuilder());
 
-            Flux<AguiEvent> aguiEvents = adapter.run(runInput);
+            Flux<AguiEvent> aguiEvents = adapter.run(runInput)
+                    // 防止工具执行线程异常退出却没有向上游传播，导致 SSE 永久挂起。
+                    // timeout 会在每次收到事件后重新计时，因此正常的长任务不会被总时长截断。
+                    .timeout(AGENT_EVENT_IDLE_TIMEOUT);
             aguiEvents.subscribe(
-                    event -> sendAguiEvent(emitter, event, assistantText),
+                    event -> sendAguiEvent(
+                            emitter,
+                            event,
+                            assistantText,
+                            planModeEnabled),
                     error -> {
                         log.error("Agent 执行出错: conversationId={}", finalConversationId, error);
                         sseEventService.sendRunError(
-                                emitter, "模型调用失败，请检查模型配置或稍后重试");
+                                emitter, resolveAgentErrorMessage(error));
                         sseEventService.sendComplete(emitter);
                     },
                     () -> {
@@ -188,6 +198,17 @@ public class ChatServiceImpl implements ChatService {
             sseEventService.sendRunError(emitter, clientMessage);
             sseEventService.sendComplete(emitter);
         }
+    }
+
+    private String resolveAgentErrorMessage(Throwable error) {
+        if (error instanceof TimeoutException) {
+            return "Agent 超过 2 分钟没有返回新事件，任务已停止。请检查模型或工具配置后重试";
+        }
+        if (error instanceof LinkageError
+                || error.getCause() instanceof LinkageError) {
+            return "Agent 工具依赖加载失败，请检查服务端依赖版本";
+        }
+        return "模型或工具调用失败，请检查配置后重试";
     }
 
     private String resolveUserMessageContent(ChatRequest request, PlanAction planAction) {
@@ -370,8 +391,16 @@ public class ChatServiceImpl implements ChatService {
      * 直接用 agentscope JsonUtils 序列化为 JSON 作为 SSE data，事件类型名作为 SSE event 字段，
      * 便于前端按名订阅。累积 assistant 文本用于落库。
      */
-    private void sendAguiEvent(SseEmitter emitter, AguiEvent event, AtomicReference<StringBuilder> assistantText) {
+    private void sendAguiEvent(
+            SseEmitter emitter,
+            AguiEvent event,
+            AtomicReference<StringBuilder> assistantText,
+            boolean planModeEnabled) {
         try {
+            if (isExpectedPlanReviewPause(event, planModeEnabled)) {
+                log.debug("忽略 Plan Mode 正常审批暂停事件: {}", event);
+                return;
+            }
             // 累积 assistant 文本（用于落库）
             if (event instanceof AguiEvent.TextMessageContent tmc) {
                 if (tmc.delta() != null) {
@@ -386,6 +415,18 @@ public class ChatServiceImpl implements ChatService {
         } catch (Exception e) {
             log.debug("发送 AG-UI 事件失败: {}", e.getMessage());
         }
+    }
+
+    boolean isExpectedPlanReviewPause(
+            AguiEvent event,
+            boolean planModeEnabled) {
+        if (!planModeEnabled || !(event instanceof AguiEvent.RunError runError)) {
+            return false;
+        }
+        String message = runError.message();
+        return message != null
+                && message.contains("paused for human-in-the-loop confirmation")
+                && message.contains("plan_exit");
     }
 
     /**

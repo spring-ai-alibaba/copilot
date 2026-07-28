@@ -602,7 +602,6 @@ export const BaseChat = ({uuid: propUuid}: { uuid?: string }) => {
                 string,
                 { name: string; argsBuffer: string; ended: boolean }
             >();
-            let reasoningBuffer = '';
 
             const encodeTimelineBlock = (language: string, value: unknown) =>
                 `\n\n\`\`\`${language}\n${encodeURIComponent(
@@ -615,6 +614,7 @@ export const BaseChat = ({uuid: propUuid}: { uuid?: string }) => {
                 toolCallId: string,
                 state: { name: string; argsBuffer: string; ended: boolean },
                 result?: unknown,
+                status?: 'running' | 'completed' | 'result' | 'error',
             ) => {
                 let args: unknown = {};
                 try {
@@ -627,7 +627,7 @@ export const BaseChat = ({uuid: propUuid}: { uuid?: string }) => {
                     toolName: state.name,
                     args,
                     result,
-                    state: result === undefined ? (state.ended ? 'completed' : 'call') : 'result',
+                    state: status ?? (result === undefined ? 'running' : 'result'),
                 });
             };
 
@@ -675,13 +675,10 @@ export const BaseChat = ({uuid: propUuid}: { uuid?: string }) => {
 
                 if (type.startsWith('REASONING_')) {
                     const delta = parsed.delta ?? parsed.content ?? parsed.text ?? '';
-                    if (typeof delta === 'string' && delta) reasoningBuffer += delta;
-                    if (type.endsWith('_END') && reasoningBuffer.trim()) {
-                        transformedText += encodeTimelineBlock(
-                            'arc-reasoning',
-                            reasoningBuffer,
-                        );
-                        reasoningBuffer = '';
+                    if (typeof delta === 'string' && delta) {
+                        // 每个 delta 立即进入消息流；MessageItem 会在渲染前把多个
+                        // arc-reasoning 块折叠为一张持续增长的思考卡片。
+                        transformedText += encodeTimelineBlock('arc-reasoning', delta);
                     }
                     return transformedText;
                 }
@@ -696,11 +693,14 @@ export const BaseChat = ({uuid: propUuid}: { uuid?: string }) => {
                         const tcId = parsed.toolCallId;
                         const tcName = parsed.toolCallName;
                         if (tcId && tcName) {
-                            toolCallStates.set(tcId, {
+                            const state = {
                                 name: tcName,
                                 argsBuffer: '',
                                 ended: false,
-                            });
+                            };
+                            toolCallStates.set(tcId, state);
+                            // 工具名一到就展示，避免参数生成或工具执行期间页面空白。
+                            transformedText += flushToolCall(tcId, state, undefined, 'running');
                         }
                         break;
                     }
@@ -719,6 +719,8 @@ export const BaseChat = ({uuid: propUuid}: { uuid?: string }) => {
                         if (st) {
                             handleToolCallEnd(st.name, st.argsBuffer);
                             st.ended = true;
+                            // 参数已完整，更新同一张运行中卡片。
+                            transformedText += flushToolCall(tcId, st, undefined, 'running');
                         }
                         break;
                     }
@@ -740,15 +742,13 @@ export const BaseChat = ({uuid: propUuid}: { uuid?: string }) => {
                         break;
                     }
                     case 'RUN_FINISHED': {
-                        if (reasoningBuffer.trim()) {
-                            transformedText += encodeTimelineBlock(
-                                'arc-reasoning',
-                                reasoningBuffer,
-                            );
-                            reasoningBuffer = '';
-                        }
                         toolCallStates.forEach((state, toolCallId) => {
-                            transformedText += flushToolCall(toolCallId, state);
+                            transformedText += flushToolCall(
+                                toolCallId,
+                                state,
+                                undefined,
+                                'completed',
+                            );
                         });
                         toolCallStates.clear();
                         break;
@@ -760,6 +760,15 @@ export const BaseChat = ({uuid: propUuid}: { uuid?: string }) => {
                     case 'RUN_ERROR': {
                         const errorMessage = parsed.message || parsed.error || 'Agent 运行失败';
                         console.error('[AG-UI] run error:', errorMessage);
+                        toolCallStates.forEach((state, toolCallId) => {
+                            transformedText += flushToolCall(
+                                toolCallId,
+                                state,
+                                undefined,
+                                'error',
+                            );
+                        });
+                        toolCallStates.clear();
                         transformedText += encodeTimelineBlock('arc-error', String(errorMessage));
                         break;
                     }

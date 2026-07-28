@@ -2,14 +2,13 @@ package com.alibaba.cloud.ai.copilot.domain.schema;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.networknt.schema.JsonSchemaFactory;
-import com.networknt.schema.SpecVersion;
-import com.networknt.schema.ValidationMessage;
+import com.networknt.schema.SchemaRegistry;
+import com.networknt.schema.SpecificationVersion;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
-import java.util.Set;
+import java.util.List;
 import java.util.stream.Collectors;
 
 /**
@@ -22,11 +21,12 @@ public class SchemaValidator {
     private static final Logger logger = LoggerFactory.getLogger(SchemaValidator.class);
 
     private final ObjectMapper objectMapper;
-    private final JsonSchemaFactory schemaFactory;
+    private final SchemaRegistry schemaRegistry;
 
     public SchemaValidator() {
         this.objectMapper = new ObjectMapper();
-        this.schemaFactory = JsonSchemaFactory.getInstance(SpecVersion.VersionFlag.V7);
+        this.schemaRegistry = SchemaRegistry.withDefaultDialect(
+                SpecificationVersion.DRAFT_7);
     }
 
     /**
@@ -43,7 +43,8 @@ public class SchemaValidator {
             logger.debug("Schema JSON: {}", schemaJson);
 
             // Create JSON Schema validator
-            com.networknt.schema.JsonSchema jsonSchema = schemaFactory.getSchema(schemaJson);
+            com.networknt.schema.Schema networkntSchema =
+                    schemaRegistry.getSchema(schemaJson);
 
             // Convert data to JsonNode
             String dataJson = objectMapper.writeValueAsString(data);
@@ -51,14 +52,15 @@ public class SchemaValidator {
             logger.debug("Data JSON: {}", dataJson);
 
             // Execute validation
-            Set<ValidationMessage> errors = jsonSchema.validate(dataNode);
+            List<com.networknt.schema.Error> errors =
+                    networkntSchema.validate(dataNode);
 
             if (errors.isEmpty()) {
                 logger.debug("Schema validation passed");
                 return null; // Validation passed
             } else {
                 String errorMessage = errors.stream()
-                    .map(ValidationMessage::getMessage)
+                    .map(com.networknt.schema.Error::getMessage)
                     .collect(Collectors.joining("; "));
                 logger.warn("Schema validation failed: {}", errorMessage);
                 return errorMessage;

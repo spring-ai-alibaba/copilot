@@ -147,17 +147,24 @@ public class CopilotAgentFactory {
      * 返回某个会话的计划文件路径，供审批界面读取。
      */
     public Path resolvePlanFile(String conversationId) {
+        String safeConversationId = sanitizeConversationId(conversationId);
         return Paths.get(System.getProperty("user.dir"), "workspace")
+                // HarnessAgent 会先按 sessionId 创建会话工作区，
+                // planFileDirectory 再相对于该目录解析。
+                .resolve(safeConversationId)
                 .resolve(planDirectory(conversationId))
                 .resolve("PLAN.md")
                 .normalize();
     }
 
     private String planDirectory(String conversationId) {
-        String safeConversationId = conversationId == null
+        return PLAN_ROOT_DIRECTORY + "/" + sanitizeConversationId(conversationId);
+    }
+
+    private String sanitizeConversationId(String conversationId) {
+        return conversationId == null
                 ? "default"
                 : conversationId.replaceAll("[^A-Za-z0-9_-]", "_");
-        return PLAN_ROOT_DIRECTORY + "/" + safeConversationId;
     }
 
     private String buildSystemPrompt(
