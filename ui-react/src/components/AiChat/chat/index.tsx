@@ -92,6 +92,13 @@ type PlanDecision = {
     feedback?: string;
 };
 
+type PlanDecisionState = {
+    conversationId: string;
+    action: "APPROVE" | "REJECT";
+    status: "submitting" | "running" | "completed" | "failed";
+    message?: string;
+};
+
 function convertToBoltAction(obj: Record<string, string>): string {
     return Object.entries(obj)
         .filter(([filePath]) => !excludeFiles.includes(filePath))
@@ -494,7 +501,13 @@ export const BaseChat = ({uuid: propUuid}: { uuid?: string }) => {
     const {openModal} = useLimitModalStore();
 
     const [messages, setMessagesa] = useState<WeMessages>([]);
+    const [planDecisionState, setPlanDecisionState] =
+        useState<PlanDecisionState | null>(null);
     const {enabledMCPs} = useMCPTools()
+
+    useEffect(() => {
+        setPlanDecisionState(null);
+    }, [currentConversationId]);
 
     // 自定义 fetch 函数来处理 SSE 流数据
     const customFetch = async (url: string, options: any) => {
@@ -556,6 +569,14 @@ export const BaseChat = ({uuid: propUuid}: { uuid?: string }) => {
                 // 更新options中的body
                 options.body = JSON.stringify(modifiedBody);
                 pendingPlanDecisionRef.current = null;
+
+                if (pendingPlanDecision) {
+                    setPlanDecisionState((current) =>
+                        current?.conversationId === currentConversationId
+                            ? {...current, status: "running"}
+                            : current,
+                    );
+                }
 
                 if (toolsForBackend.length > 0) {
                     console.log('[customFetch] 发送 MCP 工具到后端:', toolsForBackend);
@@ -753,7 +774,27 @@ export const BaseChat = ({uuid: propUuid}: { uuid?: string }) => {
                         toolCallStates.clear();
                         break;
                     }
+                    case 'PLAN-STATUS': {
+                        const conversationId = String(
+                            parsed.conversationId || currentConversationId || '',
+                        );
+                        const status = String(parsed.status || '').toLowerCase();
+                        if (
+                            conversationId &&
+                            ['running', 'completed', 'failed'].includes(status)
+                        ) {
+                            setPlanDecisionState((current) => ({
+                                conversationId,
+                                action: current?.action || 'APPROVE',
+                                status: status as PlanDecisionState['status'],
+                                message: parsed.message,
+                            }));
+                        }
+                        break;
+                    }
                     case 'PLAN-REVIEW': {
+                        // 新计划（包括驳回后的修订版）到达时恢复为可审批状态。
+                        setPlanDecisionState(null);
                         transformedText += encodeTimelineBlock('arc-plan', parsed);
                         break;
                     }
@@ -769,6 +810,15 @@ export const BaseChat = ({uuid: propUuid}: { uuid?: string }) => {
                             );
                         });
                         toolCallStates.clear();
+                        setPlanDecisionState((current) =>
+                            current
+                                ? {
+                                    ...current,
+                                    status: 'failed',
+                                    message: String(errorMessage),
+                                }
+                                : current,
+                        );
                         transformedText += encodeTimelineBlock('arc-error', String(errorMessage));
                         break;
                     }
@@ -1017,11 +1067,15 @@ export const BaseChat = ({uuid: propUuid}: { uuid?: string }) => {
     }, [isLoading, files]);
 
     useEffect(() => {
+        // AI SDK 已经按 chunk 更新 realMessages；展示层必须跟随每次变化。
+        // 原来的 200ms 门限没有 trailing 刷新，最后一个快速 chunk 会一直
+        // 留在 realMessages 中，直到 plan-review 到达才突然显示全部卡片。
+        setMessagesa(realMessages as WeMessages);
+
         if (Date.now() - parseTimeRef.current > 200 && isLoading) {
-            setMessagesa(realMessages as WeMessages);
             parseTimeRef.current = Date.now();
 
-            const needParseMessages = messages.filter(
+            const needParseMessages = realMessages.filter(
                 (m) => !refUuidMessages.current.includes(m.id)
             );
             parseMessages(needParseMessages);
@@ -1031,7 +1085,6 @@ export const BaseChat = ({uuid: propUuid}: { uuid?: string }) => {
             clearErrors();
         }
         if (!isLoading) {
-            setMessagesa(realMessages as WeMessages);
             // 非流式状态下（加载历史/切换会话后），确保默认展示最新一条
             if (pendingScrollToBottomRef.current) {
                 pendingScrollToBottomRef.current = false;
@@ -1236,7 +1289,7 @@ export const BaseChat = ({uuid: propUuid}: { uuid?: string }) => {
         }
     };
 
-    const handlePlanDecision = (decision: PlanDecision) => {
+    const handlePlanDecision = async (decision: PlanDecision) => {
         if (isLoading) {
             return;
         }
@@ -1249,13 +1302,31 @@ export const BaseChat = ({uuid: propUuid}: { uuid?: string }) => {
             return;
         }
 
-        pendingPlanDecisionRef.current = decision;
-        append({
-            role: "user",
-            content: `<planDecision>${encodeURIComponent(
-                JSON.stringify(decision),
-            )}</planDecision>`,
+        setPlanDecisionState({
+            conversationId: currentConversationId,
+            action: decision.action,
+            status: "submitting",
         });
+        pendingPlanDecisionRef.current = decision;
+        try {
+            await append({
+                role: "user",
+                content: `<planDecision>${encodeURIComponent(
+                    JSON.stringify(decision),
+                )}</planDecision>`,
+            });
+        } catch (error) {
+            pendingPlanDecisionRef.current = null;
+            const message =
+                error instanceof Error ? error.message : "计划审批请求失败";
+            setPlanDecisionState({
+                conversationId: currentConversationId,
+                action: decision.action,
+                status: "failed",
+                message,
+            });
+            toast.error(message);
+        }
     };
 
     // 修改键盘提交处理
@@ -1409,6 +1480,7 @@ export const BaseChat = ({uuid: propUuid}: { uuid?: string }) => {
                                 });
                             }}
                             onPlanDecision={handlePlanDecision}
+                            planDecisionState={planDecisionState}
                         />
                     ))}
 

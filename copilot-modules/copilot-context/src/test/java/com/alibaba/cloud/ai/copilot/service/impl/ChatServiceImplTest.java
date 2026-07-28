@@ -97,4 +97,5 @@ class ChatServiceImplTest {
         verify(sseEventService).sendRunError(emitter, "审批计划时缺少会话ID");
         verify(sseEventService).sendComplete(emitter);
     }
+
 }

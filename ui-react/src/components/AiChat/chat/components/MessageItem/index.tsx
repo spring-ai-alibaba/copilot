@@ -207,7 +207,13 @@ interface MessageItemProps {
   onPlanDecision?: (decision: {
     action: "APPROVE" | "REJECT";
     feedback?: string;
-  }) => void;
+  }) => Promise<void> | void;
+  planDecisionState?: {
+    conversationId: string;
+    action: "APPROVE" | "REJECT";
+    status: "submitting" | "running" | "completed" | "failed";
+    message?: string;
+  } | null;
 }
 
 const isArtifactContent = (content: string) => {
@@ -381,17 +387,22 @@ const PlanReviewCard = ({
   review,
   disabled,
   onDecision,
+  decisionState,
 }: {
   review: PlanReviewPayload;
   disabled: boolean;
   onDecision?: MessageItemProps["onPlanDecision"];
+  decisionState?: MessageItemProps["planDecisionState"];
 }) => {
   const { t } = useTranslation();
   const [showFeedback, setShowFeedback] = useState(false);
   const [feedback, setFeedback] = useState("");
-  const [submittedAction, setSubmittedAction] = useState<
-    "APPROVE" | "REJECT" | null
-  >(null);
+  const activeDecision =
+    decisionState?.conversationId === review.conversationId
+      ? decisionState
+      : null;
+  const submittedAction =
+    activeDecision?.status === "failed" ? null : activeDecision?.action || null;
   const riskLevel = review.riskLevel || "LOW";
   const riskClassName =
     riskLevel === "HIGH"
@@ -408,8 +419,7 @@ const PlanReviewCard = ({
       setShowFeedback(true);
       return;
     }
-    setSubmittedAction(action);
-    onDecision({
+    void onDecision({
       action,
       feedback: action === "REJECT" ? feedback.trim() : undefined,
     });
@@ -497,13 +507,22 @@ const PlanReviewCard = ({
         <div className="flex flex-wrap items-center justify-end gap-2">
           {submittedAction ? (
             <span className="mr-auto text-[11px] text-muted-foreground">
-              {submittedAction === "APPROVE"
+              {activeDecision?.status === "completed"
+                ? t("chat.planMode.completed", {
+                    defaultValue: "计划执行完成",
+                  })
+                : submittedAction === "APPROVE"
                 ? t("chat.planMode.approved", {
                     defaultValue: "已批准，Agent 正在开始执行",
                   })
                 : t("chat.planMode.rejected", {
                     defaultValue: "已驳回，Agent 正在修改计划",
                   })}
+            </span>
+          ) : null}
+          {activeDecision?.status === "failed" ? (
+            <span className="mr-auto text-[11px] text-destructive">
+              {activeDecision.message || "审批执行失败，可以重试"}
             </span>
           ) : null}
           <button
@@ -885,6 +904,7 @@ export const MessageItem: React.FC<MessageItemProps> = ({
   listProgressStates = {},
   onUpdateMessage,
   onPlanDecision,
+  planDecisionState,
 }) => {
   const [previewImage, setPreviewImage] = useState<string | null>(null);
   const [isCollapsed, setIsCollapsed] = useState<boolean>(false);
@@ -985,6 +1005,7 @@ export const MessageItem: React.FC<MessageItemProps> = ({
                                 review={review}
                                 disabled={isLoading}
                                 onDecision={onPlanDecision}
+                                decisionState={planDecisionState}
                               />
                             );
                           } catch (error) {

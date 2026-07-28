@@ -1,6 +1,7 @@
 package com.alibaba.cloud.ai.copilot.service.impl;
 
 import com.alibaba.cloud.ai.copilot.agent.CopilotAgentFactory;
+import com.alibaba.cloud.ai.copilot.agent.PlanApprovalAgent;
 import com.alibaba.cloud.ai.copilot.config.AppProperties;
 import com.alibaba.cloud.ai.copilot.domain.dto.ChatRequest;
 import com.alibaba.cloud.ai.copilot.domain.dto.CreateConversationRequest;
@@ -16,6 +17,10 @@ import io.agentscope.core.agui.adapter.AguiAgentAdapter;
 import io.agentscope.core.agui.event.AguiEvent;
 import io.agentscope.core.agui.model.AguiMessage;
 import io.agentscope.core.agui.model.RunAgentInput;
+import io.agentscope.core.agent.Agent;
+import io.agentscope.core.message.ToolCallState;
+import io.agentscope.core.message.ToolUseBlock;
+import io.agentscope.core.state.AgentState;
 import io.agentscope.core.util.JsonUtils;
 import io.agentscope.harness.agent.HarnessAgent;
 import lombok.RequiredArgsConstructor;
@@ -40,6 +45,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Matcher;
@@ -71,9 +77,11 @@ public class ChatServiceImpl implements ChatService {
     private final ChatMessageMapper chatMessageMapper;
     private final AppProperties appProperties;
     private final KnowledgeAvailabilityChecker knowledgeAvailabilityChecker;
+    private final Set<String> activePlanExecutions = ConcurrentHashMap.newKeySet();
 
     @Override
     public void handleBuilderMode(ChatRequest request, SseEmitter emitter) {
+        AtomicReference<String> claimedPlanExecution = new AtomicReference<>();
         try {
             Long userIdLong = LoginHelper.getUserId();
             if (userIdLong == null) {
@@ -101,6 +109,20 @@ public class ChatServiceImpl implements ChatService {
             final boolean planModeEnabled =
                     Boolean.TRUE.equals(request.getPlanMode()) || planAction != PlanAction.NONE;
 
+            if (planAction == PlanAction.APPROVE
+                    && !activePlanExecutions.add(finalConversationId)) {
+                sendPlanStatus(
+                        emitter,
+                        finalConversationId,
+                        "RUNNING",
+                        "计划审批已经受理，Agent 正在执行，请勿重复点击");
+                sseEventService.sendComplete(emitter);
+                return;
+            }
+            if (planAction == PlanAction.APPROVE) {
+                claimedPlanExecution.set(finalConversationId);
+            }
+
             // 2. 保存用户消息到数据库
             ChatMessageEntity userMessageEntity = new ChatMessageEntity();
             userMessageEntity.setConversationId(finalConversationId);
@@ -123,7 +145,15 @@ public class ChatServiceImpl implements ChatService {
                     finalConversationId,
                     planModeEnabled,
                     planAction != PlanAction.APPROVE);
-            preparePlanMode(agent, finalConversationId, planModeEnabled, planAction);
+            Agent runAgent =
+                    preparePlanMode(agent, finalConversationId, planModeEnabled, planAction);
+            if (planAction == PlanAction.APPROVE) {
+                sendPlanStatus(
+                        emitter,
+                        finalConversationId,
+                        "RUNNING",
+                        "计划已批准，Agent 正在进入执行阶段");
+            }
 
             // 6. 构建 AG-UI 输入：threadId=conversationId（供历史 Middleware 定位会话），
             //    forwardedProps 携带 modelConfigId / 偏好开关，供阶段2 的 Middleware 读取
@@ -153,7 +183,7 @@ public class ChatServiceImpl implements ChatService {
                     .enableReasoning(true)
                     .emitStateEvents(false)
                     .build();
-            AguiAgentAdapter adapter = new AguiAgentAdapter(agent, adapterConfig);
+            AguiAgentAdapter adapter = new AguiAgentAdapter(runAgent, adapterConfig);
 
             // 8. 订阅 AG-UI 事件流，逐帧编码为 SSE 发往前端；并累积 assistant 文本以便落库
             final AtomicReference<StringBuilder> assistantText = new AtomicReference<>(new StringBuilder());
@@ -170,27 +200,61 @@ public class ChatServiceImpl implements ChatService {
                             planModeEnabled),
                     error -> {
                         log.error("Agent 执行出错: conversationId={}", finalConversationId, error);
+                        if (planAction == PlanAction.APPROVE) {
+                            sendPlanStatus(
+                                    emitter,
+                                    finalConversationId,
+                                    "FAILED",
+                                    resolveAgentErrorMessage(error));
+                            activePlanExecutions.remove(finalConversationId);
+                            claimedPlanExecution.set(null);
+                        }
                         sseEventService.sendRunError(
                                 emitter, resolveAgentErrorMessage(error));
                         sseEventService.sendComplete(emitter);
                     },
                     () -> {
                         // 流完成：落库 assistant 文本 + 更新会话标题
-                        String planReviewBlock = sendPlanReviewIfPending(
-                                emitter,
-                                agent,
-                                finalConversationId,
-                                planModeEnabled);
+                        boolean approvalStillPending =
+                                planAction == PlanAction.APPROVE
+                                        && agent.isPlanModeActive(null, finalConversationId);
+                        String planReviewBlock = approvalStillPending
+                                ? ""
+                                : sendPlanReviewIfPending(
+                                        emitter,
+                                        agent,
+                                        finalConversationId,
+                                        planModeEnabled);
                         saveAssistantMessage(
                                 finalConversationId,
                                 assistantText.get().toString() + planReviewBlock);
                         updateConversationTitleIfNeeded(finalConversationId, userMessageContent, userIdLong);
+                        if (planAction == PlanAction.APPROVE) {
+                            sendPlanStatus(
+                                    emitter,
+                                    finalConversationId,
+                                    approvalStillPending ? "FAILED" : "COMPLETED",
+                                    approvalStillPending
+                                            ? "审批已收到，但 Agent 未能进入执行阶段，请重试"
+                                            : "计划已批准，Agent 执行完成");
+                            activePlanExecutions.remove(finalConversationId);
+                            claimedPlanExecution.set(null);
+                        }
                         sseEventService.sendComplete(emitter);
                     }
             );
 
         } catch (Exception e) {
             log.error("Unexpected error in builder mode", e);
+            String claimedConversationId = claimedPlanExecution.getAndSet(null);
+            if (claimedConversationId != null) {
+                activePlanExecutions.remove(claimedConversationId);
+                sendPlanStatus(
+                        emitter,
+                        claimedConversationId,
+                        "FAILED",
+                        e.getMessage() == null ? "计划审批执行失败，请重试" : e.getMessage());
+            }
             String clientMessage = e instanceof IllegalArgumentException
                     || e instanceof IllegalStateException
                     ? e.getMessage()
@@ -232,32 +296,65 @@ public class ChatServiceImpl implements ChatService {
         return request.getMessage().getContent();
     }
 
-    private void preparePlanMode(
+    private Agent preparePlanMode(
             HarnessAgent agent,
             String conversationId,
             boolean planModeEnabled,
             PlanAction planAction) {
         if (!planModeEnabled) {
-            return;
+            return agent;
         }
 
-        if (planAction == PlanAction.APPROVE) {
-            Path planFile = agentFactory.resolvePlanFile(conversationId);
-            if (!Files.isRegularFile(planFile)) {
-                throw new IllegalStateException("当前会话没有可执行的计划，请先生成计划");
-            }
-            if (!agent.isPlanModeActive(null, conversationId)) {
-                throw new IllegalStateException("当前计划已经处理，请勿重复审批");
-            }
-            agent.exitPlanMode(null, conversationId);
-            return;
+        if (planAction == PlanAction.APPROVE || planAction == PlanAction.REJECT) {
+            return preparePlanDecision(agent, conversationId, planAction);
         }
 
-        if (planAction == PlanAction.REJECT
-                && !agent.isPlanModeActive(null, conversationId)) {
-            throw new IllegalStateException("当前计划已经处理，请勿重复审批");
-        }
         agent.enterPlanMode(null, conversationId);
+        return agent;
+    }
+
+    /**
+     * 恢复 ASKING 状态的 plan_exit，并将用户决定作为 AgentScope 原生确认结果注入
+     * 本次运行。批准会继续执行原工具调用并进入 BUILD，驳回则留在 PLAN 中修订。
+     */
+    Agent preparePlanDecision(
+            HarnessAgent agent,
+            String conversationId,
+            PlanAction planAction) {
+        if (planAction == PlanAction.APPROVE
+                && !Files.isRegularFile(agentFactory.resolvePlanFile(conversationId))) {
+            throw new IllegalStateException("当前会话没有可执行的计划，请先生成计划");
+        }
+
+        if (!agent.isPlanModeActive(null, conversationId)) {
+            log.info("恢复已离开 Plan Mode 的审批会话: conversationId={}", conversationId);
+            agent.enterPlanMode(null, conversationId);
+        }
+
+        AgentState state = agent.getDelegate().getAgentState(null, conversationId);
+        ToolUseBlock pendingPlanExit = state.getContext().stream()
+                .flatMap(message -> message.getContentBlocks(ToolUseBlock.class).stream())
+                .filter(toolCall -> "plan_exit".equals(toolCall.getName()))
+                .filter(toolCall -> toolCall.getState() == ToolCallState.ASKING)
+                .reduce((first, second) -> second)
+                .orElseThrow(() -> new IllegalStateException(
+                        "当前计划缺少待确认的 plan_exit，请重新生成计划"));
+        return new PlanApprovalAgent(
+                agent,
+                pendingPlanExit,
+                planAction == PlanAction.APPROVE);
+    }
+
+    private void sendPlanStatus(
+            SseEmitter emitter,
+            String conversationId,
+            String status,
+            String message) {
+        Map<String, Object> payload = new HashMap<>();
+        payload.put("conversationId", conversationId);
+        payload.put("status", status);
+        payload.put("message", message);
+        sseEventService.sendSseEvent(emitter, "plan-status", payload);
     }
 
     private String sendPlanReviewIfPending(
