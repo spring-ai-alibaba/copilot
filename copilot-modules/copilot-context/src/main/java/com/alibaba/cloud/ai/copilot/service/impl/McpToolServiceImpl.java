@@ -70,6 +70,8 @@ public class McpToolServiceImpl extends ServiceImpl<McpToolInfoMapper, McpToolIn
         if (tool.getType() == null) {
             tool.setType("LOCAL");
         }
+        // 保存前校验配置，非法配置即时报错而不是等到连接时才失败
+        mcpClientManager.validateConfig(tool);
         save(tool);
         return tool;
     }
@@ -81,6 +83,16 @@ public class McpToolServiceImpl extends ServiceImpl<McpToolInfoMapper, McpToolIn
         McpToolInfo existingTool = getById(tool.getId());
         if (existingTool != null && TYPE_BUILTIN.equals(existingTool.getType())) {
             throw new RuntimeException("内置工具不允许编辑");
+        }
+
+        // 校验以更新后的生效值为准（局部更新时字段可能为 null）
+        if (tool.getConfigJson() != null || tool.getType() != null) {
+            McpToolInfo effective = new McpToolInfo();
+            effective.setType(tool.getType() != null ? tool.getType()
+                    : existingTool != null ? existingTool.getType() : null);
+            effective.setConfigJson(tool.getConfigJson() != null ? tool.getConfigJson()
+                    : existingTool != null ? existingTool.getConfigJson() : null);
+            mcpClientManager.validateConfig(effective);
         }
 
         tool.setUpdateTime(LocalDateTime.now());

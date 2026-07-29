@@ -2,6 +2,7 @@ package com.alibaba.cloud.ai.copilot.agent;
 
 import com.alibaba.cloud.ai.copilot.config.AppProperties;
 import com.alibaba.cloud.ai.copilot.service.DynamicModelService;
+import com.alibaba.cloud.ai.copilot.service.mcp.McpClientManager;
 import com.alibaba.cloud.ai.copilot.skill.MysqlSkillRepository;
 import com.alibaba.cloud.ai.copilot.skill.SearchSkillsTool;
 import io.agentscope.core.model.Model;
@@ -43,6 +44,7 @@ public class CopilotAgentFactory {
     private final AppProperties appProperties;
     private final MysqlAgentStateStore agentStateStore;
     private final ObjectProvider<MysqlSkillRepository> skillMarketProvider;
+    private final McpClientManager mcpClientManager;
 
     private static final String AGENT_NAME = "copilot_agent";
 
@@ -98,6 +100,11 @@ public class CopilotAgentFactory {
         toolkit.registerTool(new DeleteFileTool(sandboxRoot.toString()));
         MysqlSkillRepository market = skillMarketProvider.getIfAvailable();
         toolkit.registerTool(new SearchSkillsTool(workspacePath.resolve("skills"), market));
+        // 启用状态的 MCP 工具注册进 toolkit（连接由 McpClientManager 持久缓存，跨请求复用）
+        int mcpCount = mcpClientManager.registerEnabledTools(toolkit);
+        if (mcpCount > 0) {
+            log.info("已注册 {} 个 MCP server 到 agent toolkit", mcpCount);
+        }
 
         var builder = HarnessAgent.builder()
                 .name(AGENT_NAME)

@@ -102,6 +102,8 @@ export function AddMcpServerModal({visible, server, onCancel, onOk}: AddMcpServe
             onCancel={handleCancel}
             confirmLoading={loading}
             width={800}
+            centered
+            styles={{body: {maxHeight: '65vh', overflowY: 'auto'}}}
             okText={server ? t('settings.mcp.updateSuccess') : t('settings.mcp.addServer')}
             cancelText={t('common.cancel')}
             destroyOnClose

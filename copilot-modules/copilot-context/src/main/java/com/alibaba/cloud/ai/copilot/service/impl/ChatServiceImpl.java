@@ -102,6 +102,10 @@ public class ChatServiceImpl implements ChatService {
 
             // 5. 构建动态 agent（沙箱根=会话目录）
             HarnessAgent agent = agentFactory.buildAgent(request.getModelConfigId(), finalConversationId);
+            // MCP 等外部工具在 default 权限模式下会停在"待确认"状态（tool_use state=asking），
+            // 本产品没有工具审批 UI，run 会直接结束且工具不执行。工具均为管理员后台配置，
+            // 文件访问另有会话沙箱兜底，因此对本会话直接放行全部工具调用。
+            agent.setPermissionMode(null, finalConversationId, io.agentscope.core.permission.PermissionMode.BYPASS);
 
             // 6. 构建 AG-UI 输入：threadId=conversationId
             String runId = UUID.randomUUID().toString();

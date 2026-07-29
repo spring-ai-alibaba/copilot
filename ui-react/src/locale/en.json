@@ -1,17 +1,26 @@
 {
   "Welcome to React": "Welcome to React",
   "common": {
-    "name": "name",
-    "description": "description",
-    "edit": "edit",
-    "more": "more",
-    "delete": "delete",
-    "cancel": "Cancel",
     "confirm": "Confirm",
-    "login": "Login",
+    "cancel": "Cancel",
+    "save": "Save",
+    "delete": "Delete",
+    "edit": "Edit",
+    "add": "Add",
+    "remove": "Remove",
     "close": "Close",
-    "format": "Format",
-    "formatting": "Formatting..."
+    "back": "Back",
+    "next": "Next",
+    "previous": "Previous",
+    "loading": "Loading...",
+    "success": "Success",
+    "error": "Error",
+    "warning": "Warning",
+    "info": "Info",
+    "create": "Create",
+    "update": "Update",
+    "detection": "Detection",
+    "format": "Format"
   },
   "chat": {
     "urlInput": {
@@ -291,106 +300,6 @@
           "selectAtLeastOne": "Please select at least one record",
           "batchDeleteSuccess": "Batch delete successful",
           "batchDeleteError": "Batch delete failed"
-        },
-        "pagination": {
-          "total": "Total {{total}} items"
-        }
-      },
-      "markets": {
-        "title": "MCP Markets",
-        "listTitle": "MCP Markets List",
-        "add": "Add Market",
-        "edit": "Edit",
-        "delete": "Delete",
-        "viewTools": "View Tools",
-        "refreshTools": "Refresh Tools List",
-        "enable": "Enable",
-        "disable": "Disable",
-        "refresh": "Refresh",
-        "searchPlaceholder": "Search market name",
-        "columns": {
-          "name": "Market Name",
-          "url": "URL",
-          "description": "Description",
-          "status": "Status",
-          "actions": "Actions"
-        },
-        "status": {
-          "enabled": "Enabled",
-          "disabled": "Disabled"
-        },
-        "tooltips": {
-          "viewTools": "View Tools",
-          "refreshTools": "Refresh Tools List",
-          "edit": "Edit",
-          "enable": "Enable",
-          "disable": "Disable",
-          "delete": "Delete",
-          "refresh": "Refresh"
-        },
-        "form": {
-          "addTitle": "Add Market",
-          "editTitle": "Edit Market",
-          "name": "Market Name",
-          "nameRequired": "Please enter market name",
-          "namePlaceholder": "e.g.: MCP Servers Official Market",
-          "url": "Market URL",
-          "urlRequired": "Please enter market URL",
-          "urlInvalid": "Please enter a valid URL",
-          "urlPlaceholder": "e.g.: https://mcpservers.cn/api/servers/list",
-          "description": "Description",
-          "descriptionPlaceholder": "Market description (optional)",
-          "authConfig": "Auth Configuration",
-          "save": "Save",
-          "cancel": "Cancel"
-        },
-        "toolsModal": {
-          "title": "{{name}} - Tools List",
-          "batchLoad": "Batch Load to Local",
-          "refreshFromRemote": "Refresh from Remote",
-          "selected": "{count} items selected",
-          "columns": {
-            "toolName": "Tool Name",
-            "toolDescription": "Description",
-            "status": "Status",
-            "actions": "Actions"
-          },
-          "status": {
-            "loaded": "Loaded",
-            "notLoaded": "Not Loaded"
-          },
-          "actions": {
-            "load": "Load",
-            "loaded": "Loaded"
-          },
-          "empty": "No tools available, click \"Refresh from Remote\" to get tools list",
-          "pagination": {
-            "total": "Total {{total}} items"
-          },
-          "messages": {
-            "selectTools": "Please select tools to load",
-            "allLoaded": "All selected tools are already loaded",
-            "loadSuccess": "Loaded successfully",
-            "loadError": "Failed to load",
-            "batchLoadSuccess": "Successfully loaded {count} tools",
-            "batchLoadError": "Batch load failed",
-            "refreshSuccess": "Refresh successful, reloading tools list...",
-            "refreshError": "Refresh failed"
-          }
-        },
-        "messages": {
-          "addSuccess": "Added successfully",
-          "updateSuccess": "Updated successfully",
-          "deleteSuccess": "Deleted successfully",
-          "deleteError": "Failed to delete",
-          "toggleSuccess": "{{status}}",
-          "toggleError": "Failed to update status",
-          "loadError": "Failed to load markets list",
-          "saveError": "Failed to save",
-          "empty": "No markets available, click \"Add Market\" to add one",
-          "confirmDelete": "Are you sure you want to delete? This action cannot be undone.",
-          "ok": "OK",
-          "cancel": "Cancel"
         },
         "pagination": {
           "total": "Total {{total}} items"
@@ -833,27 +742,6 @@
       "file_too_large": "File size cannot exceed 10MB"
     }
   },
-  "common": {
-    "confirm": "Confirm",
-    "cancel": "Cancel",
-    "save": "Save",
-    "delete": "Delete",
-    "edit": "Edit",
-    "add": "Add",
-    "remove": "Remove",
-    "close": "Close",
-    "back": "Back",
-    "next": "Next",
-    "previous": "Previous",
-    "loading": "Loading...",
-    "success": "Success",
-    "error": "Error",
-    "warning": "Warning",
-    "info": "Info",
-    "create": "Create",
-    "update": "Update",
-    "detection": "Detection"
-  },
   "models": {
     "title": "Model Management",
     "description": "Manage AI model configurations and connection settings",
@@ -918,7 +806,14 @@
     "description": "Manage and organize AI prompt templates",
     "create_prompt": "Create Prompt",
     "edit_prompt": "Edit Prompt",
-    "preview": "Preview",
+    "preview": {
+      "variables": "Variable Input",
+      "render": "Render",
+      "result": "Rendered Result",
+      "template": "Original Template",
+      "info": "Prompt Information",
+      "no_variables": "This prompt has no variables"
+    },
     "copy": "Copy",
     "system": "System",
     "all_categories": "All Categories",
@@ -973,14 +868,6 @@
       "textarea": "Textarea",
       "number": "Number",
       "select": "Select"
-    },
-    "preview": {
-      "variables": "Variable Input",
-      "render": "Render",
-      "result": "Rendered Result",
-      "template": "Original Template",
-      "info": "Prompt Information",
-      "no_variables": "This prompt has no variables"
     },
     "success": {
       "created": "Prompt created successfully",
