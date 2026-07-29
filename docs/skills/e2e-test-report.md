@@ -110,3 +110,49 @@
 
 - `execute` shell 的 working_directory 已被框架校验为 workspace 内相对路径，但 shell 命令内部的 `cd`/相对路径仍是进程级行为，无法完全沙箱化（Windows 无容器隔离时的固有限制）；文件读写主通道已全部收敛。
 - `.usage.json` 只统计 agent 自建技能（框架边界，bumpIfAgentTracked）；平台级统计以 skill_usage_log 为准。
+
+## 六、MCP 工具优化轮（2026-07-29）
+
+### 改动清单
+
+| 事项 | 说明 |
+|---|---|
+| 删除 MCP 市场模块 | 后端 McpMarketController/Service/Entity/Mapper/DTO + McpConfig(RestTemplate) 共 10 个文件；前端 McpMarketsTab/AddMarketModal/mcpMarkets.ts + 市场 Tab/类型/文案；DROP mcp_market_info、mcp_market_tool 表并同步清理 spring_ai_copilot.sql |
+| **MCP 工具接入聊天 agent（核心修复）** | 原实现只有管理 CRUD，`McpClientManager` 与 agent 零集成——用户配置的 MCP 工具模型完全用不到。现在 `registerEnabledTools(toolkit)` 在每次 agent 构建时把启用工具经框架 `Toolkit.registration().mcpClient(wrapper).apply()` 注册进 toolkit |
+| 连接持久化复用 | agent 每条消息重建，若连接随 agent 生命周期，STDIO 类型每条消息拉起一个子进程且无人回收。改为缓存框架 `McpSyncClientWrapper`（initialize 幂等）跨请求共享，注册失败自动失效待重建 |
+| **权限模式修复（关键 bug）** | default 权限模式下外部 MCP 工具调用停在 `state=asking` 等审批，run 直接结束且工具不执行（实测复现）。本产品无审批 UI，ChatServiceImpl 对每会话设 `PermissionMode.BYPASS`（工具均为管理员配置 + 文件沙箱独立兜底） |
+| 配置保存校验 | configJson 非法 JSON / LOCAL 缺 command / REMOTE 缺 baseUrl 保存时即报可读错误，不再等到连接测试才抛 Jackson 堆栈（Windows 反斜杠路径是高频翻车点） |
+| resolveCommand 修正 | 移除对 `node` 追加 .cmd 的处理（node 是 node.exe，加 .cmd 反而找不到命令；npx/npm/pnpm/yarn/uvx/uv 保留） |
+
+### 测试记录（真实 MCP server，非 mock）
+
+测试对象：自研最小 MCP stdio server（Python 实现 JSON-RPC 2.0：initialize/tools/list/tools/call，工具 get_current_time + add_numbers）。
+
+| 验证项 | 结果 |
+|---|---|
+| 新增工具（POST /api/mcp） | ✅ |
+| 连接测试（POST /{id}/test） | ✅ 握手成功，发现 2 个工具 |
+| **聊天中模型调用 MCP 工具** | ✅ add_numbers(12345.6, 98765.4)=111111.0、get_current_time 均真实执行，模型整合结果作答 |
+| 连接复用 | ✅ 2 次 agent 构建仅 1 次建连（无子进程泄漏） |
+| 禁用/启用 | ✅ 禁用即断连、构建时不注册；恢复启用后自动重建 |
+| 非法配置保存 | ✅ 保存时报可读错误（含 Windows 路径转义提示） |
+| 删除工具 | ✅ 断连 + 移除记录 |
+| 市场接口移除 | ✅ 路由已不存在 |
+| 技能链路回归 | ✅ golden set A1/E1 通过（MCP 注册不影响技能） |
+
+### 已知说明
+
+- MCP server 注册发生在每次 agent 构建时（一次 tools/list RPC，连接已复用，开销毫秒级）。
+- 权限 BYPASS 的边界：文件访问仍受会话沙箱强制约束；MCP 工具本身的能力边界由管理员在配置时把控。
+
+### 补充：外部第三方 MCP server 动态添加实测（2026-07-29）
+
+针对"能否动态添加外部 MCP 并使用"的验证，测试对象为官方 `@modelcontextprotocol/server-filesystem`（npx 拉起，非自研）：
+
+1. 后端运行中经 POST /api/mcp 动态添加（command=npx，args=[-y, @modelcontextprotocol/server-filesystem, <目录>]），**未重启**；
+2. 连接测试：握手成功，发现该 server 全部 14 个真实工具（read_text_file/list_directory/search_files 等）；resolveCommand 自动补 npx.cmd（Windows）；
+3. 聊天中模型调用 `list_allowed_directories`、`read_text_file` 均真实执行，正确读出目标文件内容（magic word 验证通过）；
+4. **同名工具冲突行为**：该 server 的 read_file/write_file/edit_file 与框架内置工具同名。实测内置工具优先生效（harness 在 build 时后注册，同名覆盖 MCP 注册），会话文件沙箱不受影响——内置 read_file/list_files 对沙箱外路径照常拒绝；MCP 侧同名工具被遮蔽，非同名工具全部可用。
+5. 测试完成后 DELETE /api/mcp/{id} 正常断连清除。
+
+注意：MCP 工具的能力边界（如 filesystem server 可访问哪些目录）由管理员在 configJson 里配置，独立于会话沙箱，添加高权限 server 时需自行评估。

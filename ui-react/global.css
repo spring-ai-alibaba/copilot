@@ -497,3 +497,8 @@
     transition-duration: 1ms !important;
   }
 }
+
+/* 设置页是 z-[10000] 全屏层，antd 静态 message 提示默认 z-index 更低会被盖住 */
+.ant-message {
+  z-index: 10200 !important;
+}

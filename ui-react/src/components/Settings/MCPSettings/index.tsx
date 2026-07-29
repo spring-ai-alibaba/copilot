@@ -1,10 +1,9 @@
 import React, {FC, useState} from 'react'
 import {useTranslation} from 'react-i18next'
 import {ConfigProvider, Tabs} from 'antd'
-import {ShopOutlined, ToolOutlined} from '@ant-design/icons'
+import {ToolOutlined} from '@ant-design/icons'
 import InstallNpxUv from './InstallNpxUv'
 import McpToolsTab from './McpToolsTab'
-import McpMarketsTab from './McpMarketsTab'
 
 interface MCPSettingsProps {
     isActive?: boolean
@@ -24,16 +23,6 @@ const MCPSettings: FC<MCPSettingsProps> = ({isActive = false}) => {
                 </span>
             ),
             children: <McpToolsTab/>,
-        },
-        {
-            key: 'markets',
-            label: (
-                <span className="flex items-center gap-2">
-                    <ShopOutlined/>
-                    {t('settings.mcp.markets.title')}
-                </span>
-            ),
-            children: <McpMarketsTab/>,
         },
     ]
 

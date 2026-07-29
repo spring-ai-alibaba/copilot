@@ -1,6 +1,6 @@
 import React, { type ReactNode, useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
-import { Divider } from "antd";
+import { ConfigProvider, Divider } from "antd";
 import type { ThemeMode } from "antd-style";
 import {
   ArrowLeft,
@@ -217,6 +217,10 @@ export function Settings({ isOpen, onClose, initialTab = TAB_KEYS.GENERAL }: Set
   })();
 
   return createPortal(
+    // 设置页整体是 z-[10000] 的全屏层，antd 弹层默认 zIndexPopupBase=1000，
+    // Modal/Popconfirm/Tooltip 会被压在设置页下面（表现为"点了没反应"）。
+    // 这里统一抬高设置页内所有 antd 弹层的基准 z-index。
+    <ConfigProvider theme={{ token: { zIndexPopupBase: 10100 } }}>
     <div
       className={cn(
         "arc-settings-page fixed inset-0 z-[10000] flex bg-background text-foreground transition-[opacity,transform] duration-200 ease-out",
@@ -303,7 +307,8 @@ export function Settings({ isOpen, onClose, initialTab = TAB_KEYS.GENERAL }: Set
           <div className="mx-auto w-full max-w-5xl px-7 py-6 max-sm:px-4">{content}</div>
         </div>
       </main>
-    </div>,
+    </div>
+    </ConfigProvider>,
     document.body,
   );
 }
