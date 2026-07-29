@@ -14,7 +14,10 @@ import {useTranslation} from 'react-i18next';
 import { safeJsonParse } from '@/utils/safeJsonParse';
 import { AppLogo } from "@/components/AppLogo";
 import {
+  CheckCircle2,
   Check,
+  Circle,
+  CircleDot,
   Code2,
   FileText,
   GitBranch,
@@ -832,17 +835,262 @@ export const processThinkContent = (content: string) => {
   return result.trim();
 };
 
+type TimelineToolInvocation = {
+  args: unknown;
+  result?: unknown;
+  state: string;
+  step?: number;
+  toolCallId: string;
+  toolName: string;
+};
+
+type TodoItemState = "pending" | "in_progress" | "completed";
+
+type TodoProgressItem = {
+  content: string;
+  status: TodoItemState;
+  priority?: "high" | "medium" | "low";
+};
+
+const isTodoWriteTool = (toolName: string) =>
+  toolName.replace(/[^a-z]/gi, "").toLowerCase().endsWith("todowrite");
+
+const parseJsonObject = (value: unknown): unknown => {
+  if (typeof value !== "string") {
+    return value;
+  }
+  try {
+    return safeJsonParse(value);
+  } catch {
+    return value;
+  }
+};
+
+const normalizeTodoState = (value: unknown): TodoItemState => {
+  const state = String(value || "pending")
+    .trim()
+    .toLowerCase()
+    .replace(/[\s-]+/g, "_");
+  if (["completed", "complete", "done", "success", "succeeded"].includes(state)) {
+    return "completed";
+  }
+  if (["in_progress", "progress", "doing", "running", "active"].includes(state)) {
+    return "in_progress";
+  }
+  return "pending";
+};
+
+const normalizeTodoPriority = (
+  value: unknown,
+): TodoProgressItem["priority"] => {
+  const priority = String(value || "").trim().toLowerCase();
+  return ["high", "medium", "low"].includes(priority)
+    ? (priority as TodoProgressItem["priority"])
+    : undefined;
+};
+
+const parseTodoItemsFromResult = (result: unknown): TodoProgressItem[] => {
+  if (typeof result !== "string") {
+    return [];
+  }
+  return result
+    .split("\n")
+    .map((line): TodoProgressItem | null => {
+      const match = line.match(
+        /^\s*-\s*\[([x~ ])\]\s+(.+?)(?:\s+\(priority:\s*(high|medium|low)\))?\s*$/i,
+      );
+      if (!match) return null;
+      return {
+        content: match[2].trim(),
+        status:
+          match[1].toLowerCase() === "x"
+            ? "completed"
+            : match[1] === "~"
+              ? "in_progress"
+              : "pending",
+        priority: normalizeTodoPriority(match[3]),
+      } satisfies TodoProgressItem;
+    })
+    .filter((item): item is TodoProgressItem => item !== null);
+};
+
+const parseTodoItems = (toolInvocation: TimelineToolInvocation) => {
+  let args = parseJsonObject(toolInvocation.args);
+  if (args && typeof args === "object" && !Array.isArray(args)) {
+    const record = args as Record<string, unknown>;
+    args = parseJsonObject(
+      record.todos ??
+        record.tasks ??
+        record.items ??
+        record.raw ??
+        record.input ??
+        record.arguments ??
+        args,
+    );
+    if (args && typeof args === "object" && !Array.isArray(args)) {
+      const nested = args as Record<string, unknown>;
+      args = nested.todos ?? nested.tasks ?? nested.items ?? args;
+    }
+  }
+
+  if (!Array.isArray(args)) {
+    return parseTodoItemsFromResult(toolInvocation.result);
+  }
+
+  const items = args
+    .map((item): TodoProgressItem | null => {
+      const parsed = parseJsonObject(item);
+      if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+        return null;
+      }
+      const record = parsed as Record<string, unknown>;
+      const content = String(
+        record.content ?? record.subject ?? record.description ?? record.title ?? "",
+      ).trim();
+      if (!content) return null;
+      return {
+        content,
+        status: normalizeTodoState(record.status ?? record.state),
+        priority: normalizeTodoPriority(record.priority),
+      } satisfies TodoProgressItem;
+    })
+    .filter((item): item is TodoProgressItem => item !== null);
+
+  return items.length ? items : parseTodoItemsFromResult(toolInvocation.result);
+};
+
+const TodoProgressCard = ({
+  toolInvocation,
+}: {
+  toolInvocation: TimelineToolInvocation;
+}) => {
+  const [expanded, setExpanded] = useState(true);
+  const { t } = useTranslation();
+  const items = parseTodoItems(toolInvocation);
+  const completed = items.filter((item) => item.status === "completed").length;
+  const inProgress = items.filter((item) => item.status === "in_progress").length;
+  const progress = items.length ? Math.round((completed / items.length) * 100) : 0;
+  const toolFailed = toolInvocation.state === "error";
+
+  return (
+    <div className="my-3 overflow-hidden rounded-2xl border border-blue-500/20 bg-card shadow-sm">
+      <button
+        type="button"
+        onClick={() => setExpanded((current) => !current)}
+        className="flex w-full items-center gap-3 bg-blue-500/[0.045] px-4 py-3 text-left transition-colors hover:bg-blue-500/[0.075]"
+        aria-expanded={expanded}
+      >
+        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-300">
+          <ListTodo className="h-4 w-4" />
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block text-sm font-semibold text-foreground">
+            {t("chat.todo.title", { defaultValue: "任务进度" })}
+          </span>
+          <span className="mt-0.5 block text-[10px] text-muted-foreground">
+            {items.length
+              ? t("chat.todo.summary", {
+                  defaultValue: `${completed} / ${items.length} 已完成`,
+                  completed,
+                  total: items.length,
+                })
+              : t("chat.todo.preparing", { defaultValue: "正在整理任务列表" })}
+          </span>
+        </span>
+        {inProgress > 0 ? (
+          <span className="rounded-full bg-blue-500/10 px-2 py-1 text-[9px] font-medium text-blue-700 dark:text-blue-300">
+            {t("chat.todo.inProgressCount", {
+              defaultValue: `${inProgress} 项进行中`,
+              count: inProgress,
+            })}
+          </span>
+        ) : null}
+        <svg
+          className={classNames(
+            "h-3.5 w-3.5 text-muted-foreground transition-transform",
+            expanded && "rotate-180",
+          )}
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+        >
+          <path d="m6 9 6 6 6-6" />
+        </svg>
+      </button>
+
+      <div className="h-1 bg-muted/65">
+        <div
+          className={classNames(
+            "h-full transition-[width] duration-500",
+            toolFailed ? "bg-destructive" : "bg-blue-500",
+          )}
+          style={{ width: `${progress}%` }}
+        />
+      </div>
+
+      {expanded ? (
+        <div className="space-y-1 px-3 py-3">
+          {items.length ? (
+            items.map((item, index) => (
+              <div
+                key={`${item.content}-${index}`}
+                className={classNames(
+                  "flex items-start gap-2.5 rounded-xl px-2.5 py-2",
+                  item.status === "in_progress" && "bg-blue-500/[0.055]",
+                )}
+              >
+                {item.status === "completed" ? (
+                  <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500" />
+                ) : item.status === "in_progress" ? (
+                  <CircleDot className="mt-0.5 h-4 w-4 shrink-0 text-blue-500" />
+                ) : (
+                  <Circle className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground/65" />
+                )}
+                <span
+                  className={classNames(
+                    "min-w-0 flex-1 text-xs leading-5",
+                    item.status === "completed"
+                      ? "text-muted-foreground line-through decoration-border"
+                      : "text-foreground/90",
+                  )}
+                >
+                  {item.content}
+                </span>
+                {item.priority ? (
+                  <span
+                    className={classNames(
+                      "mt-0.5 shrink-0 rounded px-1.5 py-0.5 text-[8px] font-semibold uppercase",
+                      item.priority === "high"
+                        ? "bg-destructive/10 text-destructive"
+                        : item.priority === "medium"
+                          ? "bg-amber-500/10 text-amber-700 dark:text-amber-300"
+                          : "bg-muted text-muted-foreground",
+                    )}
+                  >
+                    {item.priority}
+                  </span>
+                ) : null}
+              </div>
+            ))
+          ) : (
+            <div className="flex items-center gap-2 px-2.5 py-2 text-xs text-muted-foreground">
+              <div className="h-1.5 w-1.5 animate-pulse rounded-full bg-blue-500" />
+              {toolFailed
+                ? t("chat.todo.failed", { defaultValue: "任务列表更新失败" })
+                : t("chat.todo.waiting", { defaultValue: "等待任务数据…" })}
+            </div>
+          )}
+        </div>
+      ) : null}
+    </div>
+  );
+};
+
 const ToolInvocationCard = ({
   toolInvocation,
 }: {
-  toolInvocation: {
-    args: any;
-    result?: unknown;
-    state: string;
-    step?: number;
-    toolCallId: string;
-    toolName: string;
-  };
+  toolInvocation: TimelineToolInvocation;
   messageId: string;
   onUpdateMessage?: (messageId: string, content: {
     text: string;
@@ -1034,6 +1282,14 @@ export const MessageItem: React.FC<MessageItemProps> = ({
                   {/* 修改工具调用卡片的渲染 */}
                   {message.parts?.map((part, index) => {
                     if (part.type === "tool-invocation") {
+                      if (isTodoWriteTool(part.toolInvocation.toolName)) {
+                        return (
+                          <TodoProgressCard
+                            key={index}
+                            toolInvocation={part.toolInvocation}
+                          />
+                        );
+                      }
                       return (
                         <ToolInvocationCard
                           key={index}
@@ -1101,7 +1357,16 @@ export const MessageItem: React.FC<MessageItemProps> = ({
 
                         if (language === "arc-tool") {
                           try {
-                            const invocation = safeJsonParse(decodeTimelinePayload(content));
+                            const invocation = safeJsonParse(
+                              decodeTimelinePayload(content),
+                            ) as TimelineToolInvocation;
+                            if (isTodoWriteTool(invocation.toolName)) {
+                              return (
+                                <TodoProgressCard
+                                  toolInvocation={invocation}
+                                />
+                              );
+                            }
                             return (
                               <ToolInvocationCard
                                 toolInvocation={invocation}
