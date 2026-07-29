@@ -51,7 +51,38 @@
             <artifactId>spring-boot-starter-web</artifactId>
         </dependency>
 
+        <!-- sa-token 登录态持久化到 Redis：进程重启 token 不失效（无 Redis 时应用可启动，登录时才报错） -->
+        <dependency>
+            <groupId>cn.dev33</groupId>
+            <artifactId>sa-token-dao-redis-jackson</artifactId>
+            <version>${satoken.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-redis</artifactId>
+        </dependency>
+
     </dependencies>
 
+    <build>
+        <plugins>
+            <!-- 可执行 fat jar：java -jar copilot-admin-*.jar 直接启动 -->
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+                <version>${spring-boot.version}</version>
+                <configuration>
+                    <mainClass>com.alibaba.cloud.ai.copilot.CopilotApplication</mainClass>
+                </configuration>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>repackage</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
 
 </project>

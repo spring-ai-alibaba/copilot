@@ -153,6 +153,17 @@ public class ConversationServiceImpl extends ServiceImpl<ConversationMapper, Con
     }
 
     @Override
+    public List<String> listConversationIds(Long userId) {
+        return list(new LambdaQueryWrapper<ConversationEntity>()
+            .select(ConversationEntity::getConversationId)
+            .eq(ConversationEntity::getUserId, userId)
+            .eq(ConversationEntity::getDelFlag, 0))
+            .stream()
+            .map(ConversationEntity::getConversationId)
+            .collect(Collectors.toList());
+    }
+
+    @Override
     @Transactional(rollbackFor = Exception.class)
     public void incrementMessageCount(String conversationId) {
         // 使用数据库原子操作，避免并发问题

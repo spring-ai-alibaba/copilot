@@ -5,7 +5,9 @@ import com.alibaba.cloud.ai.copilot.config.AppProperties;
 import com.alibaba.cloud.ai.copilot.domain.dto.ChatRequest;
 import com.alibaba.cloud.ai.copilot.domain.dto.CreateConversationRequest;
 import com.alibaba.cloud.ai.copilot.domain.entity.ChatMessageEntity;
+import com.alibaba.cloud.ai.copilot.domain.entity.SkillUsageLogEntity;
 import com.alibaba.cloud.ai.copilot.knowledge.service.KnowledgeAvailabilityChecker;
+import com.alibaba.cloud.ai.copilot.mapper.SkillUsageLogMapper;
 import com.alibaba.cloud.ai.copilot.satoken.utils.LoginHelper;
 import com.alibaba.cloud.ai.copilot.service.ChatService;
 import com.alibaba.cloud.ai.copilot.service.ConversationService;
@@ -23,23 +25,27 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
+import reactor.core.Disposable;
 import reactor.core.publisher.Flux;
 
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * 聊天服务实现（agentscope 2.0 + AG-UI 协议）。
  *
  * <p>每个请求：动态构建 {@link HarnessAgent} → 用 {@link AguiAgentAdapter} 把
- * agent.streamEvents() 的 AgentEvent 流转成 AG-UI {@link AguiEvent} 流 → 经
+ * agent.streamEvents() 的 AgentEvent 流转成 AG-UI {@link AguiEvent} 流 → 经 SSE 下发。</p>
  *
- * <p>工具调用全程流式：AG-UI 的 TOOL_CALL_START / TOOL_CALL_ARGS(delta) /
- * TOOL_CALL_END / TOOL_CALL_RESULT 事件逐帧下发，前端可在工具执行过程中
- * 实时看到参数增量与结果——这正是原 spring-ai-alibaba 框架做不到的。</p>
+ * <p>安全：携带已有 conversationId 时先做归属校验，防止劫持他人会话；
+ * SSE 断开/超时即取消 agent 流，避免服务端空跑消耗模型 token。</p>
  */
 @Slf4j
 @Service
@@ -50,8 +56,12 @@ public class ChatServiceImpl implements ChatService {
     private final SseEventService sseEventService;
     private final ConversationService conversationService;
     private final ChatMessageMapper chatMessageMapper;
+    private final SkillUsageLogMapper skillUsageLogMapper;
     private final AppProperties appProperties;
     private final KnowledgeAvailabilityChecker knowledgeAvailabilityChecker;
+
+    /** 需要记录使用日志的技能相关工具 */
+    private static final Set<String> SKILL_TOOLS = Set.of("load_skill_through_path", "search_skills");
 
     @Override
     public void handleBuilderMode(ChatRequest request, SseEmitter emitter) {
@@ -65,6 +75,8 @@ public class ChatServiceImpl implements ChatService {
                 conversationId = conversationService.createConversation(userIdLong, createRequest);
                 log.info("创建新会话: conversationId={}, userId={}", conversationId, userIdLong);
             } else {
+                // 归属校验：禁止携带他人 conversationId 继续对话（否则可劫持他人会话历史与文件目录）
+                conversationService.checkConversationPermission(conversationId, LoginHelper.getUserId());
                 log.debug("使用现有会话: conversationId={}", conversationId);
             }
 
@@ -88,11 +100,10 @@ public class ChatServiceImpl implements ChatService {
             // 4. 发送会话ID到前端
             sseEventService.sendConversationId(emitter, finalConversationId);
 
-            // 5. 构建动态 agent
-            HarnessAgent agent = agentFactory.buildAgent(request.getModelConfigId());
+            // 5. 构建动态 agent（沙箱根=会话目录）
+            HarnessAgent agent = agentFactory.buildAgent(request.getModelConfigId(), finalConversationId);
 
-            // 6. 构建 AG-UI 输入：threadId=conversationId（供历史 Middleware 定位会话），
-            //    forwardedProps 携带 modelConfigId / 偏好开关，供阶段2 的 Middleware 读取
+            // 6. 构建 AG-UI 输入：threadId=conversationId
             String runId = UUID.randomUUID().toString();
             String messageId = UUID.randomUUID().toString();
             Map<String, Object> forwardedProps = new java.util.HashMap<>();
@@ -111,7 +122,7 @@ public class ChatServiceImpl implements ChatService {
                     .forwardedProps(forwardedProps)
                     .build();
 
-            // 7. AG-UI 适配器：开启工具调用参数流式（emitToolCallArgs）与思考链（enableReasoning）
+            // 7. AG-UI 适配器：开启工具调用参数流式与思考链
             AguiAdapterConfig adapterConfig = AguiAdapterConfig.builder()
                     .emitToolCallArgs(true)
                     .enableReasoning(true)
@@ -119,24 +130,46 @@ public class ChatServiceImpl implements ChatService {
                     .build();
             AguiAgentAdapter adapter = new AguiAgentAdapter(agent, adapterConfig);
 
-            // 8. 订阅 AG-UI 事件流，逐帧编码为 SSE 发往前端；并累积 assistant 文本以便落库
+            // 8. 订阅 AG-UI 事件流；累积 assistant 文本；追踪技能工具调用
             final AtomicReference<StringBuilder> assistantText = new AtomicReference<>(new StringBuilder());
+            final Map<String, String> skillCallNames = new ConcurrentHashMap<>();
+            final Map<String, StringBuilder> skillCallArgs = new ConcurrentHashMap<>();
 
             Flux<AguiEvent> aguiEvents = adapter.run(runInput);
-            aguiEvents.subscribe(
-                    event -> sendAguiEvent(emitter, event, assistantText),
+            Disposable subscription = aguiEvents.subscribe(
+                    event -> {
+                        trackSkillUsage(event, skillCallNames, skillCallArgs);
+                        sendAguiEvent(emitter, event, assistantText);
+                    },
                     error -> {
                         log.error("Agent 执行出错: conversationId={}", finalConversationId, error);
+                        persistSkillUsage(finalConversationId, userIdLong, skillCallNames, skillCallArgs);
                         sseEventService.sendComplete(emitter);
                     },
                     () -> {
-                        // 流完成：落库 assistant 文本 + 更新会话标题
+                        // 流完成：落库 assistant 文本 + 技能使用日志 + 更新会话标题
                         saveAssistantMessage(finalConversationId, assistantText.get().toString());
+                        persistSkillUsage(finalConversationId, userIdLong, skillCallNames, skillCallArgs);
                         updateConversationTitleIfNeeded(finalConversationId, userMessageContent, userIdLong);
                         sseEventService.sendComplete(emitter);
                     }
             );
 
+            // 客户端断开/超时即取消 agent 流，避免服务端继续空跑消耗模型 token。
+            // 正常完成时 onCompletion 也会触发 dispose，对已终止的流是无害幂等操作。
+            Runnable cancel = () -> {
+                if (!subscription.isDisposed()) {
+                    log.info("SSE 连接结束，取消 agent 执行: conversationId={}", finalConversationId);
+                    subscription.dispose();
+                }
+            };
+            emitter.onCompletion(cancel);
+            emitter.onTimeout(cancel);
+            emitter.onError(t -> cancel.run());
+
+        } catch (IllegalArgumentException e) {
+            log.warn("聊天请求被拒绝: {}", e.getMessage());
+            sseEventService.sendComplete(emitter);
         } catch (Exception e) {
             log.error("Unexpected error in builder mode", e);
             sseEventService.sendComplete(emitter);
@@ -145,18 +178,14 @@ public class ChatServiceImpl implements ChatService {
 
     /**
      * 把单个 AG-UI 事件编码为 SSE 帧并发送。
-     * 直接用 agentscope JsonUtils 序列化为 JSON 作为 SSE data，事件类型名作为 SSE event 字段，
-     * 便于前端按名订阅。累积 assistant 文本用于落库。
      */
     private void sendAguiEvent(SseEmitter emitter, AguiEvent event, AtomicReference<StringBuilder> assistantText) {
         try {
-            // 累积 assistant 文本（用于落库）
             if (event instanceof AguiEvent.TextMessageContent tmc) {
                 if (tmc.delta() != null) {
                     assistantText.get().append(tmc.delta());
                 }
             }
-            // 序列化为 JSON 并下发（SSE 帧：event:<TYPE>\ndata:<json>\n\n）
             String json = JsonUtils.getJsonCodec().toJson(event);
             emitter.send(SseEmitter.event()
                     .name(event.getType().name())
@@ -167,7 +196,63 @@ public class ChatServiceImpl implements ChatService {
     }
 
     /**
-     * 落库 assistant 消息（阶段1 仅文本；tool_calls 链还原在阶段2 SaveMiddleware 接入）。
+     * 追踪技能相关工具调用（load_skill_through_path / search_skills）的流式参数。
+     */
+    private void trackSkillUsage(AguiEvent event,
+                                 Map<String, String> names, Map<String, StringBuilder> args) {
+        if (event instanceof AguiEvent.ToolCallStart start) {
+            if (SKILL_TOOLS.contains(start.toolCallName())) {
+                names.put(start.toolCallId(), start.toolCallName());
+                args.put(start.toolCallId(), new StringBuilder());
+            }
+        } else if (event instanceof AguiEvent.ToolCallArgs argEv) {
+            StringBuilder sb = args.get(argEv.toolCallId());
+            if (sb != null && argEv.delta() != null) {
+                sb.append(argEv.delta());
+            }
+        }
+    }
+
+    /**
+     * 把本次 run 追踪到的技能使用记录落库（幂等：落库后清空追踪表）。
+     */
+    private void persistSkillUsage(String conversationId, Long userId,
+                                   Map<String, String> names, Map<String, StringBuilder> args) {
+        try {
+            for (Map.Entry<String, String> e : names.entrySet()) {
+                String raw = args.getOrDefault(e.getKey(), new StringBuilder()).toString();
+                String skillId = extractJsonField(raw, "skillId");
+                if (skillId == null) {
+                    // search_skills 记 query 作为标识；解析失败记 unknown
+                    skillId = extractJsonField(raw, "query");
+                }
+                SkillUsageLogEntity row = new SkillUsageLogEntity();
+                row.setConversationId(conversationId);
+                row.setUserId(userId);
+                row.setSkillId(skillId != null ? skillId : "unknown");
+                row.setToolName(e.getValue());
+                row.setCreatedTime(LocalDateTime.now());
+                skillUsageLogMapper.insert(row);
+            }
+        } catch (Exception ex) {
+            log.warn("技能使用日志落库失败: conversationId={}, err={}", conversationId, ex.getMessage());
+        } finally {
+            names.clear();
+            args.clear();
+        }
+    }
+
+    /** 从（可能不完整的）JSON 参数串里提取字符串字段值 */
+    private String extractJsonField(String json, String field) {
+        if (json == null) {
+            return null;
+        }
+        Matcher m = Pattern.compile("\"" + field + "\"\\s*:\\s*\"([^\"]+)\"").matcher(json);
+        return m.find() ? m.group(1) : null;
+    }
+
+    /**
+     * 落库 assistant 消息（阶段1 仅文本）。
      */
     private void saveAssistantMessage(String conversationId, String content) {
         if (content == null || content.isBlank()) {
