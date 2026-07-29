@@ -1,0 +1,9 @@
+[
+  {"id": "A1", "query": "帮我做一个产品介绍落地页", "expect": ["frontend-style"]},
+  {"id": "B1", "query": "用 Vue 写一个用户管理页面", "expect": ["vue-element-page"]},
+  {"id": "C1", "query": "帮我写一个商品管理的增删改查接口", "expect": ["java-crud"]},
+  {"id": "D1", "query": "帮我设计一个电商订单的表结构", "expect": ["db-schema-design"]},
+  {"id": "E1", "query": "你好，你能做什么", "expect": []},
+  {"id": "F3", "query": "设计好博客系统的表以后把文章的 CRUD 接口也写了", "expect": ["db-schema-design", "java-crud"]},
+  {"id": "M1", "query": "帮我写一个 git 提交信息：修复了登录超时的bug", "expect": ["git-commit-style"]}
+]

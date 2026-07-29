@@ -74,7 +74,18 @@ public class LoginHelper {
         try {
             userId = Convert.toLong(SaHolder.getStorage().get(USER_KEY));
             if (ObjectUtil.isNull(userId)) {
-                userId = Convert.toLong(StpUtil.getExtra(USER_KEY));
+                try {
+                    userId = Convert.toLong(StpUtil.getExtra(USER_KEY));
+                } catch (Exception ignore) {
+                    // 默认 token 模式下 getExtra 抛 ApiDisabledException（extra 仅 jwt 模式支持），忽略后走兜底
+                }
+            }
+            if (ObjectUtil.isNull(userId)) {
+                // 默认 token 模式下 getExtra 恒为 null（extra 仅 jwt 模式生效），从 token 会话中的 LoginUser 兜底
+                LoginUser loginUser = getLoginUser();
+                userId = loginUser != null ? loginUser.getUserId() : null;
+            }
+            if (ObjectUtil.isNotNull(userId)) {
                 SaHolder.getStorage().set(USER_KEY, userId);
             }
         } catch (Exception e) {
