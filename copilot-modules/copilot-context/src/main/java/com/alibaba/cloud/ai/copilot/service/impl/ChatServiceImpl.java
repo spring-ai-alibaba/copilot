@@ -20,6 +20,7 @@ import io.agentscope.core.agui.model.RunAgentInput;
 import io.agentscope.core.agent.Agent;
 import io.agentscope.core.message.ToolCallState;
 import io.agentscope.core.message.ToolUseBlock;
+import io.agentscope.core.permission.PermissionMode;
 import io.agentscope.core.state.AgentState;
 import io.agentscope.core.util.JsonUtils;
 import io.agentscope.harness.agent.HarnessAgent;
@@ -30,6 +31,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 import reactor.core.publisher.Flux;
 
+import java.io.BufferedReader;
 import java.io.IOException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
@@ -45,7 +47,9 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Matcher;
@@ -67,9 +71,14 @@ import java.util.regex.Pattern;
 public class ChatServiceImpl implements ChatService {
 
     private static final int MAX_PLAN_CONTENT_LENGTH = 100_000;
+    private static final int MAX_GIT_STATUS_LENGTH = 20_000;
+    private static final int MAX_PREVIEW_FILES = 5;
+    private static final int MAX_PREVIEW_LINES = 32;
     private static final Duration AGENT_EVENT_IDLE_TIMEOUT = Duration.ofMinutes(2);
     private static final Pattern MARKDOWN_FILE_PATTERN =
             Pattern.compile("`([^`\\n]+(?:\\.[A-Za-z0-9_-]+)(?::\\d+(?:-\\d+)?)?)`");
+    private static final Pattern FILE_LINE_RANGE_PATTERN =
+            Pattern.compile("^(.*?)(?::(\\d+)(?:-(\\d+))?)?$");
 
     private final CopilotAgentFactory agentFactory;
     private final SseEventService sseEventService;
@@ -148,11 +157,14 @@ public class ChatServiceImpl implements ChatService {
             Agent runAgent =
                     preparePlanMode(agent, finalConversationId, planModeEnabled, planAction);
             if (planAction == PlanAction.APPROVE) {
+                PlanRiskLevel riskLevel =
+                        applyPlanRiskPermission(agent, finalConversationId);
                 sendPlanStatus(
                         emitter,
                         finalConversationId,
                         "RUNNING",
-                        "计划已批准，Agent 正在进入执行阶段");
+                        "计划已批准，Agent 正在进入执行阶段；"
+                                + riskLevel.executionPolicy());
             }
 
             // 6. 构建 AG-UI 输入：threadId=conversationId（供历史 Middleware 定位会话），
@@ -382,11 +394,18 @@ public class ChatServiceImpl implements ChatService {
             }
 
             Map<String, Object> payload = new HashMap<>();
+            List<String> affectedFiles = extractAffectedFiles(content);
+            PlanRiskLevel riskLevel = assessRisk(content);
+            Path workspace = agentFactory.resolveConversationWorkspace(conversationId);
             payload.put("conversationId", conversationId);
             payload.put("planFile", planFile.toString());
             payload.put("planContent", content);
-            payload.put("affectedFiles", extractAffectedFiles(content));
-            payload.put("riskLevel", assessRisk(content));
+            payload.put("affectedFiles", affectedFiles);
+            payload.put("filePreviews", buildFilePreviews(workspace, affectedFiles));
+            payload.put("gitStatus", collectGitStatus(workspace));
+            payload.put("riskLevel", riskLevel.name());
+            payload.put("permissionMode", riskLevel.permissionMode().name());
+            payload.put("executionPolicy", riskLevel.executionPolicy());
             payload.put("status", "PENDING");
             sseEventService.sendSseEvent(emitter, "plan-review", payload);
             String payloadJson = JsonUtils.getJsonCodec().toJson(payload);
@@ -400,12 +419,12 @@ public class ChatServiceImpl implements ChatService {
         }
     }
 
-    private List<String> extractAffectedFiles(String planContent) {
+    List<String> extractAffectedFiles(String planContent) {
         Set<String> files = new LinkedHashSet<>();
         Matcher matcher = MARKDOWN_FILE_PATTERN.matcher(planContent);
         while (matcher.find()) {
             String candidate = matcher.group(1).strip();
-            if (candidate.contains("/") || candidate.contains("\\")) {
+            if (isLikelyWorkspaceFile(candidate)) {
                 files.add(candidate);
             }
         }
@@ -421,14 +440,23 @@ public class ChatServiceImpl implements ChatService {
             String candidate = cells[1].strip().replace("`", "");
             if (!candidate.equalsIgnoreCase("文件")
                     && !candidate.matches("-+")
-                    && (candidate.contains("/") || candidate.contains("\\"))) {
+                    && isLikelyWorkspaceFile(candidate)) {
                 files.add(candidate);
             }
         }
         return new ArrayList<>(files);
     }
 
-    private String assessRisk(String planContent) {
+    private boolean isLikelyWorkspaceFile(String candidate) {
+        return candidate != null
+                && !candidate.isBlank()
+                && !candidate.contains(" ")
+                && !candidate.contains("://")
+                && candidate.matches(
+                        ".+\\.[A-Za-z0-9_-]+(?::\\d+(?:-\\d+)?)?");
+    }
+
+    PlanRiskLevel assessRisk(String planContent) {
         String normalized = planContent.lines()
                 .filter(line -> !line.stripLeading().startsWith("- [ ]"))
                 .reduce("", (left, right) -> left + "\n" + right)
@@ -441,7 +469,7 @@ public class ChatServiceImpl implements ChatService {
                 "delete_file",
                 "删除文件",
                 "不可逆")) {
-            return "HIGH";
+            return PlanRiskLevel.HIGH;
         }
         if (containsAny(
                 normalized,
@@ -452,9 +480,182 @@ public class ChatServiceImpl implements ChatService {
                 "数据库",
                 "并发",
                 "线程安全")) {
-            return "MEDIUM";
+            return PlanRiskLevel.MEDIUM;
         }
-        return "LOW";
+        return PlanRiskLevel.LOW;
+    }
+
+    private PlanRiskLevel applyPlanRiskPermission(
+            HarnessAgent agent, String conversationId) {
+        Path planFile = agentFactory.resolvePlanFile(conversationId);
+        try {
+            String content = Files.readString(planFile, StandardCharsets.UTF_8);
+            PlanRiskLevel riskLevel = assessRisk(content);
+            agent.setPermissionMode(
+                    null,
+                    conversationId,
+                    riskLevel.permissionMode());
+            log.info(
+                    "按计划风险设置执行权限: conversationId={}, risk={}, permissionMode={}",
+                    conversationId,
+                    riskLevel,
+                    riskLevel.permissionMode());
+            return riskLevel;
+        } catch (IOException e) {
+            throw new IllegalStateException("读取计划风险失败，请重新生成计划", e);
+        }
+    }
+
+    String collectGitStatus(Path workspace) {
+        if (workspace == null || !Files.isDirectory(workspace)) {
+            return "会话工作区不存在，无法读取 Git 状态";
+        }
+
+        try {
+            Path normalizedWorkspace = workspace.toAbsolutePath().normalize();
+            Process rootProcess = new ProcessBuilder(
+                    "git",
+                    "-C",
+                    normalizedWorkspace.toString(),
+                    "rev-parse",
+                    "--show-toplevel")
+                    .redirectErrorStream(true)
+                    .start();
+            if (!rootProcess.waitFor(3, TimeUnit.SECONDS)) {
+                rootProcess.destroyForcibly();
+                return "Git 状态读取超时";
+            }
+            String rootOutput = new String(
+                    rootProcess.getInputStream().readNBytes(MAX_GIT_STATUS_LENGTH),
+                    StandardCharsets.UTF_8).strip();
+            if (rootProcess.exitValue() != 0
+                    || rootOutput.isBlank()
+                    || !Path.of(rootOutput).toAbsolutePath().normalize()
+                            .equals(normalizedWorkspace)) {
+                return "当前会话工作区不是 Git 仓库";
+            }
+
+            Process process = new ProcessBuilder(
+                    "git",
+                    "-C",
+                    normalizedWorkspace.toString(),
+                    "status",
+                    "--short",
+                    "--branch",
+                    "--untracked-files=normal")
+                    .redirectErrorStream(true)
+                    .start();
+            CompletableFuture<String> outputFuture = CompletableFuture.supplyAsync(() -> {
+                try {
+                    byte[] bytes = process.getInputStream().readNBytes(MAX_GIT_STATUS_LENGTH);
+                    return new String(bytes, StandardCharsets.UTF_8).strip();
+                } catch (IOException e) {
+                    return "";
+                }
+            });
+
+            if (!process.waitFor(3, TimeUnit.SECONDS)) {
+                process.destroyForcibly();
+                return "Git 状态读取超时";
+            }
+            String output = outputFuture.get(1, TimeUnit.SECONDS);
+            if (process.exitValue() != 0) {
+                return "当前会话工作区不是 Git 仓库";
+            }
+            return output.isBlank() ? "工作区干净，没有未提交改动" : output;
+        } catch (Exception e) {
+            log.debug("读取 Git 状态失败: workspace={}, error={}", workspace, e.getMessage());
+            return "Git 状态暂不可用";
+        }
+    }
+
+    List<PlanFilePreview> buildFilePreviews(
+            Path workspace, List<String> affectedFiles) {
+        if (workspace == null || affectedFiles == null || affectedFiles.isEmpty()) {
+            return List.of();
+        }
+
+        Path normalizedWorkspace = workspace.toAbsolutePath().normalize();
+        List<PlanFilePreview> previews = new ArrayList<>();
+        for (String reference : affectedFiles.stream().limit(MAX_PREVIEW_FILES).toList()) {
+            previews.add(buildFilePreview(normalizedWorkspace, reference));
+        }
+        return previews;
+    }
+
+    private PlanFilePreview buildFilePreview(Path workspace, String reference) {
+        Matcher matcher = FILE_LINE_RANGE_PATTERN.matcher(reference.strip());
+        if (!matcher.matches()) {
+            return PlanFilePreview.unavailable(reference, "无法解析文件路径");
+        }
+
+        String pathText = matcher.group(1).replace('\\', '/');
+        int requestedStart = parsePositiveInt(matcher.group(2), 1);
+        int requestedEnd = parsePositiveInt(
+                matcher.group(3),
+                requestedStart + MAX_PREVIEW_LINES - 1);
+        int endLine = Math.min(
+                Math.max(requestedStart, requestedEnd),
+                requestedStart + MAX_PREVIEW_LINES - 1);
+
+        try {
+            Path relativePath = Path.of(pathText);
+            if (relativePath.isAbsolute()) {
+                return PlanFilePreview.unavailable(reference, "仅展示工作区内的相对路径");
+            }
+            Path resolved = workspace.resolve(relativePath).normalize();
+            if (!resolved.startsWith(workspace)) {
+                return PlanFilePreview.unavailable(reference, "路径超出会话工作区");
+            }
+            if (!Files.isRegularFile(resolved)) {
+                return PlanFilePreview.unavailable(reference, "计划引用的文件当前不存在");
+            }
+
+            StringBuilder snippet = new StringBuilder();
+            int actualEnd = requestedStart - 1;
+            try (BufferedReader reader = Files.newBufferedReader(
+                    resolved, StandardCharsets.UTF_8)) {
+                int lineNumber = 1;
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    if (lineNumber >= requestedStart && lineNumber <= endLine) {
+                        snippet.append(String.format(
+                                Locale.ROOT,
+                                "%4d | %s%n",
+                                lineNumber,
+                                line));
+                        actualEnd = lineNumber;
+                    }
+                    if (lineNumber >= endLine) {
+                        break;
+                    }
+                    lineNumber++;
+                }
+            }
+
+            if (snippet.isEmpty()) {
+                return PlanFilePreview.unavailable(reference, "指定行范围暂无内容");
+            }
+            return new PlanFilePreview(
+                    reference,
+                    requestedStart,
+                    actualEnd,
+                    snippet.toString().stripTrailing(),
+                    "AVAILABLE");
+        } catch (Exception e) {
+            return PlanFilePreview.unavailable(reference, "文件片段读取失败");
+        }
+    }
+
+    private int parsePositiveInt(String value, int fallback) {
+        if (value == null || value.isBlank()) {
+            return fallback;
+        }
+        try {
+            return Math.max(1, Integer.parseInt(value));
+        } catch (NumberFormatException e) {
+            return fallback;
+        }
     }
 
     private boolean containsAny(String content, String... keywords) {
@@ -464,6 +665,47 @@ public class ChatServiceImpl implements ChatService {
             }
         }
         return false;
+    }
+
+    enum PlanRiskLevel {
+        HIGH(
+                PermissionMode.DEFAULT,
+                "高风险策略：保持默认权限，敏感操作继续请求人工确认"),
+        MEDIUM(
+                PermissionMode.DONT_ASK,
+                "中风险策略：遇到需要额外确认的操作直接拒绝，避免无人值守卡住"),
+        LOW(
+                PermissionMode.BYPASS,
+                "低风险策略：批准后自动执行，显式拒绝规则仍然有效");
+
+        private final PermissionMode permissionMode;
+        private final String executionPolicy;
+
+        PlanRiskLevel(
+                PermissionMode permissionMode, String executionPolicy) {
+            this.permissionMode = permissionMode;
+            this.executionPolicy = executionPolicy;
+        }
+
+        PermissionMode permissionMode() {
+            return permissionMode;
+        }
+
+        String executionPolicy() {
+            return executionPolicy;
+        }
+    }
+
+    record PlanFilePreview(
+            String path,
+            int startLine,
+            int endLine,
+            String content,
+            String status) {
+
+        static PlanFilePreview unavailable(String path, String reason) {
+            return new PlanFilePreview(path, 0, 0, reason, "UNAVAILABLE");
+        }
     }
 
     private enum PlanAction {

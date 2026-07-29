@@ -130,7 +130,8 @@ public class CopilotAgentFactory {
         if (planModeEnabled) {
             builder.enablePlanMode()
                     .enableTaskList()
-                    .planFileDirectory(planDirectory);
+                    .planFileDirectory(planDirectory)
+                    .allowShellInPlanMode();
         }
 
         HarnessAgent agent = builder.build();
@@ -148,12 +149,19 @@ public class CopilotAgentFactory {
      */
     public Path resolvePlanFile(String conversationId) {
         String safeConversationId = sanitizeConversationId(conversationId);
-        return Paths.get(System.getProperty("user.dir"), "workspace")
-                // HarnessAgent 会先按 sessionId 创建会话工作区，
-                // planFileDirectory 再相对于该目录解析。
-                .resolve(safeConversationId)
+        return resolveConversationWorkspace(conversationId)
+                // planFileDirectory 相对于会话工作区解析。
                 .resolve(planDirectory(conversationId))
                 .resolve("PLAN.md")
+                .normalize();
+    }
+
+    /**
+     * 返回 HarnessAgent 为指定会话创建的隔离工作区。
+     */
+    public Path resolveConversationWorkspace(String conversationId) {
+        return Paths.get(System.getProperty("user.dir"), "workspace")
+                .resolve(sanitizeConversationId(conversationId))
                 .normalize();
     }
 
@@ -203,7 +211,14 @@ public class CopilotAgentFactory {
                 "【Plan Mode - 必须遵守】\n" +
                 "你当前处于严格的只读计划阶段。先探索代码库，不得修改、创建或删除业务文件，" +
                 "不得执行会改变项目状态的命令。\n" +
-                "探索完成后必须调用 plan_write，并严格使用以下 Markdown 结构：\n\n" +
+                "你可以调用 execute 执行只读 Shell 探索，但每次执行前先说明目的。\n" +
+                "允许的命令：pwd、ls、cat、head、tail、sed -n、grep/rg、find、" +
+                "git status/log/diff/show、mvn test、gradle test、npm/pnpm test。\n" +
+                "禁止的命令：任何重定向写入、tee、sed -i、rm、mv、cp、touch、mkdir、" +
+                "包安装、数据库写入、网络写操作、git add/commit/push/reset/checkout。\n" +
+                "不得用管道、子 Shell 或脚本包装绕过以上限制。\n" +
+                "探索完成后必须调用 plan_write，并严格使用以下 Markdown 结构。\n" +
+                "所有文件路径都必须使用反引号包裹，例如 `src/main/App.java:20-40`，供审批界面生成改前片段：\n\n" +
                 "## 任务理解\n" +
                 "- 要解决的问题是：\n" +
                 "- 涉及文件：（必须写实际路径，尽量带行号）\n" +
@@ -220,7 +235,8 @@ public class CopilotAgentFactory {
                 "## 风险点\n" +
                 "- [ ] 数据库 migration 或不可逆操作\n" +
                 "- [ ] 外部 API 调用\n" +
-                "- [ ] 并发或线程安全问题\n\n" +
+                "- [ ] 并发或线程安全问题\n" +
+                "存在真实风险的项目必须改为 [x] 并说明具体影响；确认不存在的项目保持 [ ] 并写明“无”。\n\n" +
                 "## 回滚方案\n" +
                 "- 如果失败，如何恢复：\n\n" +
                 "写入完整计划后调用 plan_exit 请求人工审批。在审批通过前不要开始执行。";

@@ -9,10 +9,17 @@ import com.alibaba.cloud.ai.copilot.satoken.utils.LoginHelper;
 import com.alibaba.cloud.ai.copilot.service.ConversationService;
 import com.alibaba.cloud.ai.copilot.service.SseEventService;
 import io.agentscope.core.agui.event.AguiEvent;
+import io.agentscope.core.permission.PermissionMode;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 import org.mockito.MockedStatic;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.List;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
@@ -22,15 +29,19 @@ import static org.mockito.Mockito.verifyNoInteractions;
 
 class ChatServiceImplTest {
 
-    @Test
-    void treatsPlanExitHumanConfirmationAsExpectedPause() {
-        ChatServiceImpl service = new ChatServiceImpl(
+    private ChatServiceImpl newService() {
+        return new ChatServiceImpl(
                 mock(CopilotAgentFactory.class),
                 mock(SseEventService.class),
                 mock(ConversationService.class),
                 mock(ChatMessageMapper.class),
                 mock(AppProperties.class),
                 mock(KnowledgeAvailabilityChecker.class));
+    }
+
+    @Test
+    void treatsPlanExitHumanConfirmationAsExpectedPause() {
+        ChatServiceImpl service = newService();
         AguiEvent.RunError planPause = new AguiEvent.RunError(
                 "thread",
                 "run",
@@ -45,6 +56,72 @@ class ChatServiceImplTest {
         assertTrue(service.isExpectedPlanReviewPause(planPause, true));
         assertFalse(service.isExpectedPlanReviewPause(planPause, false));
         assertFalse(service.isExpectedPlanReviewPause(realError, true));
+    }
+
+    @Test
+    void mapsPlanRiskToExecutionPermission() {
+        ChatServiceImpl service = newService();
+
+        ChatServiceImpl.PlanRiskLevel high =
+                service.assessRisk("执行数据库 migration，并包含不可逆操作");
+        ChatServiceImpl.PlanRiskLevel medium =
+                service.assessRisk("调用外部 API，并关注线程安全");
+        ChatServiceImpl.PlanRiskLevel low =
+                service.assessRisk("修改一个组件并补充单元测试");
+
+        assertEquals(ChatServiceImpl.PlanRiskLevel.HIGH, high);
+        assertEquals(PermissionMode.DEFAULT, high.permissionMode());
+        assertEquals(ChatServiceImpl.PlanRiskLevel.MEDIUM, medium);
+        assertEquals(PermissionMode.DONT_ASK, medium.permissionMode());
+        assertEquals(ChatServiceImpl.PlanRiskLevel.LOW, low);
+        assertEquals(PermissionMode.BYPASS, low.permissionMode());
+    }
+
+    @Test
+    void extractsRootAndNestedFilesFromPlan() {
+        List<String> files = newService().extractAffectedFiles("""
+                涉及文件：`demo.html`、`src/main/App.java:20-40`
+
+                | 文件 | 操作 | 影响范围 |
+                |---|---|---|
+                | `README.md` | 修改 | 说明 |
+                """);
+
+        assertEquals(
+                List.of("demo.html", "src/main/App.java:20-40", "README.md"),
+                files);
+    }
+
+    @Test
+    void buildsBoundedFilePreviewsInsideConversationWorkspace(
+            @TempDir Path workspace) throws Exception {
+        ChatServiceImpl service = newService();
+        Path source = workspace.resolve("src/Foo.java");
+        Files.createDirectories(source.getParent());
+        Files.writeString(
+                source,
+                "line 1\nline 2\nline 3\nline 4\nline 5\n");
+
+        List<ChatServiceImpl.PlanFilePreview> previews =
+                service.buildFilePreviews(
+                        workspace,
+                        List.of("src/Foo.java:2-4", "../outside.txt"));
+
+        assertEquals(2, previews.size());
+        assertEquals("AVAILABLE", previews.getFirst().status());
+        assertEquals(2, previews.getFirst().startLine());
+        assertEquals(4, previews.getFirst().endLine());
+        assertTrue(previews.getFirst().content().contains("2 | line 2"));
+        assertEquals("UNAVAILABLE", previews.get(1).status());
+        assertTrue(previews.get(1).content().contains("超出会话工作区"));
+    }
+
+    @Test
+    void explainsWhenConversationWorkspaceIsNotGitRepository(
+            @TempDir Path workspace) {
+        assertEquals(
+                "当前会话工作区不是 Git 仓库",
+                newService().collectGitStatus(workspace));
     }
 
     @Test

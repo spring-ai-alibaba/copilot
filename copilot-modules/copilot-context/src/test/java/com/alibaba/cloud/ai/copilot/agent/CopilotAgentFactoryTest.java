@@ -21,6 +21,9 @@ class CopilotAgentFactoryTest {
                 workspace.resolve(
                         "___conversation_42/plans/___conversation_42/PLAN.md"),
                 planFile);
+        assertEquals(
+                workspace.resolve("___conversation_42"),
+                factory.resolveConversationWorkspace("../conversation/42"));
         assertFalse(planFile.toString().contains("../"));
     }
 
@@ -33,5 +36,19 @@ class CopilotAgentFactoryTest {
         assertTrue(prompt.contains("完整、合法的 JSON 参数"));
         assertTrue(prompt.contains("不得超过 8000 个字符"));
         assertTrue(prompt.contains("禁止使用相同参数原样重试"));
+    }
+
+    @Test
+    void constrainsPlanShellExplorationToReadOnlyCommands() {
+        CopilotAgentFactory factory = new CopilotAgentFactory(null, null, null);
+
+        String prompt = factory.buildSystemPrompt(
+                "/workspace", "plans/session", true, true);
+
+        assertTrue(prompt.contains("只读 Shell 探索"));
+        assertTrue(prompt.contains("git status/log/diff/show"));
+        assertTrue(prompt.contains("git add/commit/push/reset/checkout"));
+        assertTrue(prompt.contains("不得用管道、子 Shell 或脚本包装绕过"));
+        assertTrue(prompt.contains("存在真实风险的项目必须改为 [x]"));
     }
 }

@@ -15,8 +15,11 @@ import { safeJsonParse } from '@/utils/safeJsonParse';
 import { AppLogo } from "@/components/AppLogo";
 import {
   Check,
+  Code2,
   FileText,
+  GitBranch,
   ListTodo,
+  LockKeyhole,
   ShieldAlert,
   X,
 } from "lucide-react";
@@ -379,7 +382,17 @@ type PlanReviewPayload = {
   planFile?: string;
   planContent: string;
   affectedFiles?: string[];
+  filePreviews?: Array<{
+    path: string;
+    startLine: number;
+    endLine: number;
+    content: string;
+    status: "AVAILABLE" | "UNAVAILABLE";
+  }>;
+  gitStatus?: string;
   riskLevel?: "LOW" | "MEDIUM" | "HIGH";
+  permissionMode?: "DEFAULT" | "DONT_ASK" | "BYPASS";
+  executionPolicy?: string;
   status?: string;
 };
 
@@ -477,6 +490,31 @@ const PlanReviewCard = ({
           </div>
         ) : null}
 
+        {review.executionPolicy ? (
+          <div className="rounded-xl border border-border/65 bg-muted/35 px-3 py-2.5">
+            <div className="flex items-start gap-2">
+              <LockKeyhole className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <span className="text-[11px] font-medium text-foreground">
+                    {t("chat.planMode.executionPolicy", {
+                      defaultValue: "批准后的执行策略",
+                    })}
+                  </span>
+                  {review.permissionMode ? (
+                    <span className="rounded bg-background px-1.5 py-0.5 font-mono text-[9px] text-muted-foreground">
+                      {review.permissionMode}
+                    </span>
+                  ) : null}
+                </div>
+                <p className="mt-0.5 text-[10px] leading-4 text-muted-foreground">
+                  {review.executionPolicy}
+                </p>
+              </div>
+            </div>
+          </div>
+        ) : null}
+
         <div className="max-h-[360px] overflow-y-auto rounded-xl border border-border/65 bg-background/70 px-3.5 py-3 [scrollbar-width:thin]">
           <div className="arc-message-markdown prose prose-sm max-w-none text-foreground dark:prose-invert">
             <ReactMarkdown remarkPlugins={[remarkGfm]}>
@@ -484,6 +522,54 @@ const PlanReviewCard = ({
             </ReactMarkdown>
           </div>
         </div>
+
+        {review.gitStatus ? (
+          <div>
+            <div className="mb-1.5 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+              <GitBranch className="h-3 w-3" />
+              {t("chat.planMode.gitStatus", { defaultValue: "当前 Git 状态" })}
+            </div>
+            <pre className="max-h-32 overflow-auto whitespace-pre-wrap rounded-xl border border-border/65 bg-muted/35 px-3 py-2 font-mono text-[10px] leading-4 text-foreground/75 [scrollbar-width:thin]">
+              {review.gitStatus}
+            </pre>
+          </div>
+        ) : null}
+
+        {review.filePreviews?.length ? (
+          <div>
+            <div className="mb-1.5 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+              <Code2 className="h-3 w-3" />
+              {t("chat.planMode.filePreviews", { defaultValue: "改前文件片段" })}
+            </div>
+            <div className="space-y-1.5">
+              {review.filePreviews.map((preview, index) => (
+                <details
+                  key={`${preview.path}-${index}`}
+                  className="group overflow-hidden rounded-xl border border-border/65 bg-background/70"
+                >
+                  <summary className="cursor-pointer select-none px-3 py-2 font-mono text-[10px] text-foreground/80 marker:text-muted-foreground">
+                    {preview.path}
+                    {preview.status === "AVAILABLE" ? (
+                      <span className="ml-2 font-sans text-[9px] text-muted-foreground">
+                        L{preview.startLine}–L{preview.endLine}
+                      </span>
+                    ) : null}
+                  </summary>
+                  <pre
+                    className={classNames(
+                      "max-h-56 overflow-auto border-t border-border/60 px-3 py-2 font-mono text-[10px] leading-4 [scrollbar-width:thin]",
+                      preview.status === "AVAILABLE"
+                        ? "bg-muted/30 text-foreground/75"
+                        : "bg-amber-500/[0.045] text-muted-foreground",
+                    )}
+                  >
+                    {preview.content}
+                  </pre>
+                </details>
+              ))}
+            </div>
+          </div>
+        ) : null}
 
         {showFeedback && !submittedAction ? (
           <div className="rounded-xl border border-border/70 bg-muted/35 p-2.5">
