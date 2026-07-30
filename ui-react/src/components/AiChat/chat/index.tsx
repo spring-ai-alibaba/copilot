@@ -731,7 +731,7 @@ export const BaseChat = ({uuid: propUuid}: { uuid?: string }) => {
                             transformedText += flushToolCall(toolCallId, state);
                         });
                         toolCallStates.clear();
-                        transformedText += 'data: [DONE]\n\n';
+                        // 注意：这里是纯文本流，不能再拼 SSE 结束标记（会原样显示在消息里）
                         break;
                     }
                     case 'RUN_ERROR': {
