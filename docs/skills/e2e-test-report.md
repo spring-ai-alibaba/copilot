@@ -156,3 +156,48 @@
 5. 测试完成后 DELETE /api/mcp/{id} 正常断连清除。
 
 注意：MCP 工具的能力边界（如 filesystem server 可访问哪些目录）由管理员在 configJson 里配置，独立于会话沙箱，添加高权限 server 时需自行评估。
+
+## 七、技能页体验完善轮（2026-07-29 第二批）
+
+### 改动清单
+
+| 事项 | 说明 |
+|---|---|
+| 技能启停开关 | 共享技能：目录在 workspace/skills ↔ workspace/skills-disabled 间移动（注意：框架 FileSystemSkillRepository 扫描全部子目录且技能名取自 frontmatter，**目录名前缀方案无效**，实测踩坑后改为移出扫描根）；市场技能：改 skill_market.enabled 字段。均下一次 agent 构建生效 |
+| 草稿编辑后晋升 | 审核弹窗新增编辑模式（PUT /api/skills/drafts/{name}/content），改完保存再晋升，晋升产物即编辑后版本 |
+| 最近技能检索词 | search_skills 的查询词按频次聚合展示（GET /api/skills/search-queries），高频未命中词=新技能需求信号 |
+| Markdown 渲染 | SKILL.md 预览默认渲染（frontmatter 单独展示为元信息块），可切换"渲染/原文"，草稿与已生效技能通用 |
+
+### 验证记录（真实请求 + 无头浏览器）
+
+| 验证项 | 结果 |
+|---|---|
+| 停用 frontend-style → 聊天"做落地页" | ✅ 不加载任何技能（此前该请求必中 frontend-style） |
+| 重新启用 → golden set A1/E1/M1 | ✅ recall 3/3 |
+| 市场技能下架/上架（enabled 字段） | ✅ 表值随开关变化，repo 层 enabled=1 过滤天然生效 |
+| 草稿 UI 编辑→保存→晋升 | ✅ 晋升到共享库的内容为编辑后版本（描述与正文均为 v2） |
+| 页面渲染 | ✅ 5 个启停开关、使用统计、草稿徽标、检索词标签（"做一个 Excel 报表 ×1"）、Markdown 预览均正常 |
+| MCP 回归 | ✅ memory(9)/sequential-thinking(1)/fetch(1)/time(2) 连接正常（fetch 记录曾被手动删除，已重建） |
+| 多租户隔离回归 | ✅ tester 工作区仍为空 |
+
+### 踩坑记录
+
+- 框架 FileSystemSkillRepository 用 Files.list 扫描全部子目录、技能名取 SKILL.md frontmatter——"改目录名停用"不可行，必须把目录移出扫描根。
+- antd 纯文本双字按钮会渲染成"取 消"（自动插空格），Playwright getByRole 按钮名匹配需注意；getByRole name 默认子串匹配，"审核"会命中侧栏"技能审核"Tab。
+
+## 八、测试缺口补全轮（2026-07-30）
+
+针对"哪些改动没有被真实流程覆盖"的自查，本轮补齐全部缺口：
+
+| 缺口 | 结果 |
+|---|---|
+| golden set 全量（runner 扩充至 22 条：A1-A3/A5、B1-B4、C1-C4、D1-D3、E1-E4、F1/F3、M1） | ✅ **recall 22/22**，负样本 0 误触发；自发技能组合：B2 三技能、C1/C2/C4 双技能、F1 三技能链式 |
+| 编辑→晋升连续 UI 流（一次不间断的浏览器操作） | ✅ 审核→编辑→保存→同行晋升，晋升产物为编辑后 v2 内容 |
+| sequential-thinking 聊天实测 | ✅ 两步思考解出水池问题（2 小时），工具真实调用 2 次 |
+| fetch 聊天实测（重建后） | ✅ 抓取 example.com 返回标题 |
+| SSE 断开取消回归 | ✅ 杀掉客户端后日志出现"SSE 连接结束，取消 agent 执行" |
+
+### 本轮顺带发现并修复
+
+- **Esc 关闭整个设置页的 UX bug**：设置页有全局 Escape 监听，弹窗内按 Esc 会连设置页一起退出（无头浏览器测试中撞出，截图实锤）。修复：有 antd 弹层打开时 Esc 只交给弹层处理。
+- 说明：A4（多轮上下文）与 F2（双答案均可）不适合自动判定，未纳入 runner；A4 的多轮能力在三点五节 R3 已人工验证过。

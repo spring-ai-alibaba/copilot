@@ -141,7 +141,8 @@
       "knowledgeDescription": "知识来源与检索配置",
       "promptsDescription": "可复用的任务指令",
       "memoryDescription": "偏好学习与长期记忆",
-      "storageNote": "设置会保存在当前浏览器中；需要后端同步的项目已在接口文档中标记。"
+      "storageNote": "设置会保存在当前浏览器中；需要后端同步的项目已在接口文档中标记。",
+      "skillsDescription": "agent 起草技能的人工晋升闸门"
     },
     "language": "语言",
     "general": "常规",
@@ -314,7 +315,54 @@
         "password": "数据库密码"
       }
     },
-    "themeSystem": "跟随系统"
+    "themeSystem": "跟随系统",
+    "Skills": "技能审核",
+    "skills": {
+      "draftsTitle": "待审核技能草稿",
+      "draftsHint": "agent 在对话中通过 propose_skill 起草的技能会出现在这里，晋升后对所有会话生效；驳回将删除草稿。",
+      "refresh": "刷新",
+      "view": "查看",
+      "promote": "晋升",
+      "reject": "驳回",
+      "promoteConfirm": "确认晋升为正式技能？下一轮对话即生效",
+      "rejectConfirm": "确认驳回并删除该草稿？",
+      "promoteSuccess": "已晋升为正式技能",
+      "promoteError": "晋升失败",
+      "rejectSuccess": "已驳回删除",
+      "rejectError": "驳回失败",
+      "loadError": "加载失败",
+      "empty": "暂无待审核草稿",
+      "sharedSource": "共享目录",
+      "columns": {
+        "name": "技能名",
+        "description": "描述",
+        "source": "来源会话",
+        "actions": "操作",
+        "skillSource": "来源",
+        "usage": "使用次数",
+        "lastUsed": "最近使用",
+        "enabled": "启用"
+      },
+      "activeTitle": "已生效技能",
+      "activeHint": "对所有会话可用：共享技能库 workspace/skills + MySQL 技能市场（skill_market 表）。技能内容以文件/数据库为准，建议走 git 管理。",
+      "activeEmpty": "暂无技能",
+      "sourceMarket": "技能市场",
+      "sourceWorkspace": "共享目录",
+      "searchPlaceholder": "搜索技能名或描述",
+      "neverUsed": "从未使用",
+      "review": "审核",
+      "edit": "编辑",
+      "save": "保存",
+      "rendered": "渲染",
+      "raw": "原文",
+      "saveSuccess": "已保存",
+      "saveError": "保存失败",
+      "enableSuccess": "已启用，下一条消息生效",
+      "disableSuccess": "已停用，下一条消息生效",
+      "toggleError": "操作失败",
+      "queriesTitle": "最近技能检索词",
+      "queriesHint": "用户/模型通过 search_skills 检索过的关键词。高频出现但没有技能命中的词，就是值得新写技能的需求信号。"
+    }
   },
   "memory": {
     "chat": {

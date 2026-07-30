@@ -163,7 +163,8 @@
       "knowledgeDescription": "Knowledge sources and retrieval",
       "promptsDescription": "Reusable task instructions",
       "memoryDescription": "Preference learning and long-term memory",
-      "storageNote": "Settings are saved in this browser. Items that require backend sync are marked in the API notes."
+      "storageNote": "Settings are saved in this browser. Items that require backend sync are marked in the API notes.",
+      "skillsDescription": "Human promotion gate for agent-drafted skills"
     },
     "language": "Language",
     "general": "General",
@@ -335,6 +336,53 @@
         "username": "Database Username",
         "password": "Database Password"
       }
+    },
+    "Skills": "Skill Review",
+    "skills": {
+      "draftsTitle": "Pending skill drafts",
+      "draftsHint": "Skills drafted by the agent via propose_skill appear here. Promoting makes them effective for all conversations; rejecting deletes the draft.",
+      "refresh": "Refresh",
+      "view": "View",
+      "promote": "Promote",
+      "reject": "Reject",
+      "promoteConfirm": "Promote to an official skill? Effective from the next turn",
+      "rejectConfirm": "Reject and delete this draft?",
+      "promoteSuccess": "Promoted",
+      "promoteError": "Promote failed",
+      "rejectSuccess": "Rejected and deleted",
+      "rejectError": "Reject failed",
+      "loadError": "Load failed",
+      "empty": "No pending drafts",
+      "sharedSource": "shared",
+      "columns": {
+        "name": "Name",
+        "description": "Description",
+        "source": "Source",
+        "actions": "Actions",
+        "skillSource": "Source",
+        "usage": "Uses",
+        "lastUsed": "Last used",
+        "enabled": "Enabled"
+      },
+      "activeTitle": "Active skills",
+      "activeHint": "Available to all conversations: shared library workspace/skills + MySQL skill market (skill_market table).",
+      "activeEmpty": "No skills",
+      "sourceMarket": "Market",
+      "sourceWorkspace": "Workspace",
+      "searchPlaceholder": "Search name or description",
+      "neverUsed": "never",
+      "review": "Review",
+      "edit": "Edit",
+      "save": "Save",
+      "rendered": "Rendered",
+      "raw": "Raw",
+      "saveSuccess": "Saved",
+      "saveError": "Save failed",
+      "enableSuccess": "Enabled (next message)",
+      "disableSuccess": "Disabled (next message)",
+      "toggleError": "Failed",
+      "queriesTitle": "Recent skill searches",
+      "queriesHint": "Keywords searched via search_skills. Frequent queries with no matching skill are signals for new skills to write."
     }
   },
   "memory": {
