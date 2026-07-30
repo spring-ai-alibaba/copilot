@@ -10,6 +10,7 @@ import {
   Database,
   FileText,
   Settings2,
+  Sparkles,
   X,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
@@ -17,17 +18,19 @@ import styled from "styled-components";
 import KnowledgeSettings from "@/components/Settings/KnowledgeSettings";
 import MCPSettings from "@/components/Settings/MCPSettings";
 import MemorySettings from "@/components/Settings/MemorySettings";
+import SkillSettings from "@/components/Settings/SkillSettings";
 import ModelSettings from "@/components/Settings/ModelSettings";
 import PromptSettings from "@/components/Settings/PromptSettings";
 import { AppLogo } from "@/components/AppLogo";
 import { cn } from "@/utils/cn";
 import { GeneralSettings } from "./GeneralSettings";
 
-export type SettingsTab = "General" | "MCPServer" | "Knowledge" | "Models" | "Prompts" | "Memory";
+export type SettingsTab = "General" | "MCPServer" | "Skills" | "Knowledge" | "Models" | "Prompts" | "Memory";
 
 export const TAB_KEYS = {
   GENERAL: "General" as const,
   MCPServer: "MCPServer" as const,
+  Skills: "Skills" as const,
   Knowledge: "Knowledge" as const,
   Models: "Models" as const,
   Prompts: "Prompts" as const,
@@ -120,6 +123,15 @@ export function Settings({ isOpen, onClose, initialTab = TAB_KEYS.GENERAL }: Set
         group: "intelligence",
       },
       {
+        id: TAB_KEYS.Skills,
+        label: t("settings.Skills", { defaultValue: "技能审核" }),
+        description: t("settings.shell.skillsDescription", {
+          defaultValue: "agent 起草技能的人工晋升闸门",
+        }),
+        icon: <Sparkles />,
+        group: "intelligence",
+      },
+      {
         id: TAB_KEYS.Knowledge,
         label: t("settings.Knowledge", { defaultValue: "知识库" }),
         description: t("settings.shell.knowledgeDescription", {
@@ -170,7 +182,13 @@ export function Settings({ isOpen, onClose, initialTab = TAB_KEYS.GENERAL }: Set
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") onClose();
+      if (event.key === "Escape") {
+        // 弹窗（antd Modal 等）打开时，Esc 应只关闭弹窗，而不是整个设置页
+        if (document.querySelector(".ant-modal-wrap, .ant-image-preview-wrap, .ant-drawer-open")) {
+          return;
+        }
+        onClose();
+      }
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => {
@@ -201,6 +219,8 @@ export function Settings({ isOpen, onClose, initialTab = TAB_KEYS.GENERAL }: Set
         return <GeneralSettings />;
       case TAB_KEYS.MCPServer:
         return <MCPSettings />;
+      case TAB_KEYS.Skills:
+        return <SkillSettings />;
       case TAB_KEYS.Knowledge:
         return <KnowledgeSettings />;
       case TAB_KEYS.Models:

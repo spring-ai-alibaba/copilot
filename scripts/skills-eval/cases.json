@@ -1,9 +1,150 @@
 [
-  {"id": "A1", "query": "帮我做一个产品介绍落地页", "expect": ["frontend-style"]},
-  {"id": "B1", "query": "用 Vue 写一个用户管理页面", "expect": ["vue-element-page"]},
-  {"id": "C1", "query": "帮我写一个商品管理的增删改查接口", "expect": ["java-crud"]},
-  {"id": "D1", "query": "帮我设计一个电商订单的表结构", "expect": ["db-schema-design"]},
-  {"id": "E1", "query": "你好，你能做什么", "expect": []},
-  {"id": "F3", "query": "设计好博客系统的表以后把文章的 CRUD 接口也写了", "expect": ["db-schema-design", "java-crud"]},
-  {"id": "M1", "query": "帮我写一个 git 提交信息：修复了登录超时的bug", "expect": ["git-commit-style"]}
+ {
+  "id": "A1",
+  "expect": [
+   "frontend-style"
+  ],
+  "query": "帮我做一个产品介绍落地页"
+ },
+ {
+  "id": "A2",
+  "expect": [
+   "frontend-style"
+  ],
+  "query": "写一个个人简历网页，好看一点"
+ },
+ {
+  "id": "A3",
+  "expect": [
+   "frontend-style"
+  ],
+  "query": "给我生成一个倒计时页面"
+ },
+ {
+  "id": "A5",
+  "expect": [
+   "frontend-style"
+  ],
+  "query": "做一个手机端也能看的活动宣传页"
+ },
+ {
+  "id": "B1",
+  "expect": [
+   "vue-element-page"
+  ],
+  "query": "用 Vue 写一个用户管理页面"
+ },
+ {
+  "id": "B2",
+  "expect": [
+   "vue-element-page"
+  ],
+  "query": "做一个后台管理系统的订单列表页，要能搜索和分页"
+ },
+ {
+  "id": "B3",
+  "expect": [
+   "vue-element-page"
+  ],
+  "query": "写一个 Element Plus 的新增用户弹窗表单"
+ },
+ {
+  "id": "B4",
+  "expect": [
+   "vue-element-page"
+  ],
+  "query": "帮我写个 Vue 组件展示商品卡片"
+ },
+ {
+  "id": "C1",
+  "expect": [
+   "java-crud"
+  ],
+  "query": "帮我写一个商品管理的增删改查接口"
+ },
+ {
+  "id": "C2",
+  "expect": [
+   "java-crud"
+  ],
+  "query": "用 Spring Boot 写个用户注册的后端接口"
+ },
+ {
+  "id": "C3",
+  "expect": [
+   "java-crud"
+  ],
+  "query": "给 order 表生成 Controller、Service、Mapper"
+ },
+ {
+  "id": "C4",
+  "expect": [
+   "java-crud"
+  ],
+  "query": "写一个分页查询员工列表的接口"
+ },
+ {
+  "id": "D1",
+  "expect": [
+   "db-schema-design"
+  ],
+  "query": "帮我设计一个电商订单的表结构"
+ },
+ {
+  "id": "D2",
+  "expect": [
+   "db-schema-design"
+  ],
+  "query": "写一下用户表和角色表的建表 SQL"
+ },
+ {
+  "id": "D3",
+  "expect": [
+   "db-schema-design"
+  ],
+  "query": "博客系统需要哪些表？给出 DDL"
+ },
+ {
+  "id": "E1",
+  "expect": [],
+  "query": "你好，你能做什么"
+ },
+ {
+  "id": "E2",
+  "expect": [],
+  "query": "解释一下什么是依赖注入"
+ },
+ {
+  "id": "E3",
+  "expect": [],
+  "query": "帮我把这段 Python 代码翻译成 Java：print('hello world')"
+ },
+ {
+  "id": "E4",
+  "expect": [],
+  "query": "读一下工作目录里有哪些文件"
+ },
+ {
+  "id": "F1",
+  "expect": [
+   "java-crud",
+   "vue-element-page"
+  ],
+  "query": "做一个图书管理系统，前后端都要"
+ },
+ {
+  "id": "F3",
+  "expect": [
+   "db-schema-design",
+   "java-crud"
+  ],
+  "query": "设计好博客系统的表以后把文章的 CRUD 接口也写了"
+ },
+ {
+  "id": "M1",
+  "expect": [
+   "git-commit-style"
+  ],
+  "query": "帮我写一个 git 提交信息：修复了登录超时的bug"
+ }
 ]
