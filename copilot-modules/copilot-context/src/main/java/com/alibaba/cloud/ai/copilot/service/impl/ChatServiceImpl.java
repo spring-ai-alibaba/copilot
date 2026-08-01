@@ -107,10 +107,12 @@ public class ChatServiceImpl implements ChatService {
             final HarnessAgent agent;
             if (createNewConversation) {
                 modelConfigId = request.getModelConfigId();
-                agent = agentFactory.buildAgent(modelConfigId);
                 CreateConversationRequest createRequest = new CreateConversationRequest();
                 createRequest.setModelConfigId(modelConfigId);
+                // Create the conversation before building the agent. If creation fails
+                // there is no agent to leak (scopedAgent is not assigned yet).
                 conversationService.createConversation(userIdLong, createRequest, finalConversationId);
+                agent = agentFactory.buildAgent(modelConfigId);
                 log.info("创建新会话: conversationId={}, userId={}", finalConversationId, userIdLong);
             } else {
                 // Close the check-then-acquire race with deletion/reset. The session may have
@@ -203,11 +205,6 @@ public class ChatServiceImpl implements ChatService {
                                     finalConversationId, error);
                             return Flux.just(event);
                         });
-                    })
-                    .doOnNext(event -> {
-                        if (event instanceof AguiEvent.RunError) {
-                            runFailed.set(true);
-                        }
                     });
 
             reactor.core.Disposable subscription = aguiEvents.subscribe(
