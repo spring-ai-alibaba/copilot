@@ -2,6 +2,8 @@ import {authService} from "@/api/auth"
 import {create} from "zustand"
 import {persist} from "zustand/middleware"
 import { apiUrl } from "@/api/base"
+import { useConversationStore } from "@/stores/conversationSlice"
+import { useContextStore } from "@/stores/contextSlice"
 import { safeJsonParse, safeJsonStringify } from "@/utils/safeJsonParse"
 
 
@@ -35,6 +37,11 @@ interface UserState {
   isLoading: boolean
 }
 
+const clearUserScopedState = () => {
+  useConversationStore.getState().clearAll()
+  useContextStore.getState().clearAll()
+}
+
 const useUserStore = create<UserState>()(
   persist(
     (set, get) => ({
@@ -55,6 +62,7 @@ const useUserStore = create<UserState>()(
           localStorage.setItem("user", JSON.stringify(user))
         } else {
           localStorage.removeItem("user")
+          clearUserScopedState()
         }
 
         set(() => ({
@@ -68,6 +76,7 @@ const useUserStore = create<UserState>()(
           localStorage.setItem("token", token)
         } else {
           localStorage.removeItem("token")
+          clearUserScopedState()
         }
         set(() => ({ token }))
       },
@@ -95,6 +104,7 @@ const useUserStore = create<UserState>()(
               } catch {}
               document.cookie =
               "token=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/; secure=true;";
+              clearUserScopedState()
               set(() => ({
                 user: null,
                 token: null,
@@ -120,6 +130,12 @@ const useUserStore = create<UserState>()(
       },
 
       login: (user, token) => {
+        const currentUser = get().user
+        const currentIdentity = currentUser?.id || currentUser?.userId
+        const nextIdentity = user.id || user.userId
+        if (!get().isAuthenticated || currentIdentity !== nextIdentity) {
+          clearUserScopedState()
+        }
         localStorage.setItem("user", JSON.stringify(user))
         localStorage.setItem("token", token)
 
@@ -155,6 +171,7 @@ const useUserStore = create<UserState>()(
         localStorage.removeItem("token")
         localStorage.removeItem("rememberMe")
         localStorage.removeItem("user-storage")
+        clearUserScopedState()
         set(() => ({
           user: null,
           token: null,

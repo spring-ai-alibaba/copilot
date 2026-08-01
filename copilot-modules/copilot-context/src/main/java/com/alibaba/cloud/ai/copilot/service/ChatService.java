@@ -5,5 +5,5 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 public interface ChatService {
 
-    void handleBuilderMode(ChatRequest request, SseEmitter emitter);
+    SseEmitter handleBuilderMode(ChatRequest request);
 }

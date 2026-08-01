@@ -24,6 +24,11 @@ public interface ConversationService {
     String createConversation(Long userId, CreateConversationRequest request);
 
     /**
+     * 使用调用方预分配的 ID 创建会话。
+     */
+    String createConversation(Long userId, CreateConversationRequest request, String conversationId);
+
+    /**
      * 获取会话信息
      *
      * @param conversationId 会话ID

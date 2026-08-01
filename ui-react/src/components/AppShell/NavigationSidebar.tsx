@@ -23,6 +23,7 @@ import { Button } from "@/components/ui/button";
 import { useFileStore } from "@/components/WeIde/stores/fileStore";
 import type { SettingsTab } from "@/components/Settings";
 import { useConversationStore } from "@/stores/conversationSlice";
+import { useContextStore } from "@/stores/contextSlice";
 import useUserStore from "@/stores/userSlice";
 import { db } from "@/utils/indexDB";
 import { cn } from "@/utils/cn";
@@ -101,6 +102,7 @@ export function NavigationSidebar({
   } = useConversationStore();
   const files = useFileStore((state) => state.files);
   const projectRoot = useFileStore((state) => state.projectRoot);
+  const clearContext = useContextStore((state) => state.clear);
   const [searchValue, setSearchValue] = useState("");
   const [guestConversations, setGuestConversations] = useState<
     GuestConversation[]
@@ -158,7 +160,13 @@ export function NavigationSidebar({
     return () => {
       unsubscribe();
     };
-  }, [isAuthenticated, loadConversations, loadGuestConversations]);
+  }, [
+    isAuthenticated,
+    loadConversations,
+    loadGuestConversations,
+    user?.id,
+    user?.userId,
+  ]);
 
   useEffect(() => {
     if (isAuthenticated || !guestConversationsLoaded || !selectedGuestId)
@@ -291,6 +299,7 @@ export function NavigationSidebar({
         setCurrentConversation(null);
         eventEmitter.emit("chat:select", "");
       }
+      clearContext(target.id);
       setDeleteTarget(null);
     } catch (error) {
       console.error("Failed to delete conversation", error);
@@ -653,6 +662,9 @@ export function NavigationSidebar({
         }
         confirmLabel={t("appShell.sidebar.deleteDialog.confirm", {
           defaultValue: "删除",
+        })}
+        cancelLabel={t("appShell.sidebar.deleteDialog.cancel", {
+          defaultValue: "取消",
         })}
         loading={deleting}
         onClose={() => setDeleteTarget(null)}

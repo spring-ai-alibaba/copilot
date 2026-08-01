@@ -240,6 +240,9 @@ app:
       - mkfs
   # 会话配置
   conversation:
+    agent-state:
+      # 开发环境可自动建表；生产环境请改为 false 并先执行显式迁移。
+      create-if-not-exist: true
     # 消息压缩配置
     summarization:
       # 超过多少 tokens 时触发压缩（默认：4000）

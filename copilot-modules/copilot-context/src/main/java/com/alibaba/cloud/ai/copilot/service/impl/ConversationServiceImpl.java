@@ -6,14 +6,17 @@ import com.alibaba.cloud.ai.copilot.domain.dto.CreateConversationRequest;
 import com.alibaba.cloud.ai.copilot.domain.dto.PageResult;
 import com.alibaba.cloud.ai.copilot.domain.entity.ChatMessageEntity;
 import com.alibaba.cloud.ai.copilot.domain.entity.ConversationEntity;
+import com.alibaba.cloud.ai.copilot.core.exception.ServiceException;
 import com.alibaba.cloud.ai.copilot.mapper.ChatMessageMapper;
 import com.alibaba.cloud.ai.copilot.mapper.ConversationMapper;
 import com.alibaba.cloud.ai.copilot.service.ConversationService;
+import com.alibaba.cloud.ai.copilot.agent.SessionRunGuard;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import io.agentscope.core.state.AgentStateStore;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -36,12 +39,25 @@ public class ConversationServiceImpl extends ServiceImpl<ConversationMapper, Con
         implements ConversationService {
 
     private final ChatMessageMapper chatMessageMapper;
+    private final AgentStateStore agentStateStore;
+    private final SessionRunGuard sessionRunGuard;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
     public String createConversation(Long userId, CreateConversationRequest request) {
-        // 生成会话ID
         String conversationId = UUID.randomUUID().toString().replace("-", "");
+        return createConversation(userId, request, conversationId);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public String createConversation(
+            Long userId,
+            CreateConversationRequest request,
+            String conversationId) {
+        if (conversationId == null || conversationId.isBlank()) {
+            throw new IllegalArgumentException("会话ID不能为空");
+        }
 
         // 创建会话实体
         ConversationEntity entity = new ConversationEntity();
@@ -145,11 +161,47 @@ public class ConversationServiceImpl extends ServiceImpl<ConversationMapper, Con
         // 验证权限
         checkConversationPermission(conversationId, userId);
 
+        // Serialize deletion with inference and state persistence. Acquiring a short
+        // lease also closes the check-then-delete race with a run that starts concurrently.
+        SessionRunGuard.Lease lease;
+        try {
+            lease = sessionRunGuard.acquire(
+                    String.valueOf(userId), conversationId, "delete-" + UUID.randomUUID());
+        } catch (SessionRunGuard.SessionRunConflictException e) {
+            throw new ServiceException("会话正在处理中，请稍后重试", 409);
+        }
+        try {
+            // Permission/existence must be checked while holding the lease. A run or delete
+            // may have passed its first check and then waited behind another operation.
+            checkConversationPermission(conversationId, userId);
+            deleteConversationWithState(conversationId, userId);
+        } finally {
+            lease.close();
+        }
+    }
+
+    private void deleteConversationWithState(String conversationId, Long userId) {
+
         // 软删除
-        update(new LambdaUpdateWrapper<ConversationEntity>()
+        boolean deleted = update(new LambdaUpdateWrapper<ConversationEntity>()
             .eq(ConversationEntity::getConversationId, conversationId)
+            .eq(ConversationEntity::getUserId, userId)
+            .eq(ConversationEntity::getDelFlag, 0)
             .set(ConversationEntity::getDelFlag, 1)
             .set(ConversationEntity::getUpdatedTime, LocalDateTime.now()));
+        if (!deleted) {
+            throw new IllegalArgumentException("会话不存在或无权访问");
+        }
+
+        try {
+            // Clean up the pre-authentication AgentScope key after ownership has been
+            // verified. New requests never read this legacy namespace.
+            agentStateStore.delete(null, conversationId);
+            agentStateStore.delete(String.valueOf(userId), conversationId);
+        } catch (Exception e) {
+            log.error("删除会话 AgentScope 状态失败: conversationId={}, userId={}", conversationId, userId, e);
+            throw new IllegalStateException("删除会话上下文失败", e);
+        }
     }
 
     @Override

@@ -26,6 +26,7 @@ import useMCPTools from "@/hooks/useMCPTools";
 import {FileSystemStatus} from "./components/FileSystemStatus";
 import {handleFileSystemEvent, isFileSystemEvent} from "../utils/fileSystemEventHandler";
 import {useConversationStore} from "@/stores/conversationSlice";
+import {useContextStore} from "@/stores/contextSlice";
 import {getConversationMessages} from "@/api/conversation";
 import { LoaderCircle } from "lucide-react";
 import { AppLogo } from "@/components/AppLogo";
@@ -105,6 +106,8 @@ export const BaseChat = ({uuid: propUuid}: { uuid?: string }) => {
     const pendingScrollToBottomRef = useRef(false);
     // 流内首次拿到会话 ID 时只同步选中态，不把它误判成用户主动切换会话。
     const streamAssignedConversationIdRef = useRef<string | null>(null);
+    const contextRunCleanupsRef = useRef(new Set<() => void>());
+    const chatRequestAbortersRef = useRef(new Map<() => void, string>());
 
     const [baseModal, setBaseModal] = useState<IModelOption>({
         key: ModelTypes.Claude35sonnet,
@@ -139,6 +142,8 @@ export const BaseChat = ({uuid: propUuid}: { uuid?: string }) => {
     } = useChatStore();
     const {resetTerminals} = useTerminalStore();
     const {currentConversationId, setCurrentConversation} = useConversationStore();
+    const updateContextFromEvent = useContextStore((state) => state.updateFromEvent);
+    const setContextRunning = useContextStore((state) => state.setRunning);
     const filesInitObj = {} as Record<string, string>;
     const filesUpdateObj = {} as Record<string, string>;
     Object.keys(isFirstSend).forEach((key) => {
@@ -380,6 +385,7 @@ export const BaseChat = ({uuid: propUuid}: { uuid?: string }) => {
                         id: uuidv4(),
                         role: msg.role as "user" | "assistant",
                         content: msg.content,
+                        createdAt: msg.createdAt ? new Date(msg.createdAt) : undefined,
                     }));
 
                 // 解析文件
@@ -485,6 +491,35 @@ export const BaseChat = ({uuid: propUuid}: { uuid?: string }) => {
 
     // 自定义 fetch 函数来处理 SSE 流数据
     const customFetch = async (url: string, options: any) => {
+        let contextRunToken: string | null = null;
+        let contextRunConversationId: string | null = null;
+        let contextRunFinished = false;
+        let abortRequest: (() => void) | null = null;
+        let detachUpstreamAbort: (() => void) | null = null;
+        const assignContextRun = (conversationId: string | null) => {
+            if (contextRunFinished || contextRunConversationId === conversationId) return;
+            if (contextRunConversationId) {
+                setContextRunning(contextRunConversationId, false);
+            }
+            contextRunConversationId = conversationId;
+            if (conversationId) {
+                setContextRunning(conversationId, true);
+            }
+        };
+        const finishContextRun = () => {
+            if (contextRunFinished) return;
+            contextRunFinished = true;
+            contextRunCleanupsRef.current.delete(finishContextRun);
+            if (abortRequest) {
+                chatRequestAbortersRef.current.delete(abortRequest);
+            }
+            detachUpstreamAbort?.();
+            if (contextRunConversationId) {
+                setContextRunning(contextRunConversationId, false);
+            }
+        };
+        contextRunCleanupsRef.current.add(finishContextRun);
+
         try {
             const latestToken = useUserStore.getState().token;
             if (!latestToken) {
@@ -495,6 +530,20 @@ export const BaseChat = ({uuid: propUuid}: { uuid?: string }) => {
                 (authError as Error & {status?: number}).status = 401;
                 throw authError;
             }
+            contextRunToken = latestToken;
+            const requestController = new AbortController();
+            const upstreamSignal = options.signal as AbortSignal | undefined;
+            const relayUpstreamAbort = () => requestController.abort(upstreamSignal?.reason);
+            if (upstreamSignal?.aborted) {
+                relayUpstreamAbort();
+            } else if (upstreamSignal) {
+                upstreamSignal.addEventListener("abort", relayUpstreamAbort, { once: true });
+                detachUpstreamAbort = () =>
+                    upstreamSignal.removeEventListener("abort", relayUpstreamAbort);
+            }
+            options.signal = requestController.signal;
+            abortRequest = () => requestController.abort();
+            chatRequestAbortersRef.current.set(abortRequest, latestToken);
             options.headers = {
                 ...(options.headers || {}),
                 Authorization: `Bearer ${latestToken}`,
@@ -542,6 +591,7 @@ export const BaseChat = ({uuid: propUuid}: { uuid?: string }) => {
                 }
             }
 
+            assignContextRun(currentConversationId);
             const response = await fetch(url, options);
 
             if (!response.ok) {
@@ -568,6 +618,7 @@ export const BaseChat = ({uuid: propUuid}: { uuid?: string }) => {
 
             // 如果不是流式响应，直接返回
             if (!response.body) {
+                finishContextRun();
                 return response;
             }
 
@@ -645,10 +696,27 @@ export const BaseChat = ({uuid: propUuid}: { uuid?: string }) => {
 
                 // 会话ID控制事件：后端在新建会话时回传，前端需写入 store 以支撑后续多轮
                 if (eventName === 'conversation-id' && parsed.conversationId) {
+                    if (useUserStore.getState().token !== contextRunToken) return '';
                     const conversationId = String(parsed.conversationId);
+                    assignContextRun(conversationId);
                     if (useConversationStore.getState().currentConversationId !== conversationId) {
                         streamAssignedConversationIdRef.current = conversationId;
                         setCurrentConversation(conversationId);
+                    }
+                    return '';
+                }
+
+                if (type === 'CUSTOM') {
+                    if (useUserStore.getState().token !== contextRunToken) return '';
+                    const threadId = String(
+                        parsed.threadId ||
+                        contextRunConversationId ||
+                        currentConversationId ||
+                        '',
+                    );
+                    const eventNameValue = String(parsed.name || '');
+                    if (threadId && eventNameValue) {
+                        updateContextFromEvent(threadId, eventNameValue, parsed.value);
                     }
                     return '';
                 }
@@ -720,6 +788,7 @@ export const BaseChat = ({uuid: propUuid}: { uuid?: string }) => {
                         break;
                     }
                     case 'RUN_FINISHED': {
+                        finishContextRun();
                         if (reasoningBuffer.trim()) {
                             transformedText += encodeTimelineBlock(
                                 'arc-reasoning',
@@ -735,6 +804,7 @@ export const BaseChat = ({uuid: propUuid}: { uuid?: string }) => {
                         break;
                     }
                     case 'RUN_ERROR': {
+                        finishContextRun();
                         const errorMessage = parsed.message || parsed.error || 'Agent 运行失败';
                         console.error('[AG-UI] run error:', errorMessage);
                         transformedText += encodeTimelineBlock('arc-error', String(errorMessage));
@@ -778,6 +848,7 @@ export const BaseChat = ({uuid: propUuid}: { uuid?: string }) => {
                                 if (transformedText) {
                                     controller.enqueue(new TextEncoder().encode(transformedText));
                                 }
+                                finishContextRun();
                                 controller.close();
                                 return;
                             }
@@ -789,12 +860,14 @@ export const BaseChat = ({uuid: propUuid}: { uuid?: string }) => {
                             }
                             return pump();
                         }).catch(error => {
+                            finishContextRun();
                             controller.error(error);
                         });
                     }
                     return pump();
                 },
                 cancel(reason) {
+                    finishContextRun();
                     return reader.cancel(reason);
                 },
             });
@@ -807,6 +880,7 @@ export const BaseChat = ({uuid: propUuid}: { uuid?: string }) => {
             });
 
         } catch (error) {
+            finishContextRun();
             throw error;
         }
     };
@@ -959,6 +1033,22 @@ export const BaseChat = ({uuid: propUuid}: { uuid?: string }) => {
             );
         },
     });
+
+    useEffect(() => () => {
+        chatRequestAbortersRef.current.forEach((_, abort) => abort());
+        chatRequestAbortersRef.current.clear();
+        contextRunCleanupsRef.current.forEach((finish) => finish());
+        contextRunCleanupsRef.current.clear();
+    }, []);
+
+    useEffect(() => {
+        chatRequestAbortersRef.current.forEach((requestToken, abort) => {
+            if (requestToken !== token) {
+                abort();
+            }
+        });
+    }, [token]);
+
     const {status, type} = useUrlData({append});
 
     // 官网跳转进来监听 url
