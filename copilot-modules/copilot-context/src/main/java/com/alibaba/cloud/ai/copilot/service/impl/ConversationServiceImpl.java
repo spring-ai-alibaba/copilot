@@ -6,6 +6,7 @@ import com.alibaba.cloud.ai.copilot.domain.dto.CreateConversationRequest;
 import com.alibaba.cloud.ai.copilot.domain.dto.PageResult;
 import com.alibaba.cloud.ai.copilot.domain.entity.ChatMessageEntity;
 import com.alibaba.cloud.ai.copilot.domain.entity.ConversationEntity;
+import com.alibaba.cloud.ai.copilot.domain.state.ConversationStateNamespace;
 import com.alibaba.cloud.ai.copilot.core.exception.ServiceException;
 import com.alibaba.cloud.ai.copilot.mapper.ChatMessageMapper;
 import com.alibaba.cloud.ai.copilot.mapper.ConversationMapper;
@@ -16,11 +17,14 @@ import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
-import io.agentscope.core.state.AgentStateStore;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -38,9 +42,13 @@ import java.util.stream.Collectors;
 public class ConversationServiceImpl extends ServiceImpl<ConversationMapper, ConversationEntity> 
         implements ConversationService {
 
+    private static final String AGENT_SCOPE_TABLE = "agentscope_sessions";
+    private static final String ANONYMOUS_USER = "__anon__";
+
     private final ChatMessageMapper chatMessageMapper;
-    private final AgentStateStore agentStateStore;
+    private final JdbcTemplate jdbcTemplate;
     private final SessionRunGuard sessionRunGuard;
+    private final PlatformTransactionManager transactionManager;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -52,6 +60,24 @@ public class ConversationServiceImpl extends ServiceImpl<ConversationMapper, Con
     @Override
     @Transactional(rollbackFor = Exception.class)
     public String createConversation(
+            Long userId,
+            CreateConversationRequest request,
+            String conversationId) {
+        return persistConversation(userId, request, conversationId);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class, timeout = 15)
+    public String createConversation(
+            Long userId,
+            CreateConversationRequest request,
+            String conversationId,
+            SessionRunGuard.Lease lease) {
+        lease.fenceCurrentTransaction();
+        return persistConversation(userId, request, conversationId);
+    }
+
+    private String persistConversation(
             Long userId,
             CreateConversationRequest request,
             String conversationId) {
@@ -156,7 +182,6 @@ public class ConversationServiceImpl extends ServiceImpl<ConversationMapper, Con
     }
 
     @Override
-    @Transactional(rollbackFor = Exception.class)
     public void deleteConversation(String conversationId, Long userId) {
         // 验证权限
         checkConversationPermission(conversationId, userId);
@@ -169,20 +194,47 @@ public class ConversationServiceImpl extends ServiceImpl<ConversationMapper, Con
                     String.valueOf(userId), conversationId, "delete-" + UUID.randomUUID());
         } catch (SessionRunGuard.SessionRunConflictException e) {
             throw new ServiceException("会话正在处理中，请稍后重试", 409);
+        } catch (SessionRunGuard.SessionRunUnavailableException e) {
+            throw new ServiceException("无法获取会话删除锁", 503)
+                    .setDetailMessage(e.getMessage());
         }
         try {
-            // Permission/existence must be checked while holding the lease. A run or delete
-            // may have passed its first check and then waited behind another operation.
-            checkConversationPermission(conversationId, userId);
-            deleteConversationWithState(conversationId, userId);
+            // Start the DB transaction only after acquiring the lease. Starting it earlier can
+            // pin one pool connection per request while the guard waits for another connection.
+            TransactionTemplate transaction = new TransactionTemplate(transactionManager);
+            // execute() must return only after this deletion commits/rolls back; otherwise an
+            // ambient transaction could keep the fence row locked after the lease is released.
+            transaction.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
+            transaction.setTimeout(15);
+            transaction.executeWithoutResult(status -> {
+                // Permission/existence must be checked while holding the lease. A run or delete
+                // may have passed its first check and then waited behind another operation.
+                checkConversationPermission(conversationId, userId);
+                deleteConversationWithState(conversationId, userId, lease);
+            });
+        } catch (SessionRunGuard.SessionRunUnavailableException e) {
+            throw new ServiceException("会话删除期间锁已失效", 503)
+                    .setDetailMessage(e.getMessage());
         } finally {
+            // TransactionTemplate has completed commit or rollback before returning.
             lease.close();
         }
     }
 
-    private void deleteConversationWithState(String conversationId, Long userId) {
+    private void deleteConversationWithState(
+            String conversationId,
+            Long userId,
+            SessionRunGuard.Lease lease) {
+
+        // Lock the exact lease row in this Spring transaction before its first mutation. The row
+        // lock is held through commit/rollback, so a replica takeover cannot interleave with these
+        // business and AgentScope state writes after a long JVM pause.
+        // Deletion is terminal for this lease, so it does not need post-transaction renewal.
+        lease.stopRenewal();
+        lease.fenceCurrentTransaction();
 
         // 软删除
+        lease.assertOwned();
         boolean deleted = update(new LambdaUpdateWrapper<ConversationEntity>()
             .eq(ConversationEntity::getConversationId, conversationId)
             .eq(ConversationEntity::getUserId, userId)
@@ -192,16 +244,31 @@ public class ConversationServiceImpl extends ServiceImpl<ConversationMapper, Con
         if (!deleted) {
             throw new IllegalArgumentException("会话不存在或无权访问");
         }
+        lease.assertOwned();
 
         try {
-            // Clean up the pre-authentication AgentScope key after ownership has been
-            // verified. New requests never read this legacy namespace.
-            agentStateStore.delete(null, conversationId);
-            agentStateStore.delete(String.valueOf(userId), conversationId);
+            // JdbcTemplate participates in the surrounding Spring transaction, so the business
+            // soft delete and all AgentScope namespaces commit or roll back together.
+            lease.assertOwned();
+            String userKey = String.valueOf(userId);
+            jdbcTemplate.update(
+                    "DELETE FROM " + AGENT_SCOPE_TABLE + " WHERE session_id IN (?, ?, ?)",
+                    agentScopeSlot(ANONYMOUS_USER, conversationId),
+                    agentScopeSlot(userKey, conversationId),
+                    agentScopeSlot(
+                            userKey,
+                            ConversationStateNamespace.contextMetaSessionId(conversationId)));
+            lease.assertOwned();
+        } catch (SessionRunGuard.SessionRunUnavailableException e) {
+            throw e;
         } catch (Exception e) {
             log.error("删除会话 AgentScope 状态失败: conversationId={}, userId={}", conversationId, userId, e);
             throw new IllegalStateException("删除会话上下文失败", e);
         }
+    }
+
+    private static String agentScopeSlot(String userId, String sessionId) {
+        return userId + ":" + sessionId;
     }
 
     @Override
@@ -213,6 +280,87 @@ public class ConversationServiceImpl extends ServiceImpl<ConversationMapper, Con
             .setSql("message_count = IFNULL(message_count, 0) + 1")
             .set(ConversationEntity::getLastMessageTime, LocalDateTime.now())
             .set(ConversationEntity::getUpdatedTime, LocalDateTime.now()));
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class, timeout = 15)
+    public void appendUserMessage(
+            String conversationId,
+            String content,
+            String modelConfigId,
+            Long userId,
+            SessionRunGuard.Lease lease) {
+        lease.fenceCurrentTransaction();
+
+        final Long requestedModelId;
+        try {
+            requestedModelId = Long.valueOf(modelConfigId);
+        } catch (NumberFormatException e) {
+            throw new IllegalArgumentException("模型配置无效", e);
+        }
+
+        ChatMessageEntity entity = new ChatMessageEntity();
+        entity.setConversationId(conversationId);
+        entity.setMessageId(UUID.randomUUID().toString());
+        entity.setRole("user");
+        entity.setContent(content);
+        entity.setCreatedTime(LocalDateTime.now());
+        entity.setUpdatedTime(LocalDateTime.now());
+        chatMessageMapper.insert(entity);
+
+        boolean updated = update(new LambdaUpdateWrapper<ConversationEntity>()
+                .eq(ConversationEntity::getConversationId, conversationId)
+                .eq(ConversationEntity::getUserId, userId)
+                .eq(ConversationEntity::getDelFlag, 0)
+                // Legacy clients could pre-create model-less conversations. Bind exactly once;
+                // an already-bound conversation must keep using the same model.
+                .and(wrapper -> wrapper
+                        .eq(ConversationEntity::getModelConfigId, requestedModelId)
+                        .or()
+                        .isNull(ConversationEntity::getModelConfigId))
+                .set(ConversationEntity::getModelConfigId, requestedModelId)
+                .setSql("message_count = IFNULL(message_count, 0) + 1")
+                .set(ConversationEntity::getLastMessageTime, LocalDateTime.now())
+                .set(ConversationEntity::getUpdatedTime, LocalDateTime.now()));
+        if (!updated) {
+            throw new IllegalArgumentException("会话不存在、无权访问或模型绑定不一致");
+        }
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class, timeout = 15)
+    public void persistSuccessfulAssistantTurn(
+            String conversationId,
+            String content,
+            String firstUserMessage,
+            Long userId,
+            SessionRunGuard.Lease lease) {
+        lease.fenceCurrentTransaction();
+
+        if (content != null && !content.isBlank()) {
+            ChatMessageEntity entity = new ChatMessageEntity();
+            entity.setConversationId(conversationId);
+            entity.setMessageId(UUID.randomUUID().toString());
+            entity.setRole("assistant");
+            entity.setContent(content);
+            entity.setCreatedTime(LocalDateTime.now());
+            entity.setUpdatedTime(LocalDateTime.now());
+            chatMessageMapper.insert(entity);
+        }
+
+        String title = firstUserMessage.length() > 50
+                ? firstUserMessage.substring(0, 50) + "..."
+                : firstUserMessage;
+        update(new LambdaUpdateWrapper<ConversationEntity>()
+                .eq(ConversationEntity::getConversationId, conversationId)
+                .eq(ConversationEntity::getUserId, userId)
+                .eq(ConversationEntity::getDelFlag, 0)
+                .and(wrapper -> wrapper
+                        .eq(ConversationEntity::getTitle, "新对话")
+                        .or()
+                        .isNull(ConversationEntity::getTitle))
+                .set(ConversationEntity::getTitle, title)
+                .set(ConversationEntity::getUpdatedTime, LocalDateTime.now()));
     }
 
     /**

@@ -158,7 +158,6 @@ export function ConfirmDialog({
         <div className="mt-5 flex justify-end gap-2">
           <Button
             ref={cancelButtonRef}
-            autoFocus
             variant="ghost"
             size="sm"
             onClick={onClose}

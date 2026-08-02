@@ -52,6 +52,10 @@
       "add_image_failed": "Failed to add image",
       "auth_required": "Sign in before sending a message",
       "request_failed": "Request failed. Please try again later.",
+      "conversation_loading": "Loading conversation details. Please try again in a moment.",
+      "conversation_load_failed": "Conversation details could not be loaded. Select the conversation again and retry.",
+      "conversation_model_unavailable": "This conversation's model is no longer available. Start a new conversation to continue.",
+      "selected_model_unavailable": "The selected model is no longer available. Choose another model and retry.",
       "view_problem": "View problem"
     },
     "success": {
@@ -94,6 +98,7 @@
       "workspaceMention": "Type @ to reference workspace files",
       "selectModel": "Select a model",
       "availableModels": "Available models",
+      "conversationModelLocked": "Existing conversations keep the model selected when they were created",
       "stopReceiving": "Stop receiving",
       "sendMessage": "Send message",
       "composerHint": "Enter to send · Shift + Enter for a new line"
@@ -965,6 +970,7 @@
       "update_failed": "Failed to update model",
       "delete_failed": "Failed to delete model",
       "test_failed": "Failed to test model connection",
+      "no_models_configured": "Configure a model before sending a message",
       "status_update_failed": "Failed to update model status"
     }
   },

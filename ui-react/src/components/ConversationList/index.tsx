@@ -3,6 +3,7 @@ import { useConversationStore } from "@/stores/conversationSlice";
 import { Conversation } from "@/api/conversation";
 import { toast } from "react-toastify";
 import { useTranslation } from "react-i18next";
+import useUserStore from "@/stores/userSlice";
 
 interface ConversationListProps {
   onSelectConversation?: (conversationId: string | null) => void;
@@ -19,17 +20,18 @@ export const ConversationList: React.FC<ConversationListProps> = ({
     loading,
     currentConversationId,
     loadConversations,
-    createConversation,
     deleteConversation,
     setCurrentConversation,
   } = useConversationStore();
+  const token = useUserStore((state) => state.token);
 
   const [searchTerm, setSearchTerm] = useState("");
-  const [isCreating, setIsCreating] = useState(false);
 
   useEffect(() => {
-    loadConversations(1, 20);
-  }, [loadConversations]);
+    if (token) {
+      void loadConversations(1, 20);
+    }
+  }, [loadConversations, token]);
 
   // 同步外部选中的会话ID
   useEffect(() => {
@@ -38,18 +40,11 @@ export const ConversationList: React.FC<ConversationListProps> = ({
     }
   }, [selectedConversationId, setCurrentConversation]);
 
-  const handleCreateConversation = async () => {
-    if (isCreating) return;
-    setIsCreating(true);
-    try {
-      const conversationId = await createConversation();
-      onSelectConversation?.(conversationId);
-    } catch (error) {
-      toast.error("创建会话失败");
-      console.error("Failed to create conversation:", error);
-    } finally {
-      setIsCreating(false);
-    }
+  const handleCreateConversation = () => {
+    // A conversation is persisted together with its selected model on the first message. Avoid
+    // pre-creating an empty, model-less row that the chat screen correctly refuses to continue.
+    setCurrentConversation(null);
+    onSelectConversation?.(null);
   };
 
   const handleSelectConversation = (conversationId: string) => {
@@ -112,8 +107,7 @@ export const ConversationList: React.FC<ConversationListProps> = ({
       {/* 新建会话按钮 */}
       <button
         onClick={handleCreateConversation}
-        disabled={isCreating}
-        className="mx-3 my-2 p-2 flex items-center gap-2 text-purple-600 dark:text-blue-400 hover:bg-gray-100 dark:hover:bg-white/5 rounded-lg transition-colors text-[14px] disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0"
+        className="mx-3 my-2 p-2 flex items-center gap-2 text-purple-600 dark:text-blue-400 hover:bg-gray-100 dark:hover:bg-white/5 rounded-lg transition-colors text-[14px] flex-shrink-0"
       >
         <svg
           className="w-[16px] h-[16px]"
@@ -129,7 +123,7 @@ export const ConversationList: React.FC<ConversationListProps> = ({
           />
         </svg>
         <span className="translate">
-          {isCreating ? "创建中..." : t("sidebar.start_new_chat")}
+          {t("sidebar.start_new_chat")}
         </span>
       </button>
 

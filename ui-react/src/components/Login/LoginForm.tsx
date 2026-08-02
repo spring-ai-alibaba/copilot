@@ -17,7 +17,7 @@ const LoginForm = ({onSuccess, onTabChange}: LoginFormProps) => {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const {setToken, setRememberMe, fetchUser} = useUserStore();
+  const {setRememberMe, fetchUser} = useUserStore();
   const [rememberMe, setRememberMeState] = useState(true);
   const {t} = useTranslation();
 
@@ -26,11 +26,9 @@ const LoginForm = ({onSuccess, onTabChange}: LoginFormProps) => {
       const token = typeof data === "object" ? data.token : data;
 
       if (token) {
-        setToken(token);
-        // 统一在登录成功后拉取一次用户完整信息（含配额等）
-        try {
-          await fetchUser();
-        } catch {}
+        // 先验证 token 并取得身份，再一次性替换 user + token，避免混用两个账号。
+        const user = await fetchUser(token);
+        if (!user) return;
         toast.success("success login");
         onSuccess?.();
         // 简化方案：登录成功后整页刷新，确保所有组件按新 token 重新初始化
@@ -56,7 +54,7 @@ const LoginForm = ({onSuccess, onTabChange}: LoginFormProps) => {
         );
       }
     };
-  }, [setToken, onSuccess]);
+  }, [fetchUser, onSuccess]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -73,13 +71,9 @@ const LoginForm = ({onSuccess, onTabChange}: LoginFormProps) => {
 
       if (!token) throw new Error("Missing token");
 
-      setToken(token);
-
-      // 登录后主动刷新一次用户信息，保证配额等字段及时可用
-      // 注意：不在登录时直接存储用户信息，避免精度丢失问题
-      try {
-        await fetchUser();
-      } catch {}
+      // 登录后先验证 token 并获取完整身份，再原子提交到全局 store。
+      const user = await fetchUser(token);
+      if (!user) throw new Error("Failed to load user information");
 
       // 记住我
       setRememberMe(rememberMe);

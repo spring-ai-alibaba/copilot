@@ -8,7 +8,7 @@ import { isTokenExpired } from "@/utils/auth";
 const electron = window.electron;
 const useInit = (): { isDarkMode: boolean } => {
     const {isDarkMode, setTheme} = useThemeStore()
-    const { setUser, fetchUser, logout, openLoginModal, closeLoginModal } = useUserStore()
+    const { fetchUser, logout, openLoginModal, closeLoginModal } = useUserStore()
     const servers = useMCPStore(state => state.servers)
     useEffect(() => {
         if (electron) {
@@ -38,7 +38,7 @@ const useInit = (): { isDarkMode: boolean } => {
                 return
             }
 
-            const user = await fetchUser()
+            const user = await fetchUser(token)
             if (!user) {
                 openLoginModal()
             }

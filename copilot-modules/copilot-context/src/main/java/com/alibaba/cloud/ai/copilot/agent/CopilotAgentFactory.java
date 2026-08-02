@@ -4,6 +4,7 @@ import com.alibaba.cloud.ai.copilot.config.AppProperties;
 import com.alibaba.cloud.ai.copilot.domain.entity.ModelConfigEntity;
 import com.alibaba.cloud.ai.copilot.service.DynamicModelService;
 import io.agentscope.core.model.Model;
+import io.agentscope.core.state.AgentStateStore;
 import io.agentscope.core.tool.Toolkit;
 import io.agentscope.harness.agent.HarnessAgent;
 import io.agentscope.harness.agent.filesystem.spec.LocalFilesystemSpec;
@@ -37,7 +38,6 @@ public class CopilotAgentFactory {
 
     private final DynamicModelService dynamicModelService;
     private final AppProperties appProperties;
-    private final FailClosedAgentStateStore agentStateStore;
 
     private static final String AGENT_NAME = "copilot_agent";
 
@@ -45,9 +45,10 @@ public class CopilotAgentFactory {
      * 构建一个绑定指定模型配置的 HarnessAgent。
      *
      * @param modelConfigId 模型配置 ID（model_config.id）
+     * @param requestStateStore 绑定当前请求原始租约的状态存储
      * @return 新建的 HarnessAgent
      */
-    public HarnessAgent buildAgent(String modelConfigId) {
+    public HarnessAgent buildAgent(String modelConfigId, AgentStateStore requestStateStore) {
         // 1. 获取 agentscope Model（缓存命中或按配置新建）
         Model model = dynamicModelService.getChatModelWithConfigId(modelConfigId);
 
@@ -92,7 +93,7 @@ public class CopilotAgentFactory {
                 .toolkit(toolkit)
                 .compaction(compaction)
                 .disableToolResultEviction()
-                .stateStore(agentStateStore)
+                .stateStore(requestStateStore)
                 .maxIters(50)
                 .build();
 

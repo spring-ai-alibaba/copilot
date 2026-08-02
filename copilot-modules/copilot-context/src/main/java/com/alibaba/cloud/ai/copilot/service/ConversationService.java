@@ -4,6 +4,7 @@ import com.alibaba.cloud.ai.copilot.domain.dto.ChatMessage;
 import com.alibaba.cloud.ai.copilot.domain.dto.ConversationDTO;
 import com.alibaba.cloud.ai.copilot.domain.dto.CreateConversationRequest;
 import com.alibaba.cloud.ai.copilot.domain.dto.PageResult;
+import com.alibaba.cloud.ai.copilot.agent.SessionRunGuard;
 
 import java.util.List;
 
@@ -27,6 +28,13 @@ public interface ConversationService {
      * 使用调用方预分配的 ID 创建会话。
      */
     String createConversation(Long userId, CreateConversationRequest request, String conversationId);
+
+    /** Create a conversation inside a transaction fenced by the caller's exact run lease. */
+    String createConversation(
+            Long userId,
+            CreateConversationRequest request,
+            String conversationId,
+            SessionRunGuard.Lease lease);
 
     /**
      * 获取会话信息
@@ -90,5 +98,21 @@ public interface ConversationService {
      * @param conversationId 会话ID
      */
     void incrementMessageCount(String conversationId);
+
+    /** Atomically persist a user timeline message and increment its conversation count. */
+    void appendUserMessage(
+            String conversationId,
+            String content,
+            String modelConfigId,
+            Long userId,
+            SessionRunGuard.Lease lease);
+
+    /** Persist the successful assistant timeline entry and the default-title transition. */
+    void persistSuccessfulAssistantTurn(
+            String conversationId,
+            String content,
+            String firstUserMessage,
+            Long userId,
+            SessionRunGuard.Lease lease);
 }
 

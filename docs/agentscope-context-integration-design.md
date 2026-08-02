@@ -18,8 +18,8 @@ AgentScope 能满足当前系统的会话上下文需求，不需要额外引入
 - `AguiAgentAdapter`：继续输出现有 AG-UI SSE 协议。
 
 AgentScope 是运行时能力层，不替代系统已有的登录鉴权、会话归属、模型权限、历史展示和业务数据。
-在单节点 Spring Boot + MySQL 的当前部署边界内，上下文阶段的后端链路和前端体验均已完整接通。
-多副本部署前仍需要分布式 session guard，并验证或替换为适合多节点并发写入的 State Store。
+上下文链路使用 JVM 内快速拒绝加 MySQL 租约的双层 session guard，同一业务库上的多个 Spring Boot
+副本会按 `(userId, conversationId)` 串行化推理、重置和删除操作。
 
 ## 2. 责任边界
 
@@ -29,7 +29,7 @@ AgentScope 是运行时能力层，不替代系统已有的登录鉴权、会话
 | 会话归属、标题、模型绑定 | `chat_conversation` | 所有上下文操作前先校验归属 |
 | 模型下一轮看到的上下文 | AgentScope `AgentStateStore` | 不从 `chat_message` 反向重建 |
 | 前端可见时间线 | `chat_message` | 只保存适合展示的 user/assistant 文本 |
-| 单次运行状态 | AG-UI event stream | 以 `threadId/runId` 标识 |
+| 单次运行状态 | AG-UI event stream + MySQL lease | 以 `threadId/runId` 标识，并跨副本互斥 |
 | 长期记忆 | 延期 | 不在本期注入偏好或跨会话事实 |
 
 `chat_message` 与 `AgentState` 允许不同。前者面向人类阅读，后者保留 Agent 恢复下一轮所需的
@@ -48,7 +48,7 @@ flowchart LR
     CHAT --> DELEGATE["AuthenticatedAgentDelegate"]
     DELEGATE --> ADAPTER["AgentScope AguiAgentAdapter"]
     ADAPTER --> AGENT
-    AGENT <--> STORE[("MysqlAgentStateStore")]
+    AGENT <--> STORE[("Lease-bound AgentStateStore / MySQL")]
     ADAPTER -->|"AG-UI SSE"| UI
     CHAT --> META["ConversationContextService"]
     META <--> STORE
@@ -89,10 +89,12 @@ sessionId = conversationId
 4. 对新会话只预分配 UUID；对已有会话执行第一次归属校验。
 5. 申请 `(userId, conversationId)` 的 `SessionRunGuard`；冲突返回 `409`。
 6. 预读 `agent_state` 与 `context_meta`，存储不可用时在推理前返回 `503`。
-7. 获得 guard 后重新校验已有会话的归属、存在性和模型绑定，关闭校验与加锁之间的删除竞态。
+7. 获得 guard 后重新校验已有会话的归属、存在性和模型绑定，关闭校验与加锁之间的删除竞态；已有
+   非空绑定必须与请求一致。
 8. 创建请求级 `HarnessAgent`；只有 State Store preflight 和 Agent 创建都成功后，才使用预分配 ID
    持久化新业务会话。
-9. 创建 `AuthenticatedAgentDelegate`、保存用户展示消息并建立 SSE 流。
+9. 创建 `AuthenticatedAgentDelegate`，在 fenced 业务事务中保存用户展示消息；历史遗留的空模型绑定
+   会在该事务中仅绑定一次，随后与正常会话一样不可切换模型；最后建立 SSE 流。
 
 新会话不会在 State Store 故障或 Agent 创建失败时留下没有回传给前端的空会话。
 
@@ -103,24 +105,33 @@ AG-UI `RUN_ERROR` 表达。
 
 ### 4.2 上下文持久化
 
-同一个 AgentScope session 使用两个状态槽：
+AgentScope 使用一个权威状态槽和一个独立的元数据 sidecar：
 
 | slot | 内容 |
 | --- | --- |
 | `agent_state` | AgentScope 管理的消息、工具状态、压缩摘要等运行状态 |
-| `context_meta` | revision、reset 时间、最近更新时间和本轮 token usage |
+| `context_meta` | revision、reset 时间、最近更新时间和本轮 token usage；保存在独立 sidecar session |
 
-两个槽位都使用同一个物理身份：
+两个槽位的物理身份分别为：
 
 ```text
-(userId, sessionId) = (authenticatedUserId, conversationId)
+agent_state:  (authenticatedUserId, conversationId)
+context_meta: (authenticatedUserId, "__context_meta__:" + conversationId)
 ```
+
+reset 只删除权威 session，不会先删掉 revision 基线；旧版本写在主 session 内的 metadata 会在持有
+会话租约时迁移到 sidecar。
 
 Context API 只返回计数和布尔状态，不返回原始消息、summary、系统 Prompt、工具结果或凭据。
 
 AgentScope `2.0.0` 在 State Store 读取异常时可能以 fresh state 继续。`FailClosedAgentStateStore`
 将读取故障提升到该捕获边界之外，服务层再转换为同步 `503` 或流内 `RUN_ERROR`，避免一次数据库
 故障被表现为“失忆”并覆盖旧状态。这是版本兼容层，升级到原生 fail-closed 版本后应移除。
+
+每个 `HarnessAgent` 获得的是绑定该请求**原始 Lease** 的 State Store，而不是按 session 动态查找
+“当前 Lease”。所有 `save/delete` 都在同一个 MySQL 事务内先对租约行执行精确 owner/expiry 校验的
+`SELECT ... FOR UPDATE`，再修改状态行。即使旧 JVM 暂停超过 TTL 后恢复，也不能借用新 run 的令牌或
+覆盖新 owner 的 `agent_state`；list state、匿名迁移、reset 删除和 sidecar metadata 使用同一写闸门。
 
 `agent_state` 是模型上下文的权威提交；`context_meta`、token usage 和 `context_status` 是其后的
 可观测性投影。AgentScope 在产生成功的 `RUN_FINISHED` 前已经提交 `agent_state`，服务端随后以
@@ -130,9 +141,20 @@ best effort 方式保存 `context_meta` 并生成两个 `CUSTOM` 事件。投影
 
 ### 4.3 并发与生命周期
 
-`SessionRunGuard` 保证单 JVM 内同一用户、同一会话只有一个推理、重置或删除操作。chat、reset、
-delete 都会先做快速权限检查，再在获得 guard 后重新检查会话归属和存在性；因此等待 guard 期间
-发生的会话删除不会被后续推理或重置重新写活。
+`SessionRunGuard` 先用 JVM 内 map 快速拒绝重复请求，再在 `agentscope_sessions` 中通过原子 upsert
+获取带过期时间的 MySQL 租约。锁键使用 `(userId, conversationId)` 的定长 SHA-256；租约 TTL 为
+60 秒，健康操作至多每 10 秒用旧 owner 内容做条件续租，最大持有时间为运行绝对超时加 30 秒清理
+宽限。释放时同样匹配最新 owner 内容，所以旧请求的迟到清理不会删除新租约。本地 reservation 与
+独立 expiry timer 使用保守的单调时钟边界；续租失败或超时会标记丢锁并取消受保护操作。锁存储不可用
+时 fail closed 并返回 `503`。
+
+会话创建、user 消息与计数、assistant 消息与默认标题、会话软删除及 AgentScope namespace 清理也在
+Spring 事务的第一项 mutation 前锁定同一个租约行，并把行锁保持到 commit/rollback。reset 对认证与
+匿名主 namespace 的删除合并为一次 fenced transaction，避免超 TTL 暂停造成只删一半后旧上下文复活。
+
+chat、reset、delete 都会先做快速权限检查，再在获得 guard 后重新检查会话归属和存在性；因此等待
+guard 期间发生的会话删除不会被后续推理或重置重新写活。匿名旧状态的复制、目标校验和源删除也在
+同一租约内完成；状态查询遇到活跃租约时只返回当前认证快照，不执行迁移。
 
 `Disposable` 与以下 `SseEmitter` 生命周期绑定：
 
@@ -140,11 +162,11 @@ delete 都会先做快速权限检查，再在获得 guard 后重新检查会话
 - `onTimeout`
 - `onError`
 
-浏览器断开、SSE 写入失败、Agent 异常或正常完成都会关闭请求级 Agent 并释放 guard。只有实际收到
+浏览器断开、SSE 写入失败、Agent 异常或正常完成都会关闭请求级 Agent 并释放 guard。Agent 流使用
+`app.conversation.run-timeout-seconds` 绝对截止时间，持续输出 token 也不能续期；SSE 自身的有限超时
+比运行截止时间多 5 秒，留出发送 `RUN_TIMEOUT` 的窗口。只有实际收到
 `RUN_ERROR` 的运行才跳过 assistant 展示消息和标题更新；best-effort 元数据投影失败不设置
 `runFailed`。
-
-当前 guard 只在单 JVM 内有效。多实例部署必须换成 Redis、数据库锁或其他带租约的分布式实现。
 
 ### 4.4 Compaction
 
@@ -200,15 +222,14 @@ DELETE /api/chat/conversations/{conversationId}/context
 }
 ```
 
-重置在获得 guard 后重新校验会话权限，然后删除当前 session 的 AgentScope 状态，再尝试写入新的
-`context_meta` tombstone 并递增 revision。`chat_message` 不删除，所以用户仍能看到历史，但下一轮
-模型不会再读取重置前的上下文。正常路径下重复重置保持幂等；与活跃 run 或 delete 冲突时返回
-`409`。
+重置在获得 guard 后重新校验会话权限，并在同一个 fenced JDBC 事务中删除认证 session、旧匿名
+session，再向独立 sidecar 写入新的 `context_meta` tombstone 并递增 revision。`chat_message` 不删除，
+所以用户仍能看到历史，但下一轮模型不会再读取重置前的上下文。正常路径下重复重置保持幂等；与活跃
+run 或 delete 冲突时返回 `409`。
 
-删除 AgentScope session 是重置的权威结果。若删除失败，接口返回 `503`；若删除已经成功、但随后
-tombstone 保存失败，服务端记录错误并仍返回成功，避免客户端重试已经完成的破坏性操作。成功响应
-使用本次内存中的 reset metadata，但后续查询可能因为 tombstone 未持久化而缺少 revision、resetAt
-和最近 token 等元数据。
+namespace 删除与 tombstone 写入是一个原子提交：任一步骤失败都返回 `503` 并回滚全部改动，旧状态和
+旧 revision 基线一起保留。重试从同一基线再次计算 revision，不会出现只删除上下文、未记录重置或
+后续 revision 回退。
 
 删除业务会话同样在获得 guard 后重新校验权限，再同步删除整个 AgentScope session。若状态删除失败，
 业务软删除事务回滚。
@@ -324,15 +345,19 @@ sequenceDiagram
     AS->>AS: compact at token threshold
     AS->>STORE: commit agent_state
     AS-->>API: RunFinished
+    API->>BIZ: save assistant message + update timeline/title
+    alt assistant timeline commit fails
+        API-->>UI: RUN_ERROR + RUN_FINISHED
+        Note over API,UI: Never report success before the durable timeline commit
+    end
     alt context projection succeeds
         API->>STORE: save context_meta + token usage
         API-->>UI: CUSTOM token_usage + context_status
-    else projection fails after agent_state commit
+    else projection fails after agent_state and timeline commit
         API->>API: log projection failure
         Note over API,UI: CUSTOM events may be omitted; run remains successful
     end
     API-->>UI: RUN_FINISHED
-    API->>BIZ: save assistant message + update timeline/title
     API->>AD: close Agent
     API->>GUARD: release lease
 ```
@@ -351,14 +376,15 @@ sequenceDiagram
 | 模型不存在、禁用或不可见 | `404` |
 | 消息/模型参数无效，或模型与会话绑定不一致 | `422` |
 | 同会话已有 run、reset 或 delete | `409` |
+| MySQL session lease 获取失败 | 同步 `503`，不在失去互斥保证时继续执行 |
 | 请求等待 guard 后会话被删除或权限发生变化 | 持有 lease 后重新校验，失败则在 SSE 前返回 `403` |
 | State Store 预读失败 | 同步 `503` |
 | State Store 在流中失败 | `RUN_ERROR` 后结束，不以 fresh state 继续 |
 | Agent 失败 | `RUN_ERROR + RUN_FINISHED`，不写成功投影，也不保存 assistant 成功时间线 |
 | `agent_state` 已提交，但 `context_meta`/token 投影失败 | 记录错误日志，可省略两个 `CUSTOM` 事件，仍发送 `RUN_FINISHED` 并保存 assistant 时间线 |
 | 浏览器断流或 SSE 写失败 | 取消订阅、关闭 Agent、释放 guard |
-| reset 删除 AgentScope session 失败 | 返回 `503`，不报告重置成功 |
-| reset 已删除 session，但 reset tombstone 保存失败 | 记录错误并返回成功，避免客户端重试已完成的破坏性操作；后续读取可能丢失 revision、resetAt 和 token 投影 |
+| Agent 超过绝对运行时限 | 取消上游并发送 `RUN_ERROR(code=RUN_TIMEOUT) + RUN_FINISHED`；SSE 随后结束 |
+| reset namespace 删除或 tombstone 保存失败 | 同一 fenced 事务整体回滚并返回 `503`；旧状态与旧 revision 基线均保留 |
 | 重复 reset | 已有 tombstone 时幂等成功 |
 | 登录 token 被清除或切换用户 | 前端清空会话/上下文状态并中止旧流，忽略旧身份的 `conversation-id` 和 `CUSTOM` 事件 |
 | GET 或旧 SSE 事件晚于 reset/新流返回 | 前端用 requestId、revision 和 updatedAt 丢弃过期响应 |
@@ -368,18 +394,22 @@ AgentScope `2.0.0` 不保证取消时保存进行中的状态。本期承诺“�
 
 ## 8. 部署要求与剩余边界
 
-上线前需要完成：
+上线前仍需要完成：
 
 1. 为 `agentscope_sessions` 提供显式 SQL migration；生产设置
    `app.conversation.agent-state.create-if-not-exist=false`。
-2. 处理旧的匿名 AgentScope 状态。新实现不再读取 `userId=null` 的旧键；迁移或清理时必须先用
-   `chat_conversation.user_id` 验证归属。
-3. 使用真实 MySQL、真实模型做多轮恢复、长会话压缩、重启恢复和故障注入测试；故障注入应覆盖
-   Store 预读、`agent_state` 保存、成功投影、reset 删除和 tombstone 保存。
-4. 多副本部署前实现分布式 session guard，并验证 AgentStateStore 在跨节点并发写入、reset 和 delete
-   竞争下的覆盖语义；当前本地 guard 只保证单 JVM 串行化。
-5. AgentScope 升级时替换 deprecated stream 兼容入口，并重新评估、最终移除针对 `2.0.0` 的
+2. 使用真实 MySQL、真实模型做多轮恢复、长会话压缩、重启恢复和故障注入测试；故障注入应覆盖
+   Store 预读、`agent_state` 保存、成功投影、reset 删除、tombstone 保存、租约过期接管和跨副本竞争。
+3. 灰度时观察匿名状态的一次性迁移；迁移只会在 `chat_conversation.user_id` 归属校验且持有租约后
+   复制到认证命名空间，验证落盘后才删除源数据。
+4. AgentScope 升级时替换 deprecated stream 兼容入口，并重新评估、最终移除针对 `2.0.0` 的
    fail-closed 包装补丁。
+
+AgentScope `2.0.0` 的全局 shutdown-saver registry 没有请求级注销 API。本实现通过集中在
+`AgentScopeShutdownRegistry` 中、只面向固定 `2.0.0` 内部字段的兼容适配，在请求清理时按 exact Agent
+UUID 删除 registry 条目，并显式关闭绑定 State Store，从而释放 Agent、状态缓存、lease、DataSource、
+UUID key 和 map node。若未来版本内部布局变化，适配会退化为共享无状态 saver 并记录告警；升级时应优先
+改用上游正式注销 API，再移除该版本特定适配。
 
 本次没有扩展沙箱能力。`CopilotAgentFactory` 原有的本地 ROOTED filesystem 配置保持不变；后续接入
 Docker/Kubernetes/AgentRun Sandbox 时，应继续复用本期的 `(userId, conversationId, runId)` 身份、
@@ -387,22 +417,19 @@ Docker/Kubernetes/AgentRun Sandbox 时，应继续复用本期的 `(userId, conv
 
 ## 9. 验证状态
 
-已完成的最近一次构建和受控 UI 验证包括：
+本次修复已完成：
 
-- Context 模块及依赖 Maven compile 通过。
-- Context 模块及依赖 Maven test 生命周期通过；当前仓库没有对应自动化测试源码。
-- `copilot-admin` 及全部依赖 Maven package 通过。
-- React TypeScript `--noEmit` 通过。
-- Vite production build 通过。
-- `git diff --check` 通过。
-- 浏览器覆盖中英文、亮色/暗色、桌面 `1440x900` 与移动端 `390x844`、`390x667`、`390x500`。
-- 已检查面板溢出、外部点击、Escape/焦点恢复、确认框焦点循环、reset 成功、`409`、`503`，以及
-  run 进行中禁用 reset。
+- React TypeScript `pnpm tsc --noEmit` 通过。
+- Vite `pnpm build` 通过；仅有既有的 chunk size、Browserslist 数据陈旧和 Vite CJS API 警告。
+- locale JSON、模块 POM 结构和 `git diff --check` 已做静态校验。
+- 新增 Context/Chat 单元测试，覆盖匿名迁移、reset revision/失败语义、Agent 构建与补偿清理、绝对运行
+  超时等路径。
 
-浏览器验证期间，真实后端登录请求曾返回 `Unexpected end of JSON input`，因此上下文成功与错误 UI
-路径使用受控响应完成验收，不能替代真实登录态端到端测试。当前也没有 Java 自动化测试，且尚未执行
-依赖真实 MySQL、真实模型凭据、服务重启和故障注入的集成测试。最终代码合并后仍应复跑 Maven package、
-TypeScript、Vite build 和 `git diff --check`；上述部署前集成测试是生产启用的必要门槛。
+当前执行环境没有 JDK、`java`、`javac` 或 Maven，因此本轮**没有实际编译或运行后端 Java 测试**；
+这部分不能写成已通过。合并前必须在有 JDK/Maven 的环境执行 Context 模块测试和全项目 package。
+另外仍需用真实 MySQL/Testcontainers 验证 A 租约过期、B 接管后 A 的 save/delete 被拒绝，以及 A 持有
+`FOR UPDATE` 时 B 等待到 A commit 的并发语义；H2 不能替代这类锁测试。真实模型、服务重启与故障注入
+测试同样仍是生产启用的必要门槛。
 
 ## 10. 官方依据
 

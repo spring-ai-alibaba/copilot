@@ -40,6 +40,10 @@
       "add_image_failed": "添加图片失败",
       "auth_required": "请先登录后再发送消息",
       "request_failed": "请求失败，请稍后重试",
+      "conversation_loading": "正在加载会话信息，请稍后重试",
+      "conversation_load_failed": "无法加载会话信息，请重新选择会话后重试",
+      "conversation_model_unavailable": "该会话绑定的模型已不可用，请新建会话后重试",
+      "selected_model_unavailable": "所选模型已不可用，请重新选择后重试",
       "view_problem": "查看问题"
     },
     "success": {
@@ -82,6 +86,7 @@
       "workspaceMention": "输入 @ 可引用工作区文件",
       "selectModel": "选择模型",
       "availableModels": "可用模型",
+      "conversationModelLocked": "已有会话将继续使用创建时绑定的模型",
       "stopReceiving": "停止接收",
       "sendMessage": "发送消息",
       "composerHint": "Enter 发送 · Shift + Enter 换行"

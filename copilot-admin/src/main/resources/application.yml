@@ -240,6 +240,8 @@ app:
       - mkfs
   # 会话配置
   conversation:
+    # 单次 Agent 运行的绝对超时；分布式会话租约会在此基础上增加短暂清理宽限期。
+    run-timeout-seconds: ${CONVERSATION_RUN_TIMEOUT_SECONDS:300}
     agent-state:
       # 开发环境可自动建表；生产环境请改为 false 并先执行显式迁移。
       create-if-not-exist: true
