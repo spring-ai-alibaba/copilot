@@ -46,6 +46,13 @@ public class ConversationServiceImpl extends ServiceImpl<ConversationMapper, Con
     private static final String ANONYMOUS_USER = "__anon__";
 
     private final ChatMessageMapper chatMessageMapper;
+
+    /**
+     * 仅用于操作 AgentScope 框架自带的 {@code agentscope_sessions} 表（该表由 AgentScope 的
+     * Session 机制管理，本项目没有对应的 entity/mapper）。JdbcTemplate 与 MyBatis 共用同一个
+     * DataSource，通过 DataSourceUtils 获取当前线程的事务连接，因此能与 MyBatis-Plus 的
+     * 业务写操作参与同一个 Spring 事务，保证一起提交/回滚。
+     */
     private final JdbcTemplate jdbcTemplate;
     private final SessionRunGuard sessionRunGuard;
     private final PlatformTransactionManager transactionManager;
