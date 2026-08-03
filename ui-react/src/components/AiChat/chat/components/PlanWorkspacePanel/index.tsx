@@ -7,6 +7,7 @@ import {
   Check,
   CheckCircle2,
   ChevronDown,
+  ChevronUp,
   Circle,
   CircleDot,
   FileText,
@@ -195,11 +196,18 @@ export const PlanWorkspacePanel = ({
   isLoading,
   decisionState,
   onDecision,
+  integrated = false,
 }: {
   workspace: PlanWorkspaceState | null;
   isLoading: boolean;
   decisionState: PlanDecisionState | null;
   onDecision: (decision: PlanDecision) => Promise<void> | void;
+  /**
+   * Render the panel as the top section of the composer instead of as a
+   * standalone card. The composer owns the outer border, background and
+   * shadow in this mode, so the panel can behave like an upward drawer.
+   */
+  integrated?: boolean;
 }) => {
   const [expanded, setExpanded] = useState(false);
   const [showFeedback, setShowFeedback] = useState(false);
@@ -255,10 +263,27 @@ export const PlanWorkspacePanel = ({
     onDecision({ action, feedback: action === "REJECT" ? feedback.trim() : undefined });
   };
 
+  const PanelExpandIcon = expanded ? ChevronDown : ChevronUp;
+
   return (
-    <div className="mx-auto w-full max-w-[760px] px-3 sm:px-5">
-      <div className="overflow-hidden rounded-2xl border border-border/75 bg-card/95 shadow-lg backdrop-blur-xl">
-        <button type="button" onClick={() => setExpanded((value) => !value)} className="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-muted/35" aria-expanded={expanded}>
+    <div className={classNames("w-full", !integrated && "mx-auto max-w-[760px] px-3 sm:px-5")}>
+      <div className={classNames(
+        "overflow-hidden",
+        integrated
+          ? "border-b border-border/65"
+          : "rounded-2xl border border-border/75 bg-card/95 shadow-lg backdrop-blur-xl",
+      )}>
+        <button
+          type="button"
+          onClick={() => setExpanded((value) => !value)}
+          className={classNames(
+            "flex w-full items-center gap-3 text-left transition-colors hover:bg-muted/35",
+            integrated ? "px-4 py-2.5" : "px-4 py-3",
+            expanded && integrated && "bg-muted/15",
+          )}
+          aria-expanded={expanded}
+          aria-label={expanded ? "收起计划与执行" : "展开计划与执行"}
+        >
           <span className={classNames("flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-muted", meta.tone)}>
             {busy ? <LoaderCircle className="h-4 w-4 animate-spin" /> : workspace.status === "COMPLETED" ? <CheckCircle2 className="h-4 w-4" /> : workspace.status === "FAILED" ? <AlertCircle className="h-4 w-4" /> : <ListTodo className="h-4 w-4" />}
           </span>
@@ -267,11 +292,20 @@ export const PlanWorkspacePanel = ({
             <span className="mt-0.5 block truncate text-[10px] text-muted-foreground">{workspace.message || meta.description}{progress.total ? ` · ${progress.completed}/${progress.total} 已完成` : ""}</span>
           </span>
           {progress.total > 0 && <span className="text-[10px] font-medium text-muted-foreground">{progress.percent}%</span>}
-          <ChevronDown className={classNames("h-4 w-4 text-muted-foreground transition-transform", expanded && "rotate-180")} />
+          <PanelExpandIcon className="h-4 w-4 text-muted-foreground" />
         </button>
 
-        {expanded && (
-          <div className="max-h-[min(50vh,520px)] overflow-y-auto border-t border-border/65 px-4 py-3 [scrollbar-width:thin]">
+        <div
+          className={classNames(
+            "overflow-hidden transition-[max-height,opacity] duration-300 ease-out",
+            expanded ? "max-h-[min(50vh,520px)] opacity-100" : "max-h-0 opacity-0",
+          )}
+          aria-hidden={!expanded}
+        >
+          <div className={classNames(
+            "max-h-[min(50vh,520px)] overflow-y-auto px-4 py-3 [scrollbar-width:thin]",
+            !integrated && "border-t border-border/65",
+          )}>
             {workspace.status === "FAILED" && <div className="mb-3 rounded-lg border border-destructive/25 bg-destructive/[0.06] px-3 py-2 text-xs text-destructive">{workspace.message || "计划执行失败，请检查模型或工具配置后重试。"}</div>}
             {workspace.tasks.length > 0 && <section className="mb-4"><div className="mb-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">Todo 进度</div><TaskList tasks={workspace.tasks} /></section>}
             {workspace.review && <section><div className="mb-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">{workspace.decisionAllowed ? "待审批计划" : "已批准计划"}</div><ReviewDetails review={workspace.review} /></section>}
@@ -286,7 +320,7 @@ export const PlanWorkspacePanel = ({
               </div>
             )}
           </div>
-        )}
+        </div>
       </div>
     </div>
   );

@@ -1652,35 +1652,37 @@ export const BaseChat = ({uuid: propUuid}: { uuid?: string }) => {
                 ref={composerOverlayRef}
                 className="pointer-events-none absolute inset-x-0 bottom-0 z-30 bg-gradient-to-t from-background via-background/95 to-transparent pt-9"
             >
-                <div className="pointer-events-auto mb-2">
-                    <PlanWorkspacePanel
-                        workspace={planWorkspace}
-                        isLoading={isLoading}
-                        decisionState={planDecisionState}
-                        onDecision={handlePlanDecision}
-                    />
-                </div>
-                <div className="pointer-events-auto">
-                    <ChatInput
-                        input={input}
-                        setMessages={setMessages}
-                        append={append}
-                        messages={messages}
-                        stopRuning={stop}
-                        setInput={setInput}
-                        isLoading={isLoading}
-                        isUploading={isUploading}
-                        uploadedImages={uploadedImages}
-                        baseModal={baseModal}
-                        handleInputChange={handleInputChange}
-                        handleKeySubmit={handleKeySubmit}
-                        handleSubmitWithFiles={handleSubmitWithFiles}
-                        handleFileSelect={handleFileSelect}
-                        removeImage={removeImage}
-                        addImages={addImages}
-                        setIsUploading={setIsUploading}
-                        setBaseModal={setBaseModal}
-                    />
+                <div className="pointer-events-auto mx-auto w-full max-w-[760px] px-3 sm:px-5">
+                    <div className="arc-composer-card overflow-visible">
+                        <PlanWorkspacePanel
+                            workspace={planWorkspace}
+                            isLoading={isLoading}
+                            decisionState={planDecisionState}
+                            onDecision={handlePlanDecision}
+                            integrated
+                        />
+                        <ChatInput
+                            input={input}
+                            setMessages={setMessages}
+                            append={append}
+                            messages={messages}
+                            stopRuning={stop}
+                            setInput={setInput}
+                            isLoading={isLoading}
+                            isUploading={isUploading}
+                            uploadedImages={uploadedImages}
+                            baseModal={baseModal}
+                            handleInputChange={handleInputChange}
+                            handleKeySubmit={handleKeySubmit}
+                            handleSubmitWithFiles={handleSubmitWithFiles}
+                            handleFileSelect={handleFileSelect}
+                            removeImage={removeImage}
+                            addImages={addImages}
+                            setIsUploading={setIsUploading}
+                            setBaseModal={setBaseModal}
+                            embedded
+                        />
+                    </div>
                 </div>
             </div>
         </div>

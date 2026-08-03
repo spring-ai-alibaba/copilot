@@ -46,6 +46,7 @@ export const ChatInput: React.FC<ChatInputPropsType> = ({
   handleSketchUpload,
   baseModal,
   setBaseModal,
+  embedded = false,
 }) => {
   const { files, errors, removeError } = useFileStore();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -380,8 +381,8 @@ export const ChatInput: React.FC<ChatInputPropsType> = ({
   }, [input]);
 
   return (
-    <div className="shrink-0 px-3 pb-4 pt-2 sm:px-5">
-      <div className="mx-auto w-full max-w-[760px]">
+    <div className={classNames("shrink-0 pb-4 pt-2", embedded ? "px-3 sm:px-4" : "px-3 sm:px-5")}>
+      <div className={classNames("mx-auto w-full", !embedded && "max-w-[760px]")}>
         <ErrorDisplay
           errors={errors}
           onAttemptFix={async (error, index) => {
@@ -396,7 +397,7 @@ export const ChatInput: React.FC<ChatInputPropsType> = ({
           <OptimizedPromptWord input={input} setInput={setInput} />
         </div>
 
-        <div className="arc-composer-card relative overflow-visible">
+        <div className={classNames("relative overflow-visible", !embedded && "arc-composer-card")}>
           <div
             className={classNames(
               "relative",
