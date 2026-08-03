@@ -8,6 +8,7 @@ import com.alibaba.cloud.ai.copilot.mapper.ChatMessageMapper;
 import com.alibaba.cloud.ai.copilot.satoken.utils.LoginHelper;
 import com.alibaba.cloud.ai.copilot.service.ConversationService;
 import com.alibaba.cloud.ai.copilot.service.SseEventService;
+import com.alibaba.cloud.ai.copilot.service.PlanWorkspaceStateService;
 import io.agentscope.core.agui.event.AguiEvent;
 import io.agentscope.core.permission.PermissionMode;
 import org.junit.jupiter.api.Test;
@@ -36,7 +37,8 @@ class ChatServiceImplTest {
                 mock(ConversationService.class),
                 mock(ChatMessageMapper.class),
                 mock(AppProperties.class),
-                mock(KnowledgeAvailabilityChecker.class));
+                mock(KnowledgeAvailabilityChecker.class),
+                mock(PlanWorkspaceStateService.class));
     }
 
     @Test
@@ -134,7 +136,8 @@ class ChatServiceImplTest {
                 conversationService,
                 mock(ChatMessageMapper.class),
                 mock(AppProperties.class),
-                mock(KnowledgeAvailabilityChecker.class));
+                mock(KnowledgeAvailabilityChecker.class),
+                mock(PlanWorkspaceStateService.class));
         SseEmitter emitter = new SseEmitter();
 
         try (MockedStatic<LoginHelper> loginHelper = mockStatic(LoginHelper.class)) {
@@ -158,7 +161,8 @@ class ChatServiceImplTest {
                 conversationService,
                 mock(ChatMessageMapper.class),
                 mock(AppProperties.class),
-                mock(KnowledgeAvailabilityChecker.class));
+                mock(KnowledgeAvailabilityChecker.class),
+                mock(PlanWorkspaceStateService.class));
         SseEmitter emitter = new SseEmitter();
         ChatRequest request = new ChatRequest();
         request.setPlanAction("APPROVE");

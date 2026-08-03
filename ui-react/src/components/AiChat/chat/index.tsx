@@ -9,6 +9,14 @@ import {db} from "../../../utils/indexDB";
 import {v4 as uuidv4} from "uuid";
 import {eventEmitter} from "../utils/EventEmitter";
 import {MessageItem} from "./components/MessageItem";
+import {
+    isTodoWriteTool,
+    parseTodoTasks,
+    PlanDecision,
+    PlanDecisionState,
+    PlanWorkspacePanel,
+    stripPlanWorkspaceTimeline,
+} from "./components/PlanWorkspacePanel";
 import {ChatInput, ChatMode} from "./components/ChatInput";
 import Tips from "./components/Tips";
 import {parseMessage} from "../../../utils/messagepParseJson";
@@ -28,7 +36,11 @@ import useMCPTools from "@/hooks/useMCPTools";
 import {FileSystemStatus} from "./components/FileSystemStatus";
 import {handleFileSystemEvent, isFileSystemEvent} from "../utils/fileSystemEventHandler";
 import {useConversationStore} from "@/stores/conversationSlice";
-import {getConversationMessages} from "@/api/conversation";
+import {
+    getConversationMessages,
+    getPlanWorkspace,
+    PlanWorkspaceState,
+} from "@/api/conversation";
 import { LoaderCircle } from "lucide-react";
 import { AppLogo } from "@/components/AppLogo";
 
@@ -86,18 +98,6 @@ export interface IModelOption {
     provider?: string;
     functionCall?: boolean;
 }
-
-type PlanDecision = {
-    action: "APPROVE" | "REJECT";
-    feedback?: string;
-};
-
-type PlanDecisionState = {
-    conversationId: string;
-    action: "APPROVE" | "REJECT";
-    status: "submitting" | "running" | "completed" | "failed";
-    message?: string;
-};
 
 function convertToBoltAction(obj: Record<string, string>): string {
     return Object.entries(obj)
@@ -174,6 +174,7 @@ export const BaseChat = ({uuid: propUuid}: { uuid?: string }) => {
     const modeRef = useRef(mode);
     const executionModeRef = useRef(executionMode);
     const pendingPlanDecisionRef = useRef<PlanDecision | null>(null);
+    const planWorkspaceLiveVersionRef = useRef(0);
 
     useEffect(() => {
         modeRef.current = mode;
@@ -503,14 +504,38 @@ export const BaseChat = ({uuid: propUuid}: { uuid?: string }) => {
     const [messages, setMessagesa] = useState<WeMessages>([]);
     const [planDecisionState, setPlanDecisionState] =
         useState<PlanDecisionState | null>(null);
+    const [planWorkspace, setPlanWorkspace] =
+        useState<PlanWorkspaceState | null>(null);
     const {enabledMCPs} = useMCPTools()
 
     useEffect(() => {
         setPlanDecisionState(null);
+        setPlanWorkspace(null);
+        if (!currentConversationId) return;
+
+        const conversationId = currentConversationId;
+        const liveVersion = planWorkspaceLiveVersionRef.current;
+        const controller = new AbortController();
+        getPlanWorkspace(conversationId, controller.signal)
+            .then((workspace) => {
+                if (
+                    !controller.signal.aborted &&
+                    useConversationStore.getState().currentConversationId === conversationId &&
+                    planWorkspaceLiveVersionRef.current === liveVersion
+                ) {
+                    setPlanWorkspace(workspace);
+                }
+            })
+            .catch((error) => {
+                if (error instanceof DOMException && error.name === "AbortError") return;
+                console.warn("加载计划工作区失败:", error);
+            });
+        return () => controller.abort();
     }, [currentConversationId]);
 
     // 自定义 fetch 函数来处理 SSE 流数据
     const customFetch = async (url: string, options: any) => {
+        let streamConversationId = currentConversationId || '';
         try {
             const latestToken = useUserStore.getState().token;
             if (!latestToken) {
@@ -564,6 +589,7 @@ export const BaseChat = ({uuid: propUuid}: { uuid?: string }) => {
                     planAction: pendingPlanDecision?.action,
                     planFeedback: pendingPlanDecision?.feedback,
                 };
+                streamConversationId = String(modifiedBody.conversationId || '');
                 delete modifiedBody.messages; // 删除原来的messages数组
 
                 // 更新options中的body
@@ -683,10 +709,20 @@ export const BaseChat = ({uuid: propUuid}: { uuid?: string }) => {
                 // 用 SSE event 名（UPPER 枚举名）路由；回退到 JSON.type
                 const type = (eventName || parsed.type || '').toUpperCase();
                 let transformedText = '';
+                const belongsToCurrentConversation = () => {
+                    const eventConversationId = String(
+                        parsed.conversationId || parsed.threadId || streamConversationId || '',
+                    );
+                    const selectedConversationId =
+                        useConversationStore.getState().currentConversationId;
+                    return !eventConversationId || !selectedConversationId ||
+                        eventConversationId === selectedConversationId;
+                };
 
                 // 会话ID控制事件：后端在新建会话时回传，前端需写入 store 以支撑后续多轮
                 if (eventName === 'conversation-id' && parsed.conversationId) {
                     const conversationId = String(parsed.conversationId);
+                    streamConversationId = conversationId;
                     if (useConversationStore.getState().currentConversationId !== conversationId) {
                         streamAssignedConversationIdRef.current = conversationId;
                         setCurrentConversation(conversationId);
@@ -721,7 +757,9 @@ export const BaseChat = ({uuid: propUuid}: { uuid?: string }) => {
                             };
                             toolCallStates.set(tcId, state);
                             // 工具名一到就展示，避免参数生成或工具执行期间页面空白。
-                            transformedText += flushToolCall(tcId, state, undefined, 'running');
+                            if (!isTodoWriteTool(tcName)) {
+                                transformedText += flushToolCall(tcId, state, undefined, 'running');
+                            }
                         }
                         break;
                     }
@@ -740,8 +778,26 @@ export const BaseChat = ({uuid: propUuid}: { uuid?: string }) => {
                         if (st) {
                             handleToolCallEnd(st.name, st.argsBuffer);
                             st.ended = true;
-                            // 参数已完整，更新同一张运行中卡片。
-                            transformedText += flushToolCall(tcId, st, undefined, 'running');
+                            if (isTodoWriteTool(st.name)) {
+                                if (!belongsToCurrentConversation()) break;
+                                const tasks = parseTodoTasks(st.argsBuffer);
+                                if (tasks.length) {
+                                    const completed = tasks.every((task) => task.status === 'completed');
+                                    planWorkspaceLiveVersionRef.current += 1;
+                                    setPlanWorkspace((current) => ({
+                                        conversationId: current?.conversationId || String(currentConversationId || ''),
+                                        status: completed ? 'COMPLETED' : 'EXECUTING',
+                                        message: completed ? 'Todo 已全部完成' : 'Agent 正在按计划执行',
+                                        decisionAllowed: false,
+                                        review: current?.review,
+                                        tasks,
+                                        updatedAt: new Date().toISOString(),
+                                    }));
+                                }
+                            } else {
+                                // 参数已完整，更新同一张运行中卡片。
+                                transformedText += flushToolCall(tcId, st, undefined, 'running');
+                            }
                         }
                         break;
                     }
@@ -749,7 +805,28 @@ export const BaseChat = ({uuid: propUuid}: { uuid?: string }) => {
                         const tcId = parsed.toolCallId;
                         const st = tcId ? toolCallStates.get(tcId) : undefined;
                         if (tcId && st) {
-                            transformedText += flushToolCall(tcId, st, parsed.content);
+                            if (isTodoWriteTool(st.name)) {
+                                if (!belongsToCurrentConversation()) {
+                                    toolCallStates.delete(tcId);
+                                    break;
+                                }
+                                const tasks = parseTodoTasks(st.argsBuffer, parsed.content);
+                                if (tasks.length) {
+                                    const completed = tasks.every((task) => task.status === 'completed');
+                                    planWorkspaceLiveVersionRef.current += 1;
+                                    setPlanWorkspace((current) => ({
+                                        conversationId: current?.conversationId || String(currentConversationId || ''),
+                                        status: completed ? 'COMPLETED' : 'EXECUTING',
+                                        message: completed ? 'Todo 已全部完成' : '任务进度已更新',
+                                        decisionAllowed: false,
+                                        review: current?.review,
+                                        tasks,
+                                        updatedAt: new Date().toISOString(),
+                                    }));
+                                }
+                            } else {
+                                transformedText += flushToolCall(tcId, st, parsed.content);
+                            }
                             toolCallStates.delete(tcId);
                         } else {
                             transformedText += encodeTimelineBlock('arc-tool', {
@@ -764,38 +841,61 @@ export const BaseChat = ({uuid: propUuid}: { uuid?: string }) => {
                     }
                     case 'RUN_FINISHED': {
                         toolCallStates.forEach((state, toolCallId) => {
-                            transformedText += flushToolCall(
-                                toolCallId,
-                                state,
-                                undefined,
-                                'completed',
-                            );
+                            if (!isTodoWriteTool(state.name)) {
+                                transformedText += flushToolCall(
+                                    toolCallId,
+                                    state,
+                                    undefined,
+                                    'completed',
+                                );
+                            }
                         });
                         toolCallStates.clear();
                         break;
                     }
                     case 'PLAN-STATUS': {
+                        if (!belongsToCurrentConversation()) break;
                         const conversationId = String(
                             parsed.conversationId || currentConversationId || '',
                         );
-                        const status = String(parsed.status || '').toLowerCase();
-                        if (
-                            conversationId &&
-                            ['running', 'completed', 'failed'].includes(status)
-                        ) {
+                        const rawStatus = String(parsed.status || '').toUpperCase();
+                        const status = rawStatus === 'RUNNING' ? 'EXECUTING' : rawStatus;
+                        if (conversationId && ['PLANNING', 'PENDING_APPROVAL', 'REVISING', 'EXECUTING', 'COMPLETED', 'FAILED'].includes(status)) {
+                            planWorkspaceLiveVersionRef.current += 1;
+                            setPlanWorkspace((current) => ({
+                                conversationId,
+                                status: status as PlanWorkspaceState['status'],
+                                message: parsed.message,
+                                decisionAllowed: typeof parsed.decisionAllowed === 'boolean'
+                                    ? parsed.decisionAllowed
+                                    : status === 'PENDING_APPROVAL' || (Boolean(current?.decisionAllowed) && status === 'FAILED'),
+                                review: current?.review,
+                                tasks: current?.tasks || [],
+                                updatedAt: new Date().toISOString(),
+                            }));
                             setPlanDecisionState((current) => ({
                                 conversationId,
                                 action: current?.action || 'APPROVE',
-                                status: status as PlanDecisionState['status'],
+                                status: (status === 'EXECUTING' ? 'running' : status.toLowerCase()) as PlanDecisionState['status'],
                                 message: parsed.message,
                             }));
                         }
                         break;
                     }
                     case 'PLAN-REVIEW': {
+                        if (!belongsToCurrentConversation()) break;
                         // 新计划（包括驳回后的修订版）到达时恢复为可审批状态。
+                        planWorkspaceLiveVersionRef.current += 1;
                         setPlanDecisionState(null);
-                        transformedText += encodeTimelineBlock('arc-plan', parsed);
+                        setPlanWorkspace({
+                            conversationId: String(parsed.conversationId || currentConversationId || ''),
+                            status: 'PENDING_APPROVAL',
+                            message: '等待审批',
+                            decisionAllowed: true,
+                            review: parsed,
+                            tasks: [],
+                            updatedAt: new Date().toISOString(),
+                        });
                         break;
                     }
                     case 'RUN_ERROR': {
@@ -819,6 +919,14 @@ export const BaseChat = ({uuid: propUuid}: { uuid?: string }) => {
                                 }
                                 : current,
                         );
+                        if (belongsToCurrentConversation()) {
+                            setPlanWorkspace((current) => current ? {
+                                ...current,
+                                status: 'FAILED',
+                                message: String(errorMessage),
+                            } : current);
+                            planWorkspaceLiveVersionRef.current += 1;
+                        }
                         transformedText += encodeTimelineBlock('arc-error', String(errorMessage));
                         break;
                     }
@@ -1177,7 +1285,7 @@ export const BaseChat = ({uuid: propUuid}: { uuid?: string }) => {
     const filterMessages = messages.filter(
         (e) =>
             (e.role === "user" || e.role === "assistant") &&
-            !!e.content?.trim() &&
+            !!stripPlanWorkspaceTimeline(e.content || "").trim() &&
             !e.content.includes("<planDecision>")
     );
     // 修改上传处理函数
@@ -1307,6 +1415,13 @@ export const BaseChat = ({uuid: propUuid}: { uuid?: string }) => {
             action: decision.action,
             status: "submitting",
         });
+        setPlanWorkspace((current) => current ? {
+            ...current,
+            status: decision.action === "APPROVE" ? "EXECUTING" : "REVISING",
+            message: decision.action === "APPROVE" ? "正在提交审批并准备执行" : "正在提交反馈并修改计划",
+            decisionAllowed: false,
+        } : current);
+        planWorkspaceLiveVersionRef.current += 1;
         pendingPlanDecisionRef.current = decision;
         try {
             await append({
@@ -1325,6 +1440,12 @@ export const BaseChat = ({uuid: propUuid}: { uuid?: string }) => {
                 status: "failed",
                 message,
             });
+            setPlanWorkspace((current) => current ? {
+                ...current,
+                status: "FAILED",
+                message,
+                decisionAllowed: true,
+            } : current);
             toast.error(message);
         }
     };
@@ -1479,8 +1600,6 @@ export const BaseChat = ({uuid: propUuid}: { uuid?: string }) => {
                                     content: ` ${content?.[0]?.text}`,
                                 });
                             }}
-                            onPlanDecision={handlePlanDecision}
-                            planDecisionState={planDecisionState}
                         />
                     ))}
 
@@ -1533,6 +1652,14 @@ export const BaseChat = ({uuid: propUuid}: { uuid?: string }) => {
                 ref={composerOverlayRef}
                 className="pointer-events-none absolute inset-x-0 bottom-0 z-30 bg-gradient-to-t from-background via-background/95 to-transparent pt-9"
             >
+                <div className="pointer-events-auto mb-2">
+                    <PlanWorkspacePanel
+                        workspace={planWorkspace}
+                        isLoading={isLoading}
+                        decisionState={planDecisionState}
+                        onDecision={handlePlanDecision}
+                    />
+                </div>
                 <div className="pointer-events-auto">
                     <ChatInput
                         input={input}

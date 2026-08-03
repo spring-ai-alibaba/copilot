@@ -5,12 +5,14 @@ import com.alibaba.cloud.ai.copilot.agent.PlanApprovalAgent;
 import com.alibaba.cloud.ai.copilot.config.AppProperties;
 import com.alibaba.cloud.ai.copilot.domain.dto.ChatRequest;
 import com.alibaba.cloud.ai.copilot.domain.dto.CreateConversationRequest;
+import com.alibaba.cloud.ai.copilot.domain.dto.PlanWorkspaceDTO;
 import com.alibaba.cloud.ai.copilot.domain.entity.ChatMessageEntity;
 import com.alibaba.cloud.ai.copilot.knowledge.service.KnowledgeAvailabilityChecker;
 import com.alibaba.cloud.ai.copilot.satoken.utils.LoginHelper;
 import com.alibaba.cloud.ai.copilot.service.ChatService;
 import com.alibaba.cloud.ai.copilot.service.ConversationService;
 import com.alibaba.cloud.ai.copilot.service.SseEventService;
+import com.alibaba.cloud.ai.copilot.service.PlanWorkspaceStateService;
 import com.alibaba.cloud.ai.copilot.mapper.ChatMessageMapper;
 import io.agentscope.core.agui.adapter.AguiAdapterConfig;
 import io.agentscope.core.agui.adapter.AguiAgentAdapter;
@@ -86,6 +88,7 @@ public class ChatServiceImpl implements ChatService {
     private final ChatMessageMapper chatMessageMapper;
     private final AppProperties appProperties;
     private final KnowledgeAvailabilityChecker knowledgeAvailabilityChecker;
+    private final PlanWorkspaceStateService planWorkspaceStateService;
     private final Set<String> activePlanExecutions = ConcurrentHashMap.newKeySet();
 
     @Override
@@ -118,12 +121,26 @@ public class ChatServiceImpl implements ChatService {
             final boolean planModeEnabled =
                     Boolean.TRUE.equals(request.getPlanMode()) || planAction != PlanAction.NONE;
 
+            if (planModeEnabled && planAction == PlanAction.NONE) {
+                sendPlanStatus(
+                        emitter,
+                        finalConversationId,
+                        "PLANNING",
+                        "正在生成计划");
+            } else if (planAction == PlanAction.REJECT) {
+                sendPlanStatus(
+                        emitter,
+                        finalConversationId,
+                        "REVISING",
+                        "正在根据反馈修改计划");
+            }
+
             if (planAction == PlanAction.APPROVE
                     && !activePlanExecutions.add(finalConversationId)) {
                 sendPlanStatus(
                         emitter,
                         finalConversationId,
-                        "RUNNING",
+                        "EXECUTING",
                         "计划审批已经受理，Agent 正在执行，请勿重复点击");
                 sseEventService.sendComplete(emitter);
                 return;
@@ -162,7 +179,7 @@ public class ChatServiceImpl implements ChatService {
                 sendPlanStatus(
                         emitter,
                         finalConversationId,
-                        "RUNNING",
+                        "EXECUTING",
                         "计划已批准，Agent 正在进入执行阶段；"
                                 + riskLevel.executionPolicy());
             }
@@ -199,6 +216,7 @@ public class ChatServiceImpl implements ChatService {
 
             // 8. 订阅 AG-UI 事件流，逐帧编码为 SSE 发往前端；并累积 assistant 文本以便落库
             final AtomicReference<StringBuilder> assistantText = new AtomicReference<>(new StringBuilder());
+            final Map<String, WorkspaceToolCall> workspaceToolCalls = new ConcurrentHashMap<>();
 
             Flux<AguiEvent> aguiEvents = adapter.run(runInput)
                     // 防止工具执行线程异常退出却没有向上游传播，导致 SSE 永久挂起。
@@ -209,15 +227,20 @@ public class ChatServiceImpl implements ChatService {
                             emitter,
                             event,
                             assistantText,
-                            planModeEnabled),
+                            planModeEnabled,
+                            finalConversationId,
+                            workspaceToolCalls),
                     error -> {
                         log.error("Agent 执行出错: conversationId={}", finalConversationId, error);
-                        if (planAction == PlanAction.APPROVE) {
+                        if (planModeEnabled) {
+                            boolean decisionAllowed = isPlanDecisionStillAllowed(
+                                    agent, finalConversationId);
                             sendPlanStatus(
                                     emitter,
                                     finalConversationId,
                                     "FAILED",
-                                    resolveAgentErrorMessage(error));
+                                    resolveAgentErrorMessage(error),
+                                    decisionAllowed);
                             activePlanExecutions.remove(finalConversationId);
                             claimedPlanExecution.set(null);
                         }
@@ -248,7 +271,8 @@ public class ChatServiceImpl implements ChatService {
                                     approvalStillPending ? "FAILED" : "COMPLETED",
                                     approvalStillPending
                                             ? "审批已收到，但 Agent 未能进入执行阶段，请重试"
-                                            : "计划已批准，Agent 执行完成");
+                                            : "计划已批准，Agent 执行完成",
+                                    approvalStillPending);
                             activePlanExecutions.remove(finalConversationId);
                             claimedPlanExecution.set(null);
                         }
@@ -362,11 +386,48 @@ public class ChatServiceImpl implements ChatService {
             String conversationId,
             String status,
             String message) {
+        sendPlanStatus(
+                emitter,
+                conversationId,
+                status,
+                message,
+                "PENDING_APPROVAL".equals(status));
+    }
+
+    private void sendPlanStatus(
+            SseEmitter emitter,
+            String conversationId,
+            String status,
+            String message,
+            boolean decisionAllowed) {
         Map<String, Object> payload = new HashMap<>();
         payload.put("conversationId", conversationId);
         payload.put("status", status);
         payload.put("message", message);
+        payload.put("decisionAllowed", decisionAllowed);
+        planWorkspaceStateService.recordStatus(
+                conversationId,
+                status,
+                message,
+                decisionAllowed);
         sseEventService.sendSseEvent(emitter, "plan-status", payload);
+    }
+
+    private boolean isPlanDecisionStillAllowed(
+            HarnessAgent agent, String conversationId) {
+        try {
+            if (!agent.isPlanModeActive(null, conversationId)
+                    || !Files.isRegularFile(agentFactory.resolvePlanFile(conversationId))) {
+                return false;
+            }
+            AgentState state = agent.getDelegate().getAgentState(null, conversationId);
+            return state.getContext().stream()
+                    .flatMap(message -> message.getContentBlocks(ToolUseBlock.class).stream())
+                    .anyMatch(tool -> "plan_exit".equals(tool.getName())
+                            && tool.getState() == ToolCallState.ASKING);
+        } catch (Exception e) {
+            return false;
+        }
     }
 
     private String sendPlanReviewIfPending(
@@ -380,6 +441,11 @@ public class ChatServiceImpl implements ChatService {
 
         Path planFile = agentFactory.resolvePlanFile(conversationId);
         if (!Files.isRegularFile(planFile)) {
+            sendPlanStatus(
+                    emitter,
+                    conversationId,
+                    "FAILED",
+                    "Agent 仍处于计划模式，但没有生成 PLAN.md，请重新提交任务");
             sseEventService.sendRunError(
                     emitter,
                     "Agent 仍处于计划模式，但没有生成 PLAN.md，请重新提交任务");
@@ -398,6 +464,7 @@ public class ChatServiceImpl implements ChatService {
             PlanRiskLevel riskLevel = assessRisk(content);
             Path workspace = agentFactory.resolveConversationWorkspace(conversationId);
             payload.put("conversationId", conversationId);
+            payload.put("reviewId", UUID.randomUUID().toString());
             payload.put("planFile", planFile.toString());
             payload.put("planContent", content);
             payload.put("affectedFiles", affectedFiles);
@@ -407,6 +474,7 @@ public class ChatServiceImpl implements ChatService {
             payload.put("permissionMode", riskLevel.permissionMode().name());
             payload.put("executionPolicy", riskLevel.executionPolicy());
             payload.put("status", "PENDING");
+            planWorkspaceStateService.recordReview(conversationId, payload);
             sseEventService.sendSseEvent(emitter, "plan-review", payload);
             String payloadJson = JsonUtils.getJsonCodec().toJson(payload);
             String encodedPayload = URLEncoder.encode(payloadJson, StandardCharsets.UTF_8)
@@ -734,7 +802,9 @@ public class ChatServiceImpl implements ChatService {
             SseEmitter emitter,
             AguiEvent event,
             AtomicReference<StringBuilder> assistantText,
-            boolean planModeEnabled) {
+            boolean planModeEnabled,
+            String conversationId,
+            Map<String, WorkspaceToolCall> workspaceToolCalls) {
         try {
             if (isExpectedPlanReviewPause(event, planModeEnabled)) {
                 log.debug("忽略 Plan Mode 正常审批暂停事件: {}", event);
@@ -746,6 +816,7 @@ public class ChatServiceImpl implements ChatService {
                     assistantText.get().append(tmc.delta());
                 }
             }
+            captureWorkspaceToolEvent(conversationId, event, workspaceToolCalls);
             // 序列化为 JSON 并下发（SSE 帧：event:<TYPE>\ndata:<json>\n\n）
             String json = JsonUtils.getJsonCodec().toJson(event);
             emitter.send(SseEmitter.event()
@@ -753,6 +824,64 @@ public class ChatServiceImpl implements ChatService {
                     .data(json, MediaType.APPLICATION_JSON));
         } catch (Exception e) {
             log.debug("发送 AG-UI 事件失败: {}", e.getMessage());
+        }
+    }
+
+    private void captureWorkspaceToolEvent(
+            String conversationId,
+            AguiEvent event,
+            Map<String, WorkspaceToolCall> toolCalls) {
+        if (event instanceof AguiEvent.ToolCallStart start) {
+            toolCalls.put(start.toolCallId(), new WorkspaceToolCall(start.toolCallName()));
+            return;
+        }
+        if (event instanceof AguiEvent.ToolCallArgs args) {
+            WorkspaceToolCall call = toolCalls.get(args.toolCallId());
+            if (call != null && args.delta() != null) {
+                call.arguments().append(args.delta());
+            }
+            return;
+        }
+        if (event instanceof AguiEvent.ToolCallEnd end) {
+            persistTodoSnapshot(conversationId, toolCalls.get(end.toolCallId()));
+            return;
+        }
+        if (event instanceof AguiEvent.ToolCallResult result) {
+            WorkspaceToolCall call = toolCalls.remove(result.toolCallId());
+            if (call != null) {
+                List<PlanWorkspaceDTO.PlanTask> tasks =
+                        planWorkspaceStateService.normalizeTasks(call.arguments().toString());
+                if (tasks.isEmpty()) {
+                    tasks = planWorkspaceStateService.normalizeTasks(result.content());
+                }
+                if (isTodoWriteTool(call.name()) && !tasks.isEmpty()) {
+                    planWorkspaceStateService.recordTasks(conversationId, tasks);
+                }
+            }
+        }
+    }
+
+    private void persistTodoSnapshot(String conversationId, WorkspaceToolCall call) {
+        if (call == null || !isTodoWriteTool(call.name())) {
+            return;
+        }
+        List<PlanWorkspaceDTO.PlanTask> tasks =
+                planWorkspaceStateService.normalizeTasks(call.arguments().toString());
+        if (!tasks.isEmpty()) {
+            planWorkspaceStateService.recordTasks(conversationId, tasks);
+        }
+    }
+
+    private boolean isTodoWriteTool(String toolName) {
+        return toolName != null
+                && toolName.replaceAll("[^A-Za-z]", "")
+                        .toLowerCase(Locale.ROOT)
+                        .endsWith("todowrite");
+    }
+
+    private record WorkspaceToolCall(String name, StringBuilder arguments) {
+        private WorkspaceToolCall(String name) {
+            this(name, new StringBuilder());
         }
     }
 

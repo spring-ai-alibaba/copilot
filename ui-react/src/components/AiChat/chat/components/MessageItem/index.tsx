@@ -13,19 +13,7 @@ import "highlight.js/styles/github-dark.css"; // 暗色主题
 import {useTranslation} from 'react-i18next';
 import { safeJsonParse } from '@/utils/safeJsonParse';
 import { AppLogo } from "@/components/AppLogo";
-import {
-  CheckCircle2,
-  Check,
-  Circle,
-  CircleDot,
-  Code2,
-  FileText,
-  GitBranch,
-  ListTodo,
-  LockKeyhole,
-  ShieldAlert,
-  X,
-} from "lucide-react";
+import { isTodoWriteTool as isWorkspaceTodoTool, stripPlanWorkspaceTimeline } from "../PlanWorkspacePanel";
 
 const codeStyles = `
   .hljs-attr {
@@ -125,7 +113,7 @@ function getDisplayContent(message: Message) {
   const normalizedContent = isThinkContent(content)
     ? processThinkContent(content)
     : content;
-  return collapseLiveTimelineBlocks(normalizedContent);
+  return collapseLiveTimelineBlocks(stripPlanWorkspaceTimeline(normalizedContent));
 }
 
 const LIVE_TIMELINE_BLOCK_PATTERN =
@@ -210,16 +198,6 @@ interface MessageItemProps {
     text: string;
     type: string;
   }[]) => void;
-  onPlanDecision?: (decision: {
-    action: "APPROVE" | "REJECT";
-    feedback?: string;
-  }) => Promise<void> | void;
-  planDecisionState?: {
-    conversationId: string;
-    action: "APPROVE" | "REJECT";
-    status: "submitting" | "running" | "completed" | "failed";
-    message?: string;
-  } | null;
 }
 
 const isArtifactContent = (content: string) => {
@@ -375,272 +353,6 @@ const RunErrorCard = ({ message: errorMessage }: { message: string }) => {
       </div>
       <div className="mt-1 whitespace-pre-wrap text-[11px] leading-5 text-destructive/85">
         {errorMessage}
-      </div>
-    </div>
-  );
-};
-
-type PlanReviewPayload = {
-  conversationId: string;
-  planFile?: string;
-  planContent: string;
-  affectedFiles?: string[];
-  filePreviews?: Array<{
-    path: string;
-    startLine: number;
-    endLine: number;
-    content: string;
-    status: "AVAILABLE" | "UNAVAILABLE";
-  }>;
-  gitStatus?: string;
-  riskLevel?: "LOW" | "MEDIUM" | "HIGH";
-  permissionMode?: "DEFAULT" | "DONT_ASK" | "BYPASS";
-  executionPolicy?: string;
-  status?: string;
-};
-
-const PlanReviewCard = ({
-  review,
-  disabled,
-  onDecision,
-  decisionState,
-}: {
-  review: PlanReviewPayload;
-  disabled: boolean;
-  onDecision?: MessageItemProps["onPlanDecision"];
-  decisionState?: MessageItemProps["planDecisionState"];
-}) => {
-  const { t } = useTranslation();
-  const [showFeedback, setShowFeedback] = useState(false);
-  const [feedback, setFeedback] = useState("");
-  const activeDecision =
-    decisionState?.conversationId === review.conversationId
-      ? decisionState
-      : null;
-  const submittedAction =
-    activeDecision?.status === "failed" ? null : activeDecision?.action || null;
-  const riskLevel = review.riskLevel || "LOW";
-  const riskClassName =
-    riskLevel === "HIGH"
-      ? "bg-destructive/10 text-destructive"
-      : riskLevel === "MEDIUM"
-        ? "bg-amber-500/10 text-amber-700 dark:text-amber-300"
-        : "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300";
-
-  const submitDecision = (action: "APPROVE" | "REJECT") => {
-    if (!onDecision || disabled || submittedAction) {
-      return;
-    }
-    if (action === "REJECT" && !feedback.trim()) {
-      setShowFeedback(true);
-      return;
-    }
-    void onDecision({
-      action,
-      feedback: action === "REJECT" ? feedback.trim() : undefined,
-    });
-  };
-
-  return (
-    <div className="my-3 overflow-hidden rounded-2xl border border-amber-500/25 bg-card shadow-sm">
-      <div className="flex items-start gap-3 border-b border-border/65 bg-amber-500/[0.055] px-4 py-3">
-        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-amber-500/10 text-amber-700 dark:text-amber-300">
-          <ListTodo className="h-4 w-4" />
-        </span>
-        <span className="min-w-0 flex-1">
-          <span className="block text-sm font-semibold text-foreground">
-            {t("chat.planMode.reviewTitle", { defaultValue: "计划等待审批" })}
-          </span>
-          <span className="mt-0.5 block text-[11px] leading-4 text-muted-foreground">
-            {t("chat.planMode.reviewDescription", {
-              defaultValue: "Agent 仍处于只读状态，批准后才会修改文件或运行命令。",
-            })}
-          </span>
-        </span>
-        <span
-          className={classNames(
-            "inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-1 text-[9px] font-semibold",
-            riskClassName,
-          )}
-        >
-          <ShieldAlert className="h-3 w-3" />
-          {riskLevel === "HIGH"
-            ? t("chat.planMode.highRisk", { defaultValue: "高风险" })
-            : riskLevel === "MEDIUM"
-              ? t("chat.planMode.mediumRisk", { defaultValue: "中风险" })
-              : t("chat.planMode.lowRisk", { defaultValue: "低风险" })}
-        </span>
-      </div>
-
-      <div className="space-y-3 px-4 py-3.5">
-        {review.affectedFiles?.length ? (
-          <div>
-            <div className="mb-1.5 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
-              <FileText className="h-3 w-3" />
-              {t("chat.planMode.affectedFiles", { defaultValue: "预计影响文件" })}
-            </div>
-            <div className="flex flex-wrap gap-1.5">
-              {review.affectedFiles.slice(0, 8).map((file) => (
-                <span
-                  key={file}
-                  className="max-w-full truncate rounded-md border border-border/70 bg-muted/55 px-2 py-1 font-mono text-[10px] text-foreground/80"
-                  title={file}
-                >
-                  {file}
-                </span>
-              ))}
-            </div>
-          </div>
-        ) : null}
-
-        {review.executionPolicy ? (
-          <div className="rounded-xl border border-border/65 bg-muted/35 px-3 py-2.5">
-            <div className="flex items-start gap-2">
-              <LockKeyhole className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-              <div className="min-w-0">
-                <div className="flex flex-wrap items-center gap-1.5">
-                  <span className="text-[11px] font-medium text-foreground">
-                    {t("chat.planMode.executionPolicy", {
-                      defaultValue: "批准后的执行策略",
-                    })}
-                  </span>
-                  {review.permissionMode ? (
-                    <span className="rounded bg-background px-1.5 py-0.5 font-mono text-[9px] text-muted-foreground">
-                      {review.permissionMode}
-                    </span>
-                  ) : null}
-                </div>
-                <p className="mt-0.5 text-[10px] leading-4 text-muted-foreground">
-                  {review.executionPolicy}
-                </p>
-              </div>
-            </div>
-          </div>
-        ) : null}
-
-        <div className="max-h-[360px] overflow-y-auto rounded-xl border border-border/65 bg-background/70 px-3.5 py-3 [scrollbar-width:thin]">
-          <div className="arc-message-markdown prose prose-sm max-w-none text-foreground dark:prose-invert">
-            <ReactMarkdown remarkPlugins={[remarkGfm]}>
-              {review.planContent || "PLAN.md 暂无内容"}
-            </ReactMarkdown>
-          </div>
-        </div>
-
-        {review.gitStatus ? (
-          <div>
-            <div className="mb-1.5 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
-              <GitBranch className="h-3 w-3" />
-              {t("chat.planMode.gitStatus", { defaultValue: "当前 Git 状态" })}
-            </div>
-            <pre className="max-h-32 overflow-auto whitespace-pre-wrap rounded-xl border border-border/65 bg-muted/35 px-3 py-2 font-mono text-[10px] leading-4 text-foreground/75 [scrollbar-width:thin]">
-              {review.gitStatus}
-            </pre>
-          </div>
-        ) : null}
-
-        {review.filePreviews?.length ? (
-          <div>
-            <div className="mb-1.5 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
-              <Code2 className="h-3 w-3" />
-              {t("chat.planMode.filePreviews", { defaultValue: "改前文件片段" })}
-            </div>
-            <div className="space-y-1.5">
-              {review.filePreviews.map((preview, index) => (
-                <details
-                  key={`${preview.path}-${index}`}
-                  className="group overflow-hidden rounded-xl border border-border/65 bg-background/70"
-                >
-                  <summary className="cursor-pointer select-none px-3 py-2 font-mono text-[10px] text-foreground/80 marker:text-muted-foreground">
-                    {preview.path}
-                    {preview.status === "AVAILABLE" ? (
-                      <span className="ml-2 font-sans text-[9px] text-muted-foreground">
-                        L{preview.startLine}–L{preview.endLine}
-                      </span>
-                    ) : null}
-                  </summary>
-                  <pre
-                    className={classNames(
-                      "max-h-56 overflow-auto border-t border-border/60 px-3 py-2 font-mono text-[10px] leading-4 [scrollbar-width:thin]",
-                      preview.status === "AVAILABLE"
-                        ? "bg-muted/30 text-foreground/75"
-                        : "bg-amber-500/[0.045] text-muted-foreground",
-                    )}
-                  >
-                    {preview.content}
-                  </pre>
-                </details>
-              ))}
-            </div>
-          </div>
-        ) : null}
-
-        {showFeedback && !submittedAction ? (
-          <div className="rounded-xl border border-border/70 bg-muted/35 p-2.5">
-            <label className="mb-1.5 block text-[11px] font-medium text-foreground">
-              {t("chat.planMode.feedbackLabel", {
-                defaultValue: "告诉 Agent 需要修改什么",
-              })}
-            </label>
-            <textarea
-              value={feedback}
-              onChange={(event) => setFeedback(event.target.value)}
-              className="min-h-20 w-full resize-y rounded-lg border border-border bg-background px-3 py-2 text-xs leading-5 text-foreground outline-none placeholder:text-muted-foreground focus:border-foreground/25 focus:ring-2 focus:ring-ring/20"
-              placeholder={t("chat.planMode.feedbackPlaceholder", {
-                defaultValue: "例如：不要修改数据库，补充回滚与单元测试方案",
-              })}
-              autoFocus
-            />
-          </div>
-        ) : null}
-
-        <div className="flex flex-wrap items-center justify-end gap-2">
-          {submittedAction ? (
-            <span className="mr-auto text-[11px] text-muted-foreground">
-              {activeDecision?.status === "completed"
-                ? t("chat.planMode.completed", {
-                    defaultValue: "计划执行完成",
-                  })
-                : submittedAction === "APPROVE"
-                ? t("chat.planMode.approved", {
-                    defaultValue: "已批准，Agent 正在开始执行",
-                  })
-                : t("chat.planMode.rejected", {
-                    defaultValue: "已驳回，Agent 正在修改计划",
-                  })}
-            </span>
-          ) : null}
-          {activeDecision?.status === "failed" ? (
-            <span className="mr-auto text-[11px] text-destructive">
-              {activeDecision.message || "审批执行失败，可以重试"}
-            </span>
-          ) : null}
-          <button
-            type="button"
-            onClick={() => {
-              if (showFeedback) {
-                submitDecision("REJECT");
-              } else {
-                setShowFeedback(true);
-              }
-            }}
-            disabled={disabled || Boolean(submittedAction)}
-            className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-border bg-background px-3 text-xs font-medium text-foreground transition-colors hover:bg-muted disabled:pointer-events-none disabled:opacity-50"
-          >
-            <X className="h-3.5 w-3.5" />
-            {showFeedback
-              ? t("chat.planMode.submitFeedback", { defaultValue: "提交修改意见" })
-              : t("chat.planMode.reject", { defaultValue: "驳回修改" })}
-          </button>
-          <button
-            type="button"
-            onClick={() => submitDecision("APPROVE")}
-            disabled={disabled || Boolean(submittedAction)}
-            className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-foreground px-3 text-xs font-medium text-background transition-colors hover:bg-foreground/85 disabled:pointer-events-none disabled:opacity-50"
-          >
-            <Check className="h-3.5 w-3.5" />
-            {t("chat.planMode.approve", { defaultValue: "批准并执行" })}
-          </button>
-        </div>
       </div>
     </div>
   );
@@ -844,249 +556,6 @@ type TimelineToolInvocation = {
   toolName: string;
 };
 
-type TodoItemState = "pending" | "in_progress" | "completed";
-
-type TodoProgressItem = {
-  content: string;
-  status: TodoItemState;
-  priority?: "high" | "medium" | "low";
-};
-
-const isTodoWriteTool = (toolName: string) =>
-  toolName.replace(/[^a-z]/gi, "").toLowerCase().endsWith("todowrite");
-
-const parseJsonObject = (value: unknown): unknown => {
-  if (typeof value !== "string") {
-    return value;
-  }
-  try {
-    return safeJsonParse(value);
-  } catch {
-    return value;
-  }
-};
-
-const normalizeTodoState = (value: unknown): TodoItemState => {
-  const state = String(value || "pending")
-    .trim()
-    .toLowerCase()
-    .replace(/[\s-]+/g, "_");
-  if (["completed", "complete", "done", "success", "succeeded"].includes(state)) {
-    return "completed";
-  }
-  if (["in_progress", "progress", "doing", "running", "active"].includes(state)) {
-    return "in_progress";
-  }
-  return "pending";
-};
-
-const normalizeTodoPriority = (
-  value: unknown,
-): TodoProgressItem["priority"] => {
-  const priority = String(value || "").trim().toLowerCase();
-  return ["high", "medium", "low"].includes(priority)
-    ? (priority as TodoProgressItem["priority"])
-    : undefined;
-};
-
-const parseTodoItemsFromResult = (result: unknown): TodoProgressItem[] => {
-  if (typeof result !== "string") {
-    return [];
-  }
-  return result
-    .split("\n")
-    .map((line): TodoProgressItem | null => {
-      const match = line.match(
-        /^\s*-\s*\[([x~ ])\]\s+(.+?)(?:\s+\(priority:\s*(high|medium|low)\))?\s*$/i,
-      );
-      if (!match) return null;
-      return {
-        content: match[2].trim(),
-        status:
-          match[1].toLowerCase() === "x"
-            ? "completed"
-            : match[1] === "~"
-              ? "in_progress"
-              : "pending",
-        priority: normalizeTodoPriority(match[3]),
-      } satisfies TodoProgressItem;
-    })
-    .filter((item): item is TodoProgressItem => item !== null);
-};
-
-const parseTodoItems = (toolInvocation: TimelineToolInvocation) => {
-  let args = parseJsonObject(toolInvocation.args);
-  if (args && typeof args === "object" && !Array.isArray(args)) {
-    const record = args as Record<string, unknown>;
-    args = parseJsonObject(
-      record.todos ??
-        record.tasks ??
-        record.items ??
-        record.raw ??
-        record.input ??
-        record.arguments ??
-        args,
-    );
-    if (args && typeof args === "object" && !Array.isArray(args)) {
-      const nested = args as Record<string, unknown>;
-      args = nested.todos ?? nested.tasks ?? nested.items ?? args;
-    }
-  }
-
-  if (!Array.isArray(args)) {
-    return parseTodoItemsFromResult(toolInvocation.result);
-  }
-
-  const items = args
-    .map((item): TodoProgressItem | null => {
-      const parsed = parseJsonObject(item);
-      if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
-        return null;
-      }
-      const record = parsed as Record<string, unknown>;
-      const content = String(
-        record.content ?? record.subject ?? record.description ?? record.title ?? "",
-      ).trim();
-      if (!content) return null;
-      return {
-        content,
-        status: normalizeTodoState(record.status ?? record.state),
-        priority: normalizeTodoPriority(record.priority),
-      } satisfies TodoProgressItem;
-    })
-    .filter((item): item is TodoProgressItem => item !== null);
-
-  return items.length ? items : parseTodoItemsFromResult(toolInvocation.result);
-};
-
-const TodoProgressCard = ({
-  toolInvocation,
-}: {
-  toolInvocation: TimelineToolInvocation;
-}) => {
-  const [expanded, setExpanded] = useState(true);
-  const { t } = useTranslation();
-  const items = parseTodoItems(toolInvocation);
-  const completed = items.filter((item) => item.status === "completed").length;
-  const inProgress = items.filter((item) => item.status === "in_progress").length;
-  const progress = items.length ? Math.round((completed / items.length) * 100) : 0;
-  const toolFailed = toolInvocation.state === "error";
-
-  return (
-    <div className="my-3 overflow-hidden rounded-2xl border border-blue-500/20 bg-card shadow-sm">
-      <button
-        type="button"
-        onClick={() => setExpanded((current) => !current)}
-        className="flex w-full items-center gap-3 bg-blue-500/[0.045] px-4 py-3 text-left transition-colors hover:bg-blue-500/[0.075]"
-        aria-expanded={expanded}
-      >
-        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-300">
-          <ListTodo className="h-4 w-4" />
-        </span>
-        <span className="min-w-0 flex-1">
-          <span className="block text-sm font-semibold text-foreground">
-            {t("chat.todo.title", { defaultValue: "任务进度" })}
-          </span>
-          <span className="mt-0.5 block text-[10px] text-muted-foreground">
-            {items.length
-              ? t("chat.todo.summary", {
-                  defaultValue: `${completed} / ${items.length} 已完成`,
-                  completed,
-                  total: items.length,
-                })
-              : t("chat.todo.preparing", { defaultValue: "正在整理任务列表" })}
-          </span>
-        </span>
-        {inProgress > 0 ? (
-          <span className="rounded-full bg-blue-500/10 px-2 py-1 text-[9px] font-medium text-blue-700 dark:text-blue-300">
-            {t("chat.todo.inProgressCount", {
-              defaultValue: `${inProgress} 项进行中`,
-              count: inProgress,
-            })}
-          </span>
-        ) : null}
-        <svg
-          className={classNames(
-            "h-3.5 w-3.5 text-muted-foreground transition-transform",
-            expanded && "rotate-180",
-          )}
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-        >
-          <path d="m6 9 6 6 6-6" />
-        </svg>
-      </button>
-
-      <div className="h-1 bg-muted/65">
-        <div
-          className={classNames(
-            "h-full transition-[width] duration-500",
-            toolFailed ? "bg-destructive" : "bg-blue-500",
-          )}
-          style={{ width: `${progress}%` }}
-        />
-      </div>
-
-      {expanded ? (
-        <div className="space-y-1 px-3 py-3">
-          {items.length ? (
-            items.map((item, index) => (
-              <div
-                key={`${item.content}-${index}`}
-                className={classNames(
-                  "flex items-start gap-2.5 rounded-xl px-2.5 py-2",
-                  item.status === "in_progress" && "bg-blue-500/[0.055]",
-                )}
-              >
-                {item.status === "completed" ? (
-                  <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500" />
-                ) : item.status === "in_progress" ? (
-                  <CircleDot className="mt-0.5 h-4 w-4 shrink-0 text-blue-500" />
-                ) : (
-                  <Circle className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground/65" />
-                )}
-                <span
-                  className={classNames(
-                    "min-w-0 flex-1 text-xs leading-5",
-                    item.status === "completed"
-                      ? "text-muted-foreground line-through decoration-border"
-                      : "text-foreground/90",
-                  )}
-                >
-                  {item.content}
-                </span>
-                {item.priority ? (
-                  <span
-                    className={classNames(
-                      "mt-0.5 shrink-0 rounded px-1.5 py-0.5 text-[8px] font-semibold uppercase",
-                      item.priority === "high"
-                        ? "bg-destructive/10 text-destructive"
-                        : item.priority === "medium"
-                          ? "bg-amber-500/10 text-amber-700 dark:text-amber-300"
-                          : "bg-muted text-muted-foreground",
-                    )}
-                  >
-                    {item.priority}
-                  </span>
-                ) : null}
-              </div>
-            ))
-          ) : (
-            <div className="flex items-center gap-2 px-2.5 py-2 text-xs text-muted-foreground">
-              <div className="h-1.5 w-1.5 animate-pulse rounded-full bg-blue-500" />
-              {toolFailed
-                ? t("chat.todo.failed", { defaultValue: "任务列表更新失败" })
-                : t("chat.todo.waiting", { defaultValue: "等待任务数据…" })}
-            </div>
-          )}
-        </div>
-      ) : null}
-    </div>
-  );
-};
-
 const ToolInvocationCard = ({
   toolInvocation,
 }: {
@@ -1237,8 +706,6 @@ export const MessageItem: React.FC<MessageItemProps> = ({
   handleRetry,
   listProgressStates = {},
   onUpdateMessage,
-  onPlanDecision,
-  planDecisionState,
 }) => {
   const [previewImage, setPreviewImage] = useState<string | null>(null);
   const [isCollapsed, setIsCollapsed] = useState<boolean>(false);
@@ -1282,14 +749,7 @@ export const MessageItem: React.FC<MessageItemProps> = ({
                   {/* 修改工具调用卡片的渲染 */}
                   {message.parts?.map((part, index) => {
                     if (part.type === "tool-invocation") {
-                      if (isTodoWriteTool(part.toolInvocation.toolName)) {
-                        return (
-                          <TodoProgressCard
-                            key={index}
-                            toolInvocation={part.toolInvocation}
-                          />
-                        );
-                      }
+                      if (isWorkspaceTodoTool(part.toolInvocation.toolName)) return null;
                       return (
                         <ToolInvocationCard
                           key={index}
@@ -1338,21 +798,7 @@ export const MessageItem: React.FC<MessageItemProps> = ({
                         }
 
                         if (language === "arc-plan") {
-                          try {
-                            const review = safeJsonParse(
-                              decodeTimelinePayload(content),
-                            ) as PlanReviewPayload;
-                            return (
-                              <PlanReviewCard
-                                review={review}
-                                disabled={isLoading}
-                                onDecision={onPlanDecision}
-                                decisionState={planDecisionState}
-                              />
-                            );
-                          } catch (error) {
-                            console.error("Failed to decode plan review", error);
-                          }
+                          return null;
                         }
 
                         if (language === "arc-tool") {
@@ -1360,13 +806,7 @@ export const MessageItem: React.FC<MessageItemProps> = ({
                             const invocation = safeJsonParse(
                               decodeTimelinePayload(content),
                             ) as TimelineToolInvocation;
-                            if (isTodoWriteTool(invocation.toolName)) {
-                              return (
-                                <TodoProgressCard
-                                  toolInvocation={invocation}
-                                />
-                              );
-                            }
+                            if (isWorkspaceTodoTool(invocation.toolName)) return null;
                             return (
                               <ToolInvocationCard
                                 toolInvocation={invocation}

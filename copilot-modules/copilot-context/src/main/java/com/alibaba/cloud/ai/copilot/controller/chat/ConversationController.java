@@ -5,7 +5,9 @@ import com.alibaba.cloud.ai.copilot.domain.dto.ChatMessage;
 import com.alibaba.cloud.ai.copilot.domain.dto.ConversationDTO;
 import com.alibaba.cloud.ai.copilot.domain.dto.CreateConversationRequest;
 import com.alibaba.cloud.ai.copilot.domain.dto.PageResult;
+import com.alibaba.cloud.ai.copilot.domain.dto.PlanWorkspaceDTO;
 import com.alibaba.cloud.ai.copilot.service.ConversationService;
+import com.alibaba.cloud.ai.copilot.service.PlanWorkspaceStateService;
 import com.alibaba.cloud.ai.copilot.satoken.utils.LoginHelper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -25,6 +27,7 @@ import java.util.List;
 public class ConversationController {
 
     private final ConversationService conversationService;
+    private final PlanWorkspaceStateService planWorkspaceStateService;
 
     /**
      * 创建会话
@@ -97,6 +100,21 @@ public class ConversationController {
         }
     }
 
+    /** 获取输入框上方的计划与执行工作区快照。 */
+    @GetMapping("/{conversationId}/plan-workspace")
+    public R<PlanWorkspaceDTO> getPlanWorkspace(@PathVariable String conversationId) {
+        try {
+            Long userId = LoginHelper.getUserId();
+            conversationService.checkConversationPermission(conversationId, userId);
+            return R.ok(planWorkspaceStateService.getWorkspace(conversationId));
+        } catch (IllegalArgumentException e) {
+            return R.fail(e.getMessage());
+        } catch (Exception e) {
+            log.error("获取计划工作区失败: conversationId={}", conversationId, e);
+            return R.fail("获取计划工作区失败: " + e.getMessage());
+        }
+    }
+
     /**
      * 更新会话标题
      */
@@ -136,4 +154,3 @@ public class ConversationController {
         }
     }
 }
-

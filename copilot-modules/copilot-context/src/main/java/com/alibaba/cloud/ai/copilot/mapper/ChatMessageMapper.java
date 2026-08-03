@@ -38,6 +38,21 @@ public interface ChatMessageMapper extends BaseMapper<ChatMessageEntity> {
             "ORDER BY created_time ASC")
     List<ChatMessageEntity> selectByConversationIdForDisplay(@Param("conversationId") String conversationId);
 
+    /** 查询计划工作区某类隐藏事件的最新快照。 */
+    @Select("SELECT * FROM chat_message WHERE conversation_id = #{conversationId} " +
+            "AND role = 'system' " +
+            "AND JSON_UNQUOTE(JSON_EXTRACT(metadata, '$.type')) = #{eventType} " +
+            "ORDER BY created_time DESC, id DESC LIMIT 1")
+    ChatMessageEntity selectLatestWorkspaceEvent(
+            @Param("conversationId") String conversationId,
+            @Param("eventType") String eventType);
+
+    /** 兼容旧会话：读取最后一条包含 arc-plan 的 assistant 消息。 */
+    @Select("SELECT * FROM chat_message WHERE conversation_id = #{conversationId} " +
+            "AND role = 'assistant' AND content LIKE '%```arc-plan%' " +
+            "ORDER BY created_time DESC, id DESC LIMIT 1")
+    ChatMessageEntity selectLatestLegacyPlan(@Param("conversationId") String conversationId);
+
     /**
      * 根据会话ID分页查询历史消息（按创建时间倒序，返回最新的消息）
      *
@@ -72,4 +87,3 @@ public interface ChatMessageMapper extends BaseMapper<ChatMessageEntity> {
     @Select("DELETE FROM chat_message WHERE conversation_id = #{conversationId}")
     int deleteByConversationId(@Param("conversationId") String conversationId);
 }
-
