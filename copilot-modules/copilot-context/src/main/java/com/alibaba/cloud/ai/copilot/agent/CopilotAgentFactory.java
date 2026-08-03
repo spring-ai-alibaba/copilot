@@ -20,7 +20,6 @@ import org.springframework.stereotype.Component;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 
 /**
  * 按需构建 agentscope {@link HarnessAgent}。
@@ -65,9 +64,8 @@ public class CopilotAgentFactory {
         // 1. 获取 agentscope Model（缓存命中或按配置新建）
         Model model = dynamicModelService.getChatModelWithConfigId(modelConfigId);
 
-        // 2. workspace 根目录（user.dir/workspace）
-        String rootDirectory = Paths.get(System.getProperty("user.dir"), "workspace").toString();
-        Path workspacePath = Path.of(rootDirectory);
+        // 2. workspace 根目录（app.workspace.root-directory，默认 user.dir/workspace）
+        Path workspacePath = Path.of(appProperties.getWorkspace().getRootDirectory());
 
         // 3. 文件系统沙箱：ROOTED 模式。沙箱根收敛到会话目录 workspace/<conversationId>/，
         //    否则 glob/read/write 能跨会话访问其他用户的文件（多租户隔离），

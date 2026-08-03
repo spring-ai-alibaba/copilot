@@ -1,6 +1,7 @@
 package com.alibaba.cloud.ai.copilot.controller;
 
 import cn.dev33.satoken.stp.StpUtil;
+import com.alibaba.cloud.ai.copilot.config.AppProperties;
 import com.alibaba.cloud.ai.copilot.domain.dto.IndexRequest;
 import com.alibaba.cloud.ai.copilot.knowledge.service.CodebaseIndexer;
 import lombok.RequiredArgsConstructor;
@@ -21,6 +22,7 @@ import java.util.Map;
 public class KnowledgeController {
 
     private final CodebaseIndexer codebaseIndexer;
+    private final AppProperties appProperties;
 
     /**
      * 触发全量/增量代码索引
@@ -47,9 +49,10 @@ public class KnowledgeController {
     @GetMapping("/workspace-path")
     public ResponseEntity<Map<String, String>> getWorkspacePath() {
         try {
-            // 获取工作目录的绝对路径
+            // workspace 根目录统一取自 app.workspace.root-directory 配置
+            String workspacePath = java.nio.file.Paths.get(
+                    appProperties.getWorkspace().getRootDirectory()).toAbsolutePath().toString();
             String workingDir = System.getProperty("user.dir");
-            String workspacePath = java.nio.file.Paths.get(workingDir, "workspace").toAbsolutePath().toString();
             
             log.info("返回 workspace 路径: {}", workspacePath);
             

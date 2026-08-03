@@ -13,7 +13,8 @@ CREATE TABLE IF NOT EXISTS skill_usage_log (
     KEY idx_conversation_id (conversation_id)
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT ='技能使用日志';
 
--- 技能市场表（由 MysqlSkillRepository 启动时自动创建，此处备档）
+-- 技能市场表（本脚本为正式变更入口；SkillMarketMapper.ensureTable() 仅做开发环境
+-- 启动兜底，可用 app.skills.mysql-market.create-table=false 关闭）
 CREATE TABLE IF NOT EXISTS skill_market (
     name         VARCHAR(128)  NOT NULL COMMENT '技能名（frontmatter name）',
     description  VARCHAR(1000) NOT NULL COMMENT '触发条件式描述',
