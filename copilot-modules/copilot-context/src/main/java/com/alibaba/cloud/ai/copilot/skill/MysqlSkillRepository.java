@@ -1,16 +1,14 @@
 package com.alibaba.cloud.ai.copilot.skill;
 
+import com.alibaba.cloud.ai.copilot.domain.entity.SkillMarketEntity;
+import com.alibaba.cloud.ai.copilot.mapper.SkillMarketMapper;
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import io.agentscope.core.skill.AgentSkill;
 import io.agentscope.core.skill.repository.AgentSkillRepository;
 import io.agentscope.core.skill.repository.AgentSkillRepositoryInfo;
 import lombok.extern.slf4j.Slf4j;
 
-import javax.sql.DataSource;
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.Statement;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -21,49 +19,31 @@ import java.util.Map;
  * 提供"平台侧集中管理、只读分发"的技能市场层：运营在表里上/下架技能（enabled 开关），
  * 下一轮推理即生效，无需重启或改代码。与 workspace/skills 的四层覆盖关系由框架处理
  * （市场层优先级低于工作区，同名时工作区版本生效）。</p>
+ *
+ * <p>数据访问统一走 {@link SkillMarketMapper}（MyBatis-Plus），与项目其余持久层
+ * 保持同一套栈；建表兜底见 {@link SkillMarketMapper#ensureTable()}，由
+ * {@link SkillMarketConfig} 按配置决定是否执行。</p>
  */
 @Slf4j
 public class MysqlSkillRepository implements AgentSkillRepository {
 
     private static final String SOURCE = "mysql-market";
+    private static final String TABLE = "skill_market";
 
-    private final DataSource dataSource;
-    private final String tableName;
+    private final SkillMarketMapper mapper;
 
-    public MysqlSkillRepository(DataSource dataSource, String tableName, boolean createIfNotExist) {
-        this.dataSource = dataSource;
-        this.tableName = tableName;
-        if (createIfNotExist) {
-            createTableIfNotExist();
-        }
-    }
-
-    private void createTableIfNotExist() {
-        String ddl = "CREATE TABLE IF NOT EXISTS " + tableName + " (" +
-                "name VARCHAR(128) NOT NULL COMMENT '技能名（frontmatter name）'," +
-                "description VARCHAR(1000) NOT NULL COMMENT '触发条件式描述'," +
-                "content MEDIUMTEXT NOT NULL COMMENT 'SKILL.md 全文（含 frontmatter）'," +
-                "enabled TINYINT NOT NULL DEFAULT 1 COMMENT '上架状态'," +
-                "created_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP," +
-                "updated_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP," +
-                "PRIMARY KEY (name)" +
-                ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='技能市场'";
-        try (Connection conn = dataSource.getConnection(); Statement st = conn.createStatement()) {
-            st.execute(ddl);
-        } catch (Exception e) {
-            throw new IllegalStateException("初始化技能市场表失败: " + tableName, e);
-        }
+    public MysqlSkillRepository(SkillMarketMapper mapper) {
+        this.mapper = mapper;
     }
 
     @Override
     public AgentSkill getSkill(String name) {
-        String sql = "SELECT name, description, content FROM " + tableName + " WHERE name = ? AND enabled = 1";
-        try (Connection conn = dataSource.getConnection(); PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setString(1, name);
-            try (ResultSet rs = ps.executeQuery()) {
-                return rs.next() ? toSkill(rs) : null;
-            }
+        try {
+            SkillMarketEntity entity = mapper.selectOne(enabledQuery()
+                    .eq(SkillMarketEntity::getName, name));
+            return entity == null ? null : toSkill(entity);
         } catch (Exception e) {
+            // 市场不可用时降级为"查无此技能"，不阻塞会话（工作区技能不受影响）
             log.warn("读取市场技能失败: name={}, err={}", name, e.getMessage());
             return null;
         }
@@ -71,34 +51,28 @@ public class MysqlSkillRepository implements AgentSkillRepository {
 
     @Override
     public List<String> getAllSkillNames() {
-        List<String> names = new ArrayList<>();
-        String sql = "SELECT name FROM " + tableName + " WHERE enabled = 1";
-        try (Connection conn = dataSource.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql);
-             ResultSet rs = ps.executeQuery()) {
-            while (rs.next()) {
-                names.add(rs.getString(1));
-            }
+        try {
+            return mapper.selectList(enabledQuery().select(SkillMarketEntity::getName))
+                    .stream()
+                    .map(SkillMarketEntity::getName)
+                    .toList();
         } catch (Exception e) {
             log.warn("读取市场技能名列表失败: {}", e.getMessage());
+            return List.of();
         }
-        return names;
     }
 
     @Override
     public List<AgentSkill> getAllSkills() {
-        List<AgentSkill> skills = new ArrayList<>();
-        String sql = "SELECT name, description, content FROM " + tableName + " WHERE enabled = 1";
-        try (Connection conn = dataSource.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql);
-             ResultSet rs = ps.executeQuery()) {
-            while (rs.next()) {
-                skills.add(toSkill(rs));
-            }
+        try {
+            return mapper.selectList(enabledQuery())
+                    .stream()
+                    .map(this::toSkill)
+                    .toList();
         } catch (Exception e) {
             log.warn("读取市场技能列表失败: {}", e.getMessage());
+            return List.of();
         }
-        return skills;
     }
 
     @Override
@@ -108,7 +82,7 @@ public class MysqlSkillRepository implements AgentSkillRepository {
 
     @Override
     public boolean isWriteable() {
-        // 只读分发：技能上/下架由平台侧直接操作 skill_market 表
+        // 只读分发：技能上/下架由平台侧操作 skill_market 表（SkillAdminService）
         return false;
     }
 
@@ -119,7 +93,7 @@ public class MysqlSkillRepository implements AgentSkillRepository {
 
     @Override
     public AgentSkillRepositoryInfo getRepositoryInfo() {
-        return new AgentSkillRepositoryInfo("mysql", tableName, false);
+        return new AgentSkillRepositoryInfo("mysql", TABLE, false);
     }
 
     @Override
@@ -140,14 +114,18 @@ public class MysqlSkillRepository implements AgentSkillRepository {
 
     @Override
     public void close() {
-        // DataSource 由 Spring 管理，无需关闭
+        // Mapper/DataSource 由 Spring 管理，无需关闭
     }
 
-    private AgentSkill toSkill(ResultSet rs) throws Exception {
+    private LambdaQueryWrapper<SkillMarketEntity> enabledQuery() {
+        return Wrappers.<SkillMarketEntity>lambdaQuery().eq(SkillMarketEntity::getEnabled, true);
+    }
+
+    private AgentSkill toSkill(SkillMarketEntity entity) {
         return new AgentSkill(
-                rs.getString("name"),
-                rs.getString("description"),
-                rs.getString("content"),
+                entity.getName(),
+                entity.getDescription(),
+                entity.getContent(),
                 Map.of(),
                 SOURCE);
     }
