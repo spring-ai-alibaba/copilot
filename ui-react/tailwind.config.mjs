@@ -3,7 +3,7 @@ const { addDynamicIconSelectors } = require("@iconify/tailwind");
 const config = {
   darkMode: "class",
   content: ["./src/**/*.{js,ts,jsx,tsx}"],
-  plugins: [require("tailwindcss-animate"), addDynamicIconSelectors()],
+  plugins: [require("tailwindcss-animate"), addDynamicIconSelectors(), require("@tailwindcss/typography")],
   theme: {
     extend: {
       borderRadius: {
