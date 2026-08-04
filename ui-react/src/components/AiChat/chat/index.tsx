@@ -768,33 +768,43 @@ export const BaseChat = ({uuid: propUuid}: { uuid?: string }) => {
                 return transformedText;
             };
 
+            // 消费方取消（切换会话/组件卸载）后，在途的 read() 仍会返回，
+            // 此时 controller 已关闭，enqueue/close 会抛错，需要静默忽略
+            let streamCancelled = false;
             const stream = new ReadableStream({
                 start(controller) {
+                    const safeEnqueue = (text: string) => {
+                        if (streamCancelled || !text) return;
+                        try {
+                            controller.enqueue(new TextEncoder().encode(text));
+                        } catch {
+                            streamCancelled = true;
+                        }
+                    };
                     function pump(): Promise<void> {
                         return reader.read().then(({ done, value }) => {
                             if (done) {
                                 sseBuffer += decoder.decode();
-                                const transformedText = drainSseBuffer(true);
-                                if (transformedText) {
-                                    controller.enqueue(new TextEncoder().encode(transformedText));
+                                safeEnqueue(drainSseBuffer(true));
+                                if (!streamCancelled) {
+                                    try { controller.close(); } catch { /* 已被取消 */ }
                                 }
-                                controller.close();
                                 return;
                             }
 
                             sseBuffer += decoder.decode(value, { stream: true });
-                            const transformedText = drainSseBuffer();
-                            if (transformedText) {
-                                controller.enqueue(new TextEncoder().encode(transformedText));
-                            }
+                            safeEnqueue(drainSseBuffer());
                             return pump();
                         }).catch(error => {
-                            controller.error(error);
+                            if (!streamCancelled) {
+                                try { controller.error(error); } catch { /* 已被取消 */ }
+                            }
                         });
                     }
                     return pump();
                 },
                 cancel(reason) {
+                    streamCancelled = true;
                     return reader.cancel(reason);
                 },
             });

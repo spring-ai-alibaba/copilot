@@ -213,7 +213,8 @@ class Terminal {
           if (!this.initId) {
             this.initId = data?.split('/')[1].split('[39m')[0].trim()
           }
-          this.terminal.write(data.replaceAll(this.initId, 'alibaba copilot'))
+          // 终端可能已随组件卸载销毁，此时容器输出仍会晚到
+          this.terminal?.write(data.replaceAll(this.initId, 'alibaba copilot'))
 
         },
       }),
