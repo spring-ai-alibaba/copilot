@@ -52,6 +52,7 @@ public class PlanReviewSummaryParser {
 
     private List<PlanWorkspaceDTO.PlanChange> parseChanges(String changes, String design) {
         List<PlanWorkspaceDTO.PlanChange> result = new ArrayList<>();
+        List<String> header = List.of();
         for (String line : changes.lines().toList()) {
             if (!line.strip().startsWith("|") || line.matches("^\\s*\\|?\\s*-+.*")) {
                 continue;
@@ -60,17 +61,23 @@ public class PlanReviewSummaryParser {
                     .map(String::strip)
                     .filter(cell -> !cell.isEmpty())
                     .toList();
-            if (cells.size() < 2 || isHeader(cells.getFirst())) {
+            if (cells.size() < 2) {
+                continue;
+            }
+            if (isHeaderRow(cells)) {
+                header = cells;
                 continue;
             }
             PlanWorkspaceDTO.PlanChange change = new PlanWorkspaceDTO.PlanChange();
-            String fileCell = cells.getFirst().replace("`", "");
+            String fileCell = valueAt(cells, headerIndex(header, "文件", "路径"), 0).replace("`", "");
             change.setFiles(extractFiles(fileCell));
             if (change.getFiles().isEmpty() && !fileCell.isBlank()) {
                 change.setFiles(List.of(fileCell));
             }
-            change.setAction(cells.get(1));
-            change.setImpact(cells.size() > 2 ? cells.get(2) : "");
+            String symbols = valueAt(cells, headerIndex(header, "关键符号", "符号", "类", "方法", "函数"), -1);
+            change.setSymbols(extractSymbols(symbols));
+            change.setAction(valueAt(cells, headerIndex(header, "操作", "改动"), 1));
+            change.setImpact(valueAt(cells, headerIndex(header, "影响范围", "影响"), 2));
             change.setTitle(titleFor(change));
             result.add(change);
         }
@@ -207,14 +214,44 @@ public class PlanReviewSummaryParser {
         return files;
     }
 
+    private List<String> extractSymbols(String source) {
+        if (isBlank(source) || "无".equals(source.strip())) {
+            return List.of();
+        }
+        return Arrays.stream(source.replace("`", "").split("[、，,；;]|\\s*(?:→|->)\\s*"))
+                .map(String::strip)
+                .filter(symbol -> !symbol.isBlank())
+                .filter(symbol -> !symbol.contains("/"))
+                .toList();
+    }
+
     private String titleFor(PlanWorkspaceDTO.PlanChange change) {
         String files = change.getFiles().isEmpty() ? "代码改动" : String.join("、", change.getFiles());
         return isBlank(change.getAction()) ? files : change.getAction() + " · " + files;
     }
 
-    private boolean isHeader(String cell) {
-        String normalized = cell.replace("`", "").toLowerCase(Locale.ROOT);
-        return normalized.contains("文件") || normalized.contains("path") || normalized.contains("操作");
+    private boolean isHeaderRow(List<String> cells) {
+        return cells.stream().map(this::normalizeHeader).anyMatch(cell ->
+                cell.contains("文件") || cell.contains("path") || cell.contains("操作"));
+    }
+
+    private int headerIndex(List<String> header, String... labels) {
+        for (int index = 0; index < header.size(); index++) {
+            String cell = normalizeHeader(header.get(index));
+            if (Arrays.stream(labels).anyMatch(cell::contains)) {
+                return index;
+            }
+        }
+        return -1;
+    }
+
+    private String valueAt(List<String> cells, int preferredIndex, int fallbackIndex) {
+        int index = preferredIndex >= 0 ? preferredIndex : fallbackIndex;
+        return index >= 0 && index < cells.size() ? cells.get(index) : "";
+    }
+
+    private String normalizeHeader(String value) {
+        return value.replace("`", "").toLowerCase(Locale.ROOT).strip();
     }
 
     private String firstMeaningfulLine(String... sections) {

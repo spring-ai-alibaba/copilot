@@ -24,10 +24,10 @@ class PlanReviewSummaryParserTest {
                 - 选择方案及原因：统一由前端映射错误码。
 
                 ## 变更清单
-                | 文件 | 操作 | 影响范围 |
-                |------|------|----------|
-                | `ui-react/src/LoginForm.tsx` | 修改提示 | 登录表单 |
-                | `AuthService.java` | 补充错误码 | 鉴权服务 |
+                | 文件 | 关键符号 | 操作 | 影响范围 |
+                |------|----------|------|----------|
+                | `ui-react/src/LoginForm.tsx` | `LoginForm` | 修改提示 | 登录表单 |
+                | `AuthService.java` | `AuthService.authenticate` | 补充错误码 | 鉴权服务 |
 
                 ## 测试策略
                 - 新增或更新的测试：执行 `pnpm test` 和 `mvn test -pl copilot-context`
@@ -44,6 +44,7 @@ class PlanReviewSummaryParserTest {
         assertEquals("统一登录失败提示", review.getSummary());
         assertEquals(2, review.getChanges().size());
         assertEquals("修改提示 · ui-react/src/LoginForm.tsx", review.getChanges().getFirst().getTitle());
+        assertEquals(List.of("LoginForm"), review.getChanges().getFirst().getSymbols());
         assertEquals(2, review.getVerifications().size());
         assertEquals(List.of("数据库结构", "公开 API"), review.getScopeOut());
         assertEquals(List.of("外部 API 调用：需要保持既有错误码兼容"), review.getRisks());

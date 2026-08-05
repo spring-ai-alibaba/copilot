@@ -56,6 +56,7 @@ export interface PlanWorkspaceReview {
   changes?: Array<{
     title: string;
     files?: string[];
+    symbols?: string[];
     action?: string;
     reason?: string;
     impact?: string;
@@ -77,7 +78,7 @@ export interface PlanWorkspaceReview {
   evidenceStatus?: "AVAILABLE" | "UNAVAILABLE";
   evidence?: Array<{
     source: string;
-    type: "AFFECTED_TESTS" | string;
+    type: "AFFECTED_TESTS" | "CALL_CHAIN_IMPACT" | string;
     subject: string;
     summary: string;
     relatedFiles?: string[];

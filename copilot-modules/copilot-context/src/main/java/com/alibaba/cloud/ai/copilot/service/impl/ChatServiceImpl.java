@@ -478,7 +478,10 @@ public class ChatServiceImpl implements ChatService {
             payload.put("questions", summary.getQuestions());
             payload.put("affectedFiles", affectedFiles);
             CodeGraphPlanEvidenceAssembler.EvidenceResult evidence =
-                    codeGraphPlanEvidenceAssembler.assemble(workspace, affectedFiles);
+                    codeGraphPlanEvidenceAssembler.assemble(
+                            workspace,
+                            summary.getChanges(),
+                            affectedFiles);
             payload.put("evidenceStatus", evidence.status());
             payload.put("evidence", evidence.evidence());
             payload.put("filePreviews", buildFilePreviews(workspace, affectedFiles));

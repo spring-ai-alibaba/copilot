@@ -20,11 +20,16 @@ public class CodeGraphPlanEvidenceAssembler {
 
     private static final int MAX_FILES = 3;
     private static final int MAX_TESTS_PER_FILE = 4;
+    private static final int MAX_SYMBOLS = 3;
+    private static final int MAX_IMPACT_FILES = 4;
 
     private final CodeGraphService codeGraphService;
     private final ObjectMapper objectMapper;
 
-    public EvidenceResult assemble(Path workspace, List<String> affectedFiles) {
+    public EvidenceResult assemble(
+            Path workspace,
+            List<PlanWorkspaceDTO.PlanChange> changes,
+            List<String> affectedFiles) {
         if (!codeGraphService.isAvailable(workspace)) {
             return EvidenceResult.unavailable();
         }
@@ -41,6 +46,12 @@ public class CodeGraphPlanEvidenceAssembler {
             item.setRelatedFiles(tests);
             item.setSummary("修改该文件后，建议重点验证 " + String.join("、", tests));
             evidence.add(item);
+        }
+        for (String symbol : distinctSymbols(changes).stream().limit(MAX_SYMBOLS).toList()) {
+            PlanWorkspaceDTO.PlanEvidence item = impactEvidence(symbol, codeGraphService.impact(workspace, symbol));
+            if (item != null) {
+                evidence.add(item);
+            }
         }
         return new EvidenceResult("AVAILABLE", evidence);
     }
@@ -77,6 +88,50 @@ public class CodeGraphPlanEvidenceAssembler {
             // CodeGraph 失败或返回非 JSON 时，保持审批计划可用并省略证据。
             return List.of();
         }
+    }
+
+    private PlanWorkspaceDTO.PlanEvidence impactEvidence(String symbol, String content) {
+        try {
+            JsonNode root = objectMapper.readTree(content);
+            int nodeCount = root.path("nodeCount").asInt();
+            int edgeCount = root.path("edgeCount").asInt();
+            List<String> files = new ArrayList<>();
+            root.path("affected").forEach(node -> {
+                String file = node.path("filePath").asText();
+                if (!file.isBlank() && files.size() < MAX_IMPACT_FILES && !files.contains(file)) {
+                    files.add(file);
+                }
+            });
+            if (nodeCount == 0 && files.isEmpty()) {
+                return null;
+            }
+            PlanWorkspaceDTO.PlanEvidence item = new PlanWorkspaceDTO.PlanEvidence();
+            item.setSource("CodeGraph");
+            item.setType("CALL_CHAIN_IMPACT");
+            item.setSubject(symbol);
+            item.setRelatedFiles(files);
+            item.setSummary("修改关键符号 “" + symbol + "” 可能影响 "
+                    + nodeCount + " 个代码节点、" + edgeCount + " 条依赖关系");
+            return item;
+        } catch (Exception ignored) {
+            return null;
+        }
+    }
+
+    private List<String> distinctSymbols(List<PlanWorkspaceDTO.PlanChange> changes) {
+        if (changes == null) {
+            return List.of();
+        }
+        Set<String> distinct = new LinkedHashSet<>();
+        for (PlanWorkspaceDTO.PlanChange change : changes) {
+            if (change.getSymbols() == null) {
+                continue;
+            }
+            change.getSymbols().stream()
+                    .filter(symbol -> symbol != null && !symbol.isBlank())
+                    .forEach(distinct::add);
+        }
+        return new ArrayList<>(distinct);
     }
 
     private String withoutLineRange(String file) {

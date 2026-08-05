@@ -175,7 +175,7 @@ const ReviewDetails = ({ review }: { review: PlanWorkspaceReview }) => {
                   <div className="min-w-0 flex-1">
                     <div className="text-xs font-medium text-foreground">{change.title}</div>
                     {(change.action || change.impact || change.reason) && <p className="mt-1 text-[10px] leading-4 text-muted-foreground">{[change.action, change.impact, change.reason].filter(Boolean).join(" · ")}</p>}
-                    {change.files?.length ? <div className="mt-1.5 flex flex-wrap gap-1">{change.files.map((file) => <span key={file} className="rounded bg-background px-1.5 py-0.5 font-mono text-[9px] text-foreground/75">{file}</span>)}</div> : null}
+                    {(change.files?.length || change.symbols?.length) ? <div className="mt-1.5 flex flex-wrap gap-1">{change.files?.map((file) => <span key={file} className="rounded bg-background px-1.5 py-0.5 font-mono text-[9px] text-foreground/75">{file}</span>)}{change.symbols?.map((symbol) => <span key={symbol} className="rounded bg-sky-500/10 px-1.5 py-0.5 font-mono text-[9px] text-sky-700 dark:text-sky-300">{symbol}</span>)}</div> : null}
                     {change.acceptanceCriteria?.length ? <p className="mt-1.5 text-[10px] leading-4 text-emerald-700 dark:text-emerald-300">完成标准：{change.acceptanceCriteria.join("；")}</p> : null}
                   </div>
                 </div>

@@ -56,6 +56,8 @@ public class PlanWorkspaceDTO {
     public static class PlanChange {
         private String title;
         private List<String> files = new ArrayList<>();
+        /** 计划阶段确认的类、方法或函数，供 CodeGraph 影响分析使用。 */
+        private List<String> symbols = new ArrayList<>();
         private String action;
         private String reason;
         private String impact;
