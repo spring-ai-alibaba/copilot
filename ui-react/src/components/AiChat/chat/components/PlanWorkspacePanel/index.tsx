@@ -371,15 +371,17 @@ export const PlanWorkspacePanel = ({
           aria-hidden={!expanded}
         >
           <div className={classNames(
-            "max-h-[min(50vh,520px)] overflow-y-auto px-4 py-3 [scrollbar-width:thin]",
+            "flex max-h-[min(50vh,520px)] flex-col",
             !integrated && "border-t border-border/65",
           )}>
-            {workspace.status === "FAILED" && <div className="mb-3 rounded-lg border border-destructive/25 bg-destructive/[0.06] px-3 py-2 text-xs text-destructive">{workspace.message || "计划执行失败，请检查模型或工具配置后重试。"}</div>}
-            {workspace.tasks.length > 0 && <section className="mb-4"><div className="mb-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">Todo 进度</div><TaskList tasks={workspace.tasks} /></section>}
-            {workspace.review && <section><div className="mb-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">{workspace.decisionAllowed ? "待审批计划" : "已批准计划"}</div><ReviewDetails review={workspace.review} /></section>}
+            <div className="min-h-0 flex-1 overflow-y-auto px-4 py-3 [scrollbar-width:thin]">
+              {workspace.status === "FAILED" && <div className="mb-3 rounded-lg border border-destructive/25 bg-destructive/[0.06] px-3 py-2 text-xs text-destructive">{workspace.message || "计划执行失败，请检查模型或工具配置后重试。"}</div>}
+              {workspace.tasks.length > 0 && <section className="mb-4"><div className="mb-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">Todo 进度</div><TaskList tasks={workspace.tasks} /></section>}
+              {workspace.review && <section><div className="mb-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">{workspace.decisionAllowed ? "待审批计划" : "已批准计划"}</div><ReviewDetails review={workspace.review} /></section>}
+            </div>
 
             {workspace.decisionAllowed && workspace.review && (
-              <div className="sticky bottom-0 -mx-4 -mb-3 mt-4 border-t border-border/65 bg-card/95 px-4 py-3 backdrop-blur">
+              <div className="shrink-0 border-t border-border/65 bg-card/95 px-4 py-3 backdrop-blur">
                 {showFeedback && <textarea value={feedback} onChange={(event) => setFeedback(event.target.value)} rows={2} placeholder="说明需要修改的地方" className="mb-2 w-full resize-none rounded-lg border border-border bg-background px-3 py-2 text-xs outline-none focus:border-amber-500/60" />}
                 <div className="flex justify-end gap-2">
                   <button type="button" disabled={!canDecide} onClick={() => submit("REJECT")} className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-2 text-xs font-medium text-foreground disabled:opacity-45"><X className="h-3.5 w-3.5" />修改计划</button>
