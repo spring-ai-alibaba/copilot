@@ -75,7 +75,7 @@ export interface PlanWorkspaceReview {
     blocking?: boolean;
     suggestedAnswer?: string;
   }>;
-  evidenceStatus?: "AVAILABLE" | "UNAVAILABLE";
+  evidenceStatus?: "AVAILABLE" | "INDEXING" | "SYNCING" | "NOT_A_CODE_PROJECT" | "DISABLED" | "FAILED" | "UNAVAILABLE";
   evidence?: Array<{
     source: string;
     type: "AFFECTED_TESTS" | "CALL_CHAIN_IMPACT" | string;

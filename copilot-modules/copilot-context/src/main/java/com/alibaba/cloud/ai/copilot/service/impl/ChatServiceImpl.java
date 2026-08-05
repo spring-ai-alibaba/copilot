@@ -10,6 +10,7 @@ import com.alibaba.cloud.ai.copilot.domain.entity.ChatMessageEntity;
 import com.alibaba.cloud.ai.copilot.knowledge.service.KnowledgeAvailabilityChecker;
 import com.alibaba.cloud.ai.copilot.satoken.utils.LoginHelper;
 import com.alibaba.cloud.ai.copilot.service.ChatService;
+import com.alibaba.cloud.ai.copilot.service.CodeGraphIndexingService;
 import com.alibaba.cloud.ai.copilot.service.ConversationService;
 import com.alibaba.cloud.ai.copilot.service.SseEventService;
 import com.alibaba.cloud.ai.copilot.service.PlanWorkspaceStateService;
@@ -91,6 +92,7 @@ public class ChatServiceImpl implements ChatService {
     private final PlanWorkspaceStateService planWorkspaceStateService;
     private final PlanReviewSummaryParser planReviewSummaryParser;
     private final CodeGraphPlanEvidenceAssembler codeGraphPlanEvidenceAssembler;
+    private final CodeGraphIndexingService codeGraphIndexingService;
     private final Set<String> activePlanExecutions = ConcurrentHashMap.newKeySet();
 
     @Override
@@ -267,6 +269,8 @@ public class ChatServiceImpl implements ChatService {
                                 assistantText.get().toString() + planReviewBlock);
                         updateConversationTitleIfNeeded(finalConversationId, userMessageContent, userIdLong);
                         if (planAction == PlanAction.APPROVE) {
+                            codeGraphIndexingService.requestSync(
+                                    agentFactory.resolveConversationWorkspace(finalConversationId));
                             sendPlanStatus(
                                     emitter,
                                     finalConversationId,
@@ -477,12 +481,18 @@ public class ChatServiceImpl implements ChatService {
             payload.put("risks", summary.getRisks());
             payload.put("questions", summary.getQuestions());
             payload.put("affectedFiles", affectedFiles);
+            CodeGraphIndexingService.IndexStatus indexingStatus =
+                    codeGraphIndexingService.requestIndex(workspace);
             CodeGraphPlanEvidenceAssembler.EvidenceResult evidence =
                     codeGraphPlanEvidenceAssembler.assemble(
                             workspace,
                             summary.getChanges(),
                             affectedFiles);
-            payload.put("evidenceStatus", evidence.status());
+            payload.put(
+                    "evidenceStatus",
+                    "AVAILABLE".equals(evidence.status())
+                            ? evidence.status()
+                            : indexingStatus.name());
             payload.put("evidence", evidence.evidence());
             payload.put("filePreviews", buildFilePreviews(workspace, affectedFiles));
             payload.put("gitStatus", collectGitStatus(workspace));

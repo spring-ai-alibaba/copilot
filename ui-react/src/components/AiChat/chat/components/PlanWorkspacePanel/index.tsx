@@ -218,6 +218,13 @@ const ReviewDetails = ({ review }: { review: PlanWorkspaceReview }) => {
         </section>
       ) : null}
 
+      {(review.evidenceStatus === "INDEXING" || review.evidenceStatus === "SYNCING") && (
+        <section className="flex items-start gap-2 rounded-xl border border-sky-500/20 bg-sky-500/[0.045] px-3 py-2.5 text-[10px] leading-4 text-sky-800 dark:text-sky-200">
+          <LoaderCircle className="mt-0.5 h-3.5 w-3.5 shrink-0 animate-spin" />
+          <span>正在{review.evidenceStatus === "SYNCING" ? "同步" : "建立"} CodeGraph 代码索引。本次仍可审批；下一次生成或修订计划会自动补充调用链与关联测试证据。</span>
+        </section>
+      )}
+
       {(review.risks?.length || review.scopeOut?.length) ? (
         <section className="rounded-xl border border-border/60 bg-muted/15 px-3 py-2.5 text-[10px] leading-4">
           {review.risks?.length ? <div><div className="mb-1 font-semibold text-amber-700 dark:text-amber-300">风险与边界</div>{review.risks.map((riskItem) => <div key={riskItem} className="text-foreground/80">· {riskItem}</div>)}</div> : null}

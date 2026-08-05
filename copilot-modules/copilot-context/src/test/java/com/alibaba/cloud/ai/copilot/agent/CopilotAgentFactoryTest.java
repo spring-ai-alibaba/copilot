@@ -12,7 +12,7 @@ class CopilotAgentFactoryTest {
 
     @Test
     void isolatesAndSanitizesPlanFileByConversation() {
-        CopilotAgentFactory factory = new CopilotAgentFactory(null, null, null, null);
+        CopilotAgentFactory factory = new CopilotAgentFactory(null, null, null, null, null);
 
         Path planFile = factory.resolvePlanFile("../conversation/42");
         Path workspace = Path.of(System.getProperty("user.dir"), "workspace").normalize();
@@ -29,7 +29,7 @@ class CopilotAgentFactoryTest {
 
     @Test
     void requiresCompleteAndChunkedFileToolCalls() {
-        CopilotAgentFactory factory = new CopilotAgentFactory(null, null, null, null);
+        CopilotAgentFactory factory = new CopilotAgentFactory(null, null, null, null, null);
 
         String prompt = factory.buildSystemPrompt("/workspace", "plans/session", false, false);
 
@@ -40,7 +40,7 @@ class CopilotAgentFactoryTest {
 
     @Test
     void constrainsPlanShellExplorationToReadOnlyCommands() {
-        CopilotAgentFactory factory = new CopilotAgentFactory(null, null, null, null);
+        CopilotAgentFactory factory = new CopilotAgentFactory(null, null, null, null, null);
 
         String prompt = factory.buildSystemPrompt(
                 "/workspace", "plans/session", true, true);

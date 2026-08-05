@@ -7,6 +7,7 @@ import com.alibaba.cloud.ai.copilot.knowledge.service.KnowledgeAvailabilityCheck
 import com.alibaba.cloud.ai.copilot.mapper.ChatMessageMapper;
 import com.alibaba.cloud.ai.copilot.satoken.utils.LoginHelper;
 import com.alibaba.cloud.ai.copilot.service.ConversationService;
+import com.alibaba.cloud.ai.copilot.service.CodeGraphIndexingService;
 import com.alibaba.cloud.ai.copilot.service.SseEventService;
 import com.alibaba.cloud.ai.copilot.service.PlanWorkspaceStateService;
 import io.agentscope.core.agui.event.AguiEvent;
@@ -40,7 +41,8 @@ class ChatServiceImplTest {
                 mock(KnowledgeAvailabilityChecker.class),
                 mock(PlanWorkspaceStateService.class),
                 new PlanReviewSummaryParser(),
-                mock(CodeGraphPlanEvidenceAssembler.class));
+                mock(CodeGraphPlanEvidenceAssembler.class),
+                mock(CodeGraphIndexingService.class));
     }
 
     @Test
@@ -141,7 +143,8 @@ class ChatServiceImplTest {
                 mock(KnowledgeAvailabilityChecker.class),
                 mock(PlanWorkspaceStateService.class),
                 new PlanReviewSummaryParser(),
-                mock(CodeGraphPlanEvidenceAssembler.class));
+                mock(CodeGraphPlanEvidenceAssembler.class),
+                mock(CodeGraphIndexingService.class));
         SseEmitter emitter = new SseEmitter();
 
         try (MockedStatic<LoginHelper> loginHelper = mockStatic(LoginHelper.class)) {
@@ -168,7 +171,8 @@ class ChatServiceImplTest {
                 mock(KnowledgeAvailabilityChecker.class),
                 mock(PlanWorkspaceStateService.class),
                 new PlanReviewSummaryParser(),
-                mock(CodeGraphPlanEvidenceAssembler.class));
+                mock(CodeGraphPlanEvidenceAssembler.class),
+                mock(CodeGraphIndexingService.class));
         SseEmitter emitter = new SseEmitter();
         ChatRequest request = new ChatRequest();
         request.setPlanAction("APPROVE");

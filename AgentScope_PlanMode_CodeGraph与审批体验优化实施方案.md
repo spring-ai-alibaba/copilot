@@ -189,7 +189,8 @@ Todo 同步扩展为：`acceptanceCriteria`、`verificationCommand`、`verificat
 ## 9. 当前实现进度（2026-08-05）
 
 - 已完成阶段一：后端将 `PLAN.md` 自动提取为交付摘要、变更步骤、影响范围、验证项、风险和待确认问题；输入框上方抽屉优先展示这些决策信息，原始计划与现场信息收纳在“技术详情”。历史会话缺失结构化字段时仍回退展示原始计划。
-- 已完成阶段二的受控查询入口：`codegraph_search`、`codegraph_explore`、`codegraph_impact` 与 `codegraph_affected_tests` 只会在已存在 `.codegraph` 索引的会话工作区注册；服务端固定 CLI 子命令、项目根目录、超时和输出上限，禁止 Agent 调用 `init`、`sync` 或任意 Shell。
+- 已完成阶段二的受控查询入口：`codegraph_search`、`codegraph_explore`、`codegraph_impact` 与 `codegraph_affected_tests` 只在代码会话可查询或正在准备索引时注册；服务端固定 CLI 子命令、会话工作区、超时和输出上限，禁止 Agent 调用 `init`、`sync` 或任意 Shell。
 - 已接入两类自动证据：计划生成后会针对最多 3 个影响文件查询 CodeGraph 的关联测试；同时读取计划中声明的关键类/方法/函数，汇总其潜在代码节点、依赖关系和受影响文件。两类结果都会出现在审批抽屉的“代码证据”区。查询不可用或无结果时静默省略，不影响生成与审批。
-- 已配置降级：工作区未索引、禁用或 CLI 不可用时，Agent 继续使用既有的 `read_file`、`grep_files` 与 Git 只读探索，不会阻塞普通 Plan Mode。
-- 待完成：仓库级后台索引生命周期、将 CodeGraph 返回的调用链/关联测试自动写入审批卡证据区，以及 Todo 的验收证据和计划偏离后二次审批。
+- 已完成会话级索引生命周期：`app.code-graph.auto-index=true` 时，服务端检测到代码或项目清单后在后台执行受控的 `codegraph init <conversation-workspace>`；批准后的执行结束时再执行 `codegraph sync <conversation-workspace>`。索引任务不会阻塞 SSE、计划生成或审批；未就绪时卡片展示“正在建立/同步索引”，并回退既有 `read_file`、`grep_files` 与 Git 只读探索。
+- 当前安全边界：只有位于 `app.workspace.root-directory` 下的会话工作区可被索引；索引 CLI、操作、路径、超时和输出上限都由服务端决定，模型没有索引写入或任意 Shell 权限。
+- 待完成：按仓库身份在多个会话间复用索引、展示索引时间/同步版本，以及 Todo 的验收证据和计划偏离后二次审批。

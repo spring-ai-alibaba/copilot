@@ -3,6 +3,7 @@ package com.alibaba.cloud.ai.copilot.agent;
 import com.alibaba.cloud.ai.copilot.config.AppProperties;
 import com.alibaba.cloud.ai.copilot.domain.entity.ModelConfigEntity;
 import com.alibaba.cloud.ai.copilot.service.DynamicModelService;
+import com.alibaba.cloud.ai.copilot.service.CodeGraphIndexingService;
 import com.alibaba.cloud.ai.copilot.service.CodeGraphService;
 import io.agentscope.core.model.Model;
 import io.agentscope.core.tool.Toolkit;
@@ -41,6 +42,7 @@ public class CopilotAgentFactory {
     private final AppProperties appProperties;
     private final MysqlAgentStateStore agentStateStore;
     private final CodeGraphService codeGraphService;
+    private final CodeGraphIndexingService codeGraphIndexingService;
 
     private static final String AGENT_NAME = "copilot_agent";
     private static final String PLAN_ROOT_DIRECTORY = "plans";
@@ -86,9 +88,9 @@ public class CopilotAgentFactory {
         // 1. 获取 agentscope Model（缓存命中或按配置新建）
         Model model = dynamicModelService.getChatModelWithConfigId(modelConfigId);
 
-        // 2. workspace 根目录（与原 ChatServiceImpl 一致：user.dir/workspace）
-        String rootDirectory = Paths.get(System.getProperty("user.dir"), "workspace").toString();
-        Path workspacePath = Path.of(rootDirectory);
+        // 2. workspace 根目录（统一使用 app.workspace.root-directory）
+        Path workspacePath = resolveWorkspaceRoot();
+        String rootDirectory = workspacePath.toString();
 
         // 3. 文件系统沙箱：ROOTED 模式，项目根即 workspace，放行其下读写
         LocalFilesystemSpec filesystemSpec = new LocalFilesystemSpec()
@@ -118,9 +120,14 @@ public class CopilotAgentFactory {
         Toolkit toolkit = new Toolkit();
         toolkit.registerTool(new DeleteFileTool(rootDirectory));
         Path conversationWorkspace = resolveConversationWorkspace(conversationId);
-        if (planModeEnabled && planningPhaseActive && codeGraphService.isAvailable(conversationWorkspace)) {
+        CodeGraphIndexingService.IndexStatus codeGraphStatus =
+                planModeEnabled && planningPhaseActive
+                        ? codeGraphIndexingService.requestIndex(conversationWorkspace)
+                        : CodeGraphIndexingService.IndexStatus.NOT_A_CODE_PROJECT;
+        if (planModeEnabled && planningPhaseActive && codeGraphStatus.canUseQueryTool()) {
             toolkit.registerTool(new CodeGraphTool(codeGraphService, conversationWorkspace));
-            log.info("为 Plan Agent 注册 CodeGraph 只读工具: workspace={}", conversationWorkspace);
+            log.info("为 Plan Agent 注册 CodeGraph 只读工具: workspace={}, status={}",
+                    conversationWorkspace, codeGraphStatus);
         }
 
         HarnessAgent.Builder builder = HarnessAgent.builder()
@@ -167,9 +174,18 @@ public class CopilotAgentFactory {
      * 返回 HarnessAgent 为指定会话创建的隔离工作区。
      */
     public Path resolveConversationWorkspace(String conversationId) {
-        return Paths.get(System.getProperty("user.dir"), "workspace")
+        return resolveWorkspaceRoot()
                 .resolve(sanitizeConversationId(conversationId))
                 .normalize();
+    }
+
+    private Path resolveWorkspaceRoot() {
+        if (appProperties != null && appProperties.getWorkspace() != null
+                && appProperties.getWorkspace().getRootDirectory() != null
+                && !appProperties.getWorkspace().getRootDirectory().isBlank()) {
+            return Path.of(appProperties.getWorkspace().getRootDirectory()).toAbsolutePath().normalize();
+        }
+        return Paths.get(System.getProperty("user.dir"), "workspace").toAbsolutePath().normalize();
     }
 
     private String planDirectory(String conversationId) {
@@ -222,7 +238,7 @@ public class CopilotAgentFactory {
                 "包安装、数据库写入、网络写操作、git add/commit/push/reset/checkout。\n" +
                 "不得用管道、子 Shell 或脚本包装绕过以上限制。\n" +
                 "如已提供 CodeGraph 工具，优先使用它确认关键符号的调用链、影响范围或关联测试；" +
-                "若工具不可用，使用现有 read_file、grep_files 和 git 只读探索作为回退。\n" +
+                "若它提示索引正在准备或不可用，不要重复调用，改用现有 read_file、grep_files 和 git 只读探索。\n" +
                 "探索完成后必须调用 plan_write，并严格使用以下 Markdown 结构。\n" +
                 "所有文件路径都必须使用反引号包裹，例如 `src/main/App.java:20-40`，供审批界面生成改前片段：\n\n" +
                 "## 任务理解\n" +
