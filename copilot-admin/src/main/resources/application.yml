@@ -19,6 +19,14 @@ spring:
   messages:
     basename: i18n/messages  # 国际化资源文件路径
 
+  # Redis（sa-token 登录态持久化，进程重启 token 不失效）
+  data:
+    redis:
+      host: ${REDIS_HOST:127.0.0.1}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      database: ${REDIS_DB:0}
+
   # ===================================================================
   # 数据源配置
   # ===================================================================

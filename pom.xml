@@ -39,7 +39,8 @@
         <okhttp.version>4.9.1</okhttp.version>
         <minio.version>8.4.0</minio.version>
         <mapstruct-plus.version>1.2.1</mapstruct-plus.version>
-        <json-schema-validator.version>1.0.87</json-schema-validator.version>
+        <!-- agentscope-core 2.0.0 依赖 networknt 2.0.0（SpecificationVersion 等新 API），不能再钉 1.0.87 -->
+        <json-schema-validator.version>2.0.0</json-schema-validator.version>
         <java-diff-utils.version>4.12</java-diff-utils.version>
         <commons-lang3.version>3.12.0</commons-lang3.version>
         <agentscope.version>2.0.0</agentscope.version>

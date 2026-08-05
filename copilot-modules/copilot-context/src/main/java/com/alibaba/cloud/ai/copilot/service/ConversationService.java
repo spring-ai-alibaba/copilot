@@ -80,6 +80,14 @@ public interface ConversationService {
     void deleteConversation(String conversationId, Long userId);
 
     /**
+     * 列出用户全部未删除会话的 conversationId（供文件 API 做多租户目录过滤）
+     *
+     * @param userId 用户ID
+     * @return conversationId 列表
+     */
+    java.util.List<String> listConversationIds(Long userId);
+
+    /**
      * 增加消息计数
      *
      * @param conversationId 会话ID

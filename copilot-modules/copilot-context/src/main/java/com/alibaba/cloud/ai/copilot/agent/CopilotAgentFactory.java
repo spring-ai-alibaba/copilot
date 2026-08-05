@@ -1,21 +1,25 @@
 package com.alibaba.cloud.ai.copilot.agent;
 
 import com.alibaba.cloud.ai.copilot.config.AppProperties;
-import com.alibaba.cloud.ai.copilot.domain.entity.ModelConfigEntity;
 import com.alibaba.cloud.ai.copilot.service.DynamicModelService;
+import com.alibaba.cloud.ai.copilot.service.mcp.McpClientManager;
+import com.alibaba.cloud.ai.copilot.skill.MysqlSkillRepository;
+import com.alibaba.cloud.ai.copilot.skill.SearchSkillsTool;
 import io.agentscope.core.model.Model;
+import io.agentscope.core.skill.repository.FileSystemSkillRepository;
 import io.agentscope.core.tool.Toolkit;
 import io.agentscope.extensions.mysql.state.MysqlAgentStateStore;
 import io.agentscope.harness.agent.HarnessAgent;
-import io.agentscope.harness.agent.filesystem.spec.LocalFilesystemSpec;
 import io.agentscope.harness.agent.memory.compaction.CompactionConfig;
-import io.agentscope.harness.agent.workspace.LocalFsMode;
+import io.agentscope.harness.agent.tool.SkillManageConfig;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Component;
 
+import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 
 /**
  * 按需构建 agentscope {@link HarnessAgent}。
@@ -23,13 +27,12 @@ import java.nio.file.Paths;
  * <p>每个会话请求按 modelConfigId 动态构建一个 agent（模型是用户在 DB 里配置的），
  * agent 本身无状态，构建成本可接受；模型实例由 {@link DynamicModelService} 缓存。</p>
  *
- * <p>阶段1（AG-UI 端到端切片）：使用 HarnessAgent 自带 FilesystemTool
- *（read_file/write_file/edit_file/grep_files/glob_files/list_files）+ compaction（替代原 SummarizationHook）。
- * 工具调用全程流式：streamEvents() 产出 TOOL_CALL_DELTA / TOOL_RESULT_TEXT_DELTA 等事件，
- * 经 AguiAgentAdapter 转 AG-UI 事件发往前端。</p>
+ * <p>多租户隔离：文件沙箱根收敛到会话目录 workspace/&lt;conversationId&gt;/（ROOTED），
+ * 并禁用 harness 默认的 SESSION 二级隔离避免双重嵌套；DeleteFileTool 与沙箱同根。</p>
  *
- * <p>会话历史/长期记忆的 Middleware 在阶段2 接入；阶段1 agent 自身无持久化中间件，
- * 仅靠每次请求携带的 user message 工作（多轮历史加载在阶段2 补）。</p>
+ * <p>技能：workspace/skills 由框架自动发现；MySQL 技能市场（skill_market 表）经
+ * skillRepository 挂接；search_skills 元工具提供检索式发现；enableSkillManageTool
+ * 开启自学习闭环第一步（草稿→人工审核晋升，见 SkillAdminController）。</p>
  */
 @Slf4j
 @Component
@@ -39,28 +42,45 @@ public class CopilotAgentFactory {
     private final DynamicModelService dynamicModelService;
     private final AppProperties appProperties;
     private final MysqlAgentStateStore agentStateStore;
+    private final ObjectProvider<MysqlSkillRepository> skillMarketProvider;
+    private final McpClientManager mcpClientManager;
 
     private static final String AGENT_NAME = "copilot_agent";
 
     /**
      * 构建一个绑定指定模型配置的 HarnessAgent。
-     *
-     * @param modelConfigId 模型配置 ID（model_config.id）
-     * @return 新建的 HarnessAgent
      */
     public HarnessAgent buildAgent(String modelConfigId) {
+        return buildAgent(modelConfigId, null);
+    }
+
+    /**
+     * 构建一个绑定指定模型配置与会话的 HarnessAgent。
+     *
+     * @param modelConfigId  模型配置 ID（model_config.id）
+     * @param conversationId 会话 ID；文件沙箱与 DeleteFileTool 的根目录均为 workspace/&lt;conversationId&gt;/
+     */
+    public HarnessAgent buildAgent(String modelConfigId, String conversationId) {
         // 1. 获取 agentscope Model（缓存命中或按配置新建）
         Model model = dynamicModelService.getChatModelWithConfigId(modelConfigId);
 
-        // 2. workspace 根目录（与原 ChatServiceImpl 一致：user.dir/workspace）
-        String rootDirectory = Paths.get(System.getProperty("user.dir"), "workspace").toString();
-        Path workspacePath = Path.of(rootDirectory);
+        // 2. workspace 根目录（app.workspace.root-directory，默认 user.dir/workspace）
+        Path workspacePath = Path.of(appProperties.getWorkspace().getRootDirectory());
 
-        // 3. 文件系统沙箱：ROOTED 模式，项目根即 workspace，放行其下读写
-        LocalFilesystemSpec filesystemSpec = new LocalFilesystemSpec()
-                .project(workspacePath)
-                .mode(LocalFsMode.ROOTED)
-                .projectWritable(true);
+        // 3. 文件系统沙箱：ROOTED 模式。沙箱根收敛到会话目录 workspace/<conversationId>/，
+        //    否则 glob/read/write 能跨会话访问其他用户的文件（多租户隔离），
+        //    且模型会把 glob 到的旧会话路径带进新写入路径（已多次实测复现）。
+        Path sandboxRoot = conversationId != null && !conversationId.isBlank()
+                ? workspacePath.resolve(conversationId)
+                : workspacePath;
+        try {
+            Files.createDirectories(sandboxRoot);
+        } catch (IOException e) {
+            throw new IllegalStateException("创建会话工作目录失败: " + sandboxRoot, e);
+        }
+        // 沙箱文件系统：框架 ROOTED 模式存在相对路径 "../" 逃逸漏洞，
+        // 改用逃生舱 abstractFilesystem 挂载带包含性校验的 SessionSandboxFilesystem
+        SessionSandboxFilesystem sandboxFs = new SessionSandboxFilesystem(sandboxRoot);
 
         // 4. 消息压缩（替代原 SummarizationHook）
         AppProperties.Conversation.Summarization sum = appProperties.getConversation().getSummarization();
@@ -70,39 +90,61 @@ public class CopilotAgentFactory {
                 .flushBeforeCompact(true)
                 .build();
 
-        // 5. 系统 prompt（与原 ChatServiceImpl 一致）
-        String prompt = buildSystemPrompt(rootDirectory);
+        // 5. 系统 prompt（工作目录=会话沙箱根）
+        String prompt = buildSystemPrompt(sandboxRoot.toString());
 
-        // 6. 构建 agent（FilesystemTool 由 HarnessAgent 在 build 时自动注册）
-        //    stateStore：agentscope 自动按 sessionId(=conversationId) load/save AgentState（含消息历史），多轮对话天然连续
-        //    toolkit：补 delete_file 工具（自带 FilesystemTool 不含 delete）
+        // 6. 工具：delete_file（沙箱同根）+ search_skills（检索式技能发现）
         Toolkit toolkit = new Toolkit();
-        toolkit.registerTool(new DeleteFileTool(rootDirectory));
+        toolkit.registerTool(new DeleteFileTool(sandboxRoot.toString()));
+        MysqlSkillRepository market = skillMarketProvider.getIfAvailable();
+        toolkit.registerTool(new SearchSkillsTool(workspacePath.resolve("skills"), market));
+        // 启用状态的 MCP 工具注册进 toolkit（连接由 McpClientManager 持久缓存，跨请求复用）
+        int mcpCount = mcpClientManager.registerEnabledTools(toolkit);
+        if (mcpCount > 0) {
+            log.info("已注册 {} 个 MCP server 到 agent toolkit", mcpCount);
+        }
 
-        HarnessAgent agent = HarnessAgent.builder()
+        var builder = HarnessAgent.builder()
                 .name(AGENT_NAME)
                 .model(model)
                 .sysPrompt(prompt)
-                .workspace(workspacePath)
-                .filesystem(filesystemSpec)
+                // workspace 必须与沙箱同根：builder 的 workspace 会被加入文件工具的允许根列表
+                // （PathPolicy = [project, workspace, additionalRoots]），若传 workspace 父目录，
+                // agent 就能用绝对路径读到其他会话的文件（L3 越权，实测复现）
+                .workspace(sandboxRoot)
+                .abstractFilesystem(sandboxFs)
                 .toolkit(toolkit)
                 .compaction(compaction)
                 .stateStore(agentStateStore)
-                .maxIters(50)
-                .build();
+                // 自学习闭环第一步：propose_skill/skill_manage 走草稿→审核（defaults 不自动晋升）
+                .enableSkillManageTool(SkillManageConfig.defaults())
+                .maxIters(50);
+        // 共享技能库 workspace/skills：workspace 已收敛到会话沙箱，
+        // 共享技能改为显式只读仓库挂载（技能加载走仓库通道，不受文件沙箱限制）
+        Path sharedSkillsDir = workspacePath.resolve("skills");
+        if (Files.isDirectory(sharedSkillsDir)) {
+            builder.skillRepository(new FileSystemSkillRepository(sharedSkillsDir, false));
+        }
+        // 技能市场（MySQL，只读分发；与 workspace/skills 同名时工作区版本优先）
+        if (market != null) {
+            builder.skillRepository(market);
+        }
+        HarnessAgent agent = builder.build();
 
-        log.info("构建 HarnessAgent：modelConfigId={}, workspace={}", modelConfigId, rootDirectory);
+        log.info("构建 HarnessAgent：modelConfigId={}, sandbox={}", modelConfigId, sandboxRoot);
         return agent;
     }
 
-    private String buildSystemPrompt(String rootDirectory) {
+    private String buildSystemPrompt(String workDirectory) {
         return "【基础约束】\n" +
-                "你是编程agent，使用工具在项目根目录（" + rootDirectory + "）内完成编程任务。\n\n" +
-                "【前端开发规范 - 必须遵守】\n" +
-                "1. 禁止手写大量CSS！必须使用 Tailwind CSS 框架\n" +
-                "2. HTML页面必须引入 Tailwind CSS CDN：<script src=\"https://cdn.tailwindcss.com\"></script>\n" +
+                "你是编程agent，使用工具在工作目录（" + workDirectory + "）内完成编程任务。\n\n" +
+                "【技能使用】\n" +
+                "开发规范以技能（skill）形式提供。动手写代码前，先检查 available_skills 中是否有匹配当前任务的技能，" +
+                "有则先加载该技能并严格遵循其中的规范；没有匹配时可用 search_skills 检索。\n\n" +
+                "【文件操作】\n" +
+                "删除文件必须用 delete_file 工具，覆盖文件直接用 write_file；" +
+                "不要用 shell 命令做删除/重命名/移动，shell 的工作目录与文件工具不一致，会失败。\n\n" +
                 "【技术栈】\n" +
-                "擅长 java+vue+element 技术栈，用户没有明确编程需求时正常对话即可，" +
-                "前端开发默认使用 HTML + Tailwind CSS，保持简洁专业的风格。";
+                "擅长 java+vue+element 技术栈，用户没有明确编程需求时正常对话即可，保持简洁专业的风格。";
     }
 }

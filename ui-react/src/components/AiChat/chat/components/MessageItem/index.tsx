@@ -693,7 +693,9 @@ export const MessageItem: React.FC<MessageItemProps> = ({
                     remarkPlugins={[remarkGfm]}
                     components={{
                       code({ node, className, children, ...props }) {
-                        const match = /language-(\w+)(?::(.+))?/.exec(
+                        // 语言名要允许连字符：arc-tool / arc-reasoning / arc-error
+                        // （\w+ 匹配不到 "-"，会把 arc-tool 截成 arc，工具卡片全部退化为代码块）
+                        const match = /language-([\w-]+)(?::(.+))?/.exec(
                           className || ""
                         );
                         const isInline = !match;

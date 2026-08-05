@@ -29,7 +29,7 @@ public class DeleteFileTool {
 
     @Tool(
             name = "delete_file",
-            description = "删除 workspace 内指定路径的文件。path 为相对 workspace 根目录的路径。",
+            description = "删除当前工作目录内指定路径的文件。path 为相对路径，与 read_file/write_file 的路径口径一致。",
             readOnly = false
     )
     public String deleteFile(
