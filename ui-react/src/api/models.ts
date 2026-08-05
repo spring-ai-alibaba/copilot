@@ -329,17 +329,18 @@ export const checkProviderHealth = async (
   };
 };
 
-// 检测 OpenAI Compatible 供应商健康状态
-export interface OpenAiCompatibleHealthRequest {
+// 检测使用自定义 Base URL 的供应商健康状态
+export interface CustomProviderHealthRequest {
+  providerCode: string;
   apiUrl: string;
   apiKey: string;
   testModelName: string;
 }
 
-export const checkOpenAiCompatibleHealth = async (
-  data: OpenAiCompatibleHealthRequest,
+export const checkCustomProviderHealth = async (
+  data: CustomProviderHealthRequest,
 ): Promise<ProviderHealthResponse> => {
-  const response = await fetch(apiUrl('/api/model-provider/openai-compatible/health'), {
+  const response = await fetch(apiUrl('/api/model-provider/custom/health'), {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -359,6 +360,17 @@ export const checkOpenAiCompatibleHealth = async (
     success: responseData.healthy ?? responseData.success ?? false,
   };
 };
+
+// 兼容旧调用方
+export type OpenAiCompatibleHealthRequest = Omit<CustomProviderHealthRequest, 'providerCode'>;
+
+export const checkOpenAiCompatibleHealth = async (
+  data: OpenAiCompatibleHealthRequest,
+): Promise<ProviderHealthResponse> =>
+  checkCustomProviderHealth({
+    providerCode: 'OpenAiCompatible',
+    ...data,
+  });
 
 // 更新模型配置（修改最大token等）
 export interface ModelConfigUpdateRequest {

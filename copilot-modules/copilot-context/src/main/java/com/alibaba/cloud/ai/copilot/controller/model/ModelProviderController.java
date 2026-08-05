@@ -2,6 +2,7 @@ package com.alibaba.cloud.ai.copilot.controller.model;
 
 import com.alibaba.cloud.ai.copilot.core.domain.R;
 import com.alibaba.cloud.ai.copilot.core.domain.model.LoginUser;
+import com.alibaba.cloud.ai.copilot.domain.dto.model.CustomModelProviderRequest;
 import com.alibaba.cloud.ai.copilot.domain.dto.model.HealthCheckResult;
 import com.alibaba.cloud.ai.copilot.domain.dto.model.LlmServiceProvider;
 import com.alibaba.cloud.ai.copilot.domain.dto.model.OpenAiCompatibleRequest;
@@ -125,7 +126,23 @@ public class ModelProviderController {
      */
     @PostMapping("/openai-compatible/health")
     public R<HealthCheckResult> checkOpenAiCompatibleHealth(@Valid @RequestBody OpenAiCompatibleRequest request) {
-        return R.ok(healthCheckService.checkOpenAiCompatibleHealth(
+        return R.ok(healthCheckService.checkCustomProviderHealth(
+                "OpenAiCompatible",
+                request.getApiUrl(),
+                request.getApiKey(),
+                request.getTestModelName()
+        ));
+    }
+
+    /**
+     * 检测使用自定义 Base URL 的供应商。
+     * providerCode 决定协议（例如 OpenAiCompatible 或 Anthropic）。
+     */
+    @PostMapping("/custom/health")
+    public R<HealthCheckResult> checkCustomProviderHealth(
+            @Valid @RequestBody CustomModelProviderRequest request) {
+        return R.ok(healthCheckService.checkCustomProviderHealth(
+                request.getProviderCode(),
                 request.getApiUrl(),
                 request.getApiKey(),
                 request.getTestModelName()

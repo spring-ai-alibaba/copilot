@@ -96,6 +96,7 @@ export function AddMarketModal({visible, market, onCancel, onOk}: AddMarketModal
 
     return (
         <Modal
+          zIndex={10100}
             title={market ? t('settings.mcp.markets.form.editTitle') : t('settings.mcp.markets.form.addTitle')}
             open={visible}
             onOk={handleOk}

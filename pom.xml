@@ -39,7 +39,9 @@
         <okhttp.version>4.9.1</okhttp.version>
         <minio.version>8.4.0</minio.version>
         <mapstruct-plus.version>1.2.1</mapstruct-plus.version>
-        <json-schema-validator.version>1.0.87</json-schema-validator.version>
+        <!-- AgentScope 2.x 的 ToolValidator 使用 SpecificationVersion，
+             该类型从 json-schema-validator 2.x 起提供。 -->
+        <json-schema-validator.version>2.0.0</json-schema-validator.version>
         <java-diff-utils.version>4.12</java-diff-utils.version>
         <commons-lang3.version>3.12.0</commons-lang3.version>
         <agentscope.version>2.0.0</agentscope.version>

@@ -6,6 +6,7 @@ import com.alibaba.cloud.ai.copilot.domain.dto.model.HealthCheckResult;
 import com.alibaba.cloud.ai.copilot.domain.entity.ModelConfigEntity;
 import com.alibaba.cloud.ai.copilot.mapper.ModelConfigMapper;
 import com.alibaba.cloud.ai.copilot.satoken.utils.LoginHelper;
+import com.alibaba.cloud.ai.copilot.service.DynamicModelService;
 import com.alibaba.cloud.ai.copilot.service.ModelProvider;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import lombok.RequiredArgsConstructor;
@@ -26,6 +27,8 @@ public class ProviderHealthCheckService {
     private final ProviderRegistry providerRegistry;
 
     private final ModelConfigMapper modelConfigMapper;
+
+    private final DynamicModelService dynamicModelService;
 
     /**
      * 检测指定供应商的健康状态, 并且添加到用户配置中
@@ -106,11 +109,13 @@ public class ProviderHealthCheckService {
             return HealthCheckResult.failure(providerCode, "供应商不存在", "未找到供应商: " + providerCode);
         }
 
-        // 2. 从用户配置中获取 API Key
+        // 2. 从用户配置中获取完整连接配置（API Key + 自定义 Base URL）
         LoginUser loginUser = LoginHelper.getLoginUser();
         Long userId = loginUser.getUserId();
-        String apiKey = getApiKeyByProvider(userId, providerCode);
-        if (apiKey == null || apiKey.isBlank()) {
+        ModelConfigEntity providerConfig = getConfigByProvider(userId, providerCode);
+        if (providerConfig == null
+                || providerConfig.getApiKey() == null
+                || providerConfig.getApiKey().isBlank()) {
             log.warn("用户未配置该供应商的API Key，providerCode={}, userId={}", providerCode, userId);
             return HealthCheckResult.failure(providerCode, "API Key未配置", "请先配置该供应商的API Key");
         }
@@ -122,7 +127,15 @@ public class ProviderHealthCheckService {
 
         // 4. 执行模型健康检测
         log.info("开始模型健康检测，provider={}, model={}", providerCode, modelName);
-        HealthCheckResult healthCheckResult = provider.checkModelHealth(apiKey, modelName);
+        ModelConfigEntity testConfig = new ModelConfigEntity();
+        testConfig.setProvider(providerCode);
+        testConfig.setApiKey(providerConfig.getApiKey());
+        testConfig.setApiUrl(providerConfig.getApiUrl());
+        testConfig.setModelName(modelName);
+        testConfig.setModelKey(modelName);
+        testConfig.setMaxToken(100);
+        HealthCheckResult healthCheckResult =
+                checkModelWithConfig(provider, providerCode, modelName, testConfig);
 
         if (healthCheckResult.isHealthy()) {
             log.info("模型健康检测成功，provider={}, model={}, 响应时间={}ms",
@@ -139,7 +152,7 @@ public class ProviderHealthCheckService {
             } else {
                 // 模型未配置，自动添加到用户配置
                 try {
-                    saveModelToUserConfig(userId, providerCode, modelName, apiKey);
+                    saveModelToUserConfig(userId, providerCode, modelName, providerConfig);
                     healthCheckResult.setMessage(providerCode + " 模型 " + modelName + " 检测成功，已自动添加到您的配置中");
                     healthCheckResult.setNewlyAdded(true);
                     log.info("模型检测成功并已添加到用户配置，provider={}, model={}, userId={}", providerCode, modelName, userId);
@@ -172,28 +185,53 @@ public class ProviderHealthCheckService {
     /**
      * 将单个模型保存到用户配置
      */
-    private void saveModelToUserConfig(Long userId, String providerCode, String modelName, String apiKey) {
+    private void saveModelToUserConfig(
+            Long userId,
+            String providerCode,
+            String modelName,
+            ModelConfigEntity providerConfig) {
         ModelConfigEntity config = new ModelConfigEntity();
         config.setProvider(providerCode);
-        config.setApiKey(apiKey);
+        config.setApiKey(providerConfig.getApiKey());
+        config.setApiUrl(providerConfig.getApiUrl());
         config.setUserId(userId);
         config.setModelName(modelName);
         config.setModelKey(modelName);
+        config.setMaxToken(4096);
+        config.setModelType("CHAT");
         config.setEnabled(false);
         modelConfigMapper.insert(config);
     }
 
     /**
-     * 根据供应商代码获取用户配置的 API Key
+     * 根据供应商代码获取用户的一条完整连接配置。
      */
-    private String getApiKeyByProvider(Long userId, String providerCode) {
+    private ModelConfigEntity getConfigByProvider(Long userId, String providerCode) {
         LambdaQueryWrapper<ModelConfigEntity> queryWrapper = new LambdaQueryWrapper<>();
         queryWrapper.eq(ModelConfigEntity::getUserId, userId)
                 .eq(ModelConfigEntity::getProvider, providerCode)
                 .isNotNull(ModelConfigEntity::getApiKey)
                 .last("LIMIT 1");
-        ModelConfigEntity config = modelConfigMapper.selectOne(queryWrapper);
-        return config != null ? config.getApiKey() : null;
+        return modelConfigMapper.selectOne(queryWrapper);
+    }
+
+    private HealthCheckResult checkModelWithConfig(
+            ModelProvider provider,
+            String providerCode,
+            String modelName,
+            ModelConfigEntity testConfig) {
+        long startTime = System.currentTimeMillis();
+        try {
+            io.agentscope.core.model.Model model = provider.createChatModel(testConfig);
+            callSyncHealth(model);
+            long responseTime = System.currentTimeMillis() - startTime;
+            return HealthCheckResult.success(providerCode, modelName, null, responseTime);
+        } catch (Exception e) {
+            long responseTime = System.currentTimeMillis() - startTime;
+            log.error("模型健康检测失败，provider={}, model={}, 耗时={}ms, 错误={}",
+                    providerCode, modelName, responseTime, e.getMessage());
+            return HealthCheckResult.failure(providerCode, "API 连接失败", e.getMessage());
+        }
     }
 
     /**
@@ -211,15 +249,17 @@ public class ProviderHealthCheckService {
     }
 
     /**
-     * 检测 OpenAI Compatible 供应商的健康状态
+     * 检测使用自定义 Base URL 的供应商。
+     *
+     * <p>providerCode 决定协议实现，apiUrl 决定实际请求端点。</p>
      */
-    public HealthCheckResult checkOpenAiCompatibleHealth(String apiUrl, String apiKey, String testModelName) {
-        String providerCode = "OpenAiCompatible";
-
-        // 1. 从注册表获取 OpenAiCompatible Provider
+    public HealthCheckResult checkCustomProviderHealth(
+            String providerCode, String apiUrl, String apiKey, String testModelName) {
+        // 1. 从注册表获取指定协议的 Provider
         if (!providerRegistry.hasProvider(providerCode)) {
-            log.warn("OpenAiCompatible 供应商未注册，providerCode={}", providerCode);
-            return HealthCheckResult.failure(providerCode, "供应商未注册", "未找到 OpenAiCompatible 供应商");
+            log.warn("自定义端点供应商未注册，providerCode={}", providerCode);
+            return HealthCheckResult.failure(
+                    providerCode, "供应商未注册", "未找到供应商: " + providerCode);
         }
 
         ModelProvider provider = providerRegistry.getProviderOrThrow(providerCode);
@@ -232,7 +272,8 @@ public class ProviderHealthCheckService {
         testConfig.setMaxToken(100);
 
         // 3. 执行健康检测
-        log.info("开始 OpenAiCompatible 健康检测，url={}, model={}", apiUrl, testModelName);
+        log.info("开始自定义端点健康检测，provider={}, url={}, model={}",
+                providerCode, apiUrl, testModelName);
         long startTime = System.currentTimeMillis();
 
         try {
@@ -240,20 +281,22 @@ public class ProviderHealthCheckService {
             String response = callSyncHealth(model);
             long responseTime = System.currentTimeMillis() - startTime;
 
-            log.info("OpenAiCompatible 健康检测成功，url={}, model={}, 响应时间={}ms",
-                    apiUrl, testModelName, responseTime);
+            log.info("自定义端点健康检测成功，provider={}, url={}, model={}, 响应时间={}ms",
+                    providerCode, apiUrl, testModelName, responseTime);
 
             HealthCheckResult result = HealthCheckResult.success(providerCode, testModelName, null, responseTime);
 
             // 4. 检测成功，将模型配置保存到用户配置中
             try {
                 LoginUser loginUser = LoginHelper.getLoginUser();
-                saveOpenAiCompatibleModelToUserConfig(loginUser.getUserId(), apiUrl, apiKey, testModelName);
+                saveCustomProviderModelToUserConfig(
+                        loginUser.getUserId(), providerCode, apiUrl, apiKey, testModelName);
                 result.setMessage(providerCode + " 连接正常，已添加到您的配置中");
-                log.info("OpenAiCompatible 模型已保存到用户配置，userId={}, url={}, model={}",
-                        loginUser.getUserId(), apiUrl, testModelName);
+                log.info("自定义端点模型已保存到用户配置，provider={}, userId={}, url={}, model={}",
+                        providerCode, loginUser.getUserId(), apiUrl, testModelName);
             } catch (Exception e) {
-                log.error("保存 OpenAiCompatible 模型配置失败，错误={}", e.getMessage());
+                log.error("保存自定义端点模型配置失败，provider={}, 错误={}",
+                        providerCode, e.getMessage());
                 result.setMessage(providerCode + " 连接正常，但保存配置失败");
             }
 
@@ -261,25 +304,44 @@ public class ProviderHealthCheckService {
 
         } catch (Exception e) {
             long responseTime = System.currentTimeMillis() - startTime;
-            log.error("OpenAiCompatible 健康检测失败，url={}, model={}, 耗时={}ms, 错误={}",
-                    apiUrl, testModelName, responseTime, e.getMessage());
+            log.error("自定义端点健康检测失败，provider={}, url={}, model={}, 耗时={}ms, 错误={}",
+                    providerCode, apiUrl, testModelName, responseTime, e.getMessage());
             return HealthCheckResult.failure(providerCode, "API 连接失败", e.getMessage());
         }
     }
 
     /**
-     * 将 OpenAiCompatible 模型保存到用户配置
+     * 将自定义端点模型保存到用户配置；同一用户、供应商、模型重复检测时执行更新。
      */
-    private void saveOpenAiCompatibleModelToUserConfig(Long userId, String apiUrl, String apiKey, String testModelName) {
-        ModelConfigEntity config = new ModelConfigEntity();
-        config.setProvider("OpenAiCompatible");
+    private void saveCustomProviderModelToUserConfig(
+            Long userId, String providerCode, String apiUrl, String apiKey, String testModelName) {
+        LambdaQueryWrapper<ModelConfigEntity> queryWrapper = new LambdaQueryWrapper<>();
+        queryWrapper.eq(ModelConfigEntity::getUserId, userId)
+                .eq(ModelConfigEntity::getProvider, providerCode)
+                .eq(ModelConfigEntity::getModelKey, testModelName)
+                .last("LIMIT 1");
+        ModelConfigEntity config = modelConfigMapper.selectOne(queryWrapper);
+        boolean isNew = config == null;
+        if (isNew) {
+            config = new ModelConfigEntity();
+            config.setUserId(userId);
+            config.setProvider(providerCode);
+            config.setEnabled(false);
+            config.setModelType("CHAT");
+            config.setMaxToken(4096);
+        }
+
         config.setApiUrl(apiUrl);
         config.setApiKey(apiKey);
-        config.setUserId(userId);
         config.setModelName(testModelName);
         config.setModelKey(testModelName);
-        config.setEnabled(false);
-        modelConfigMapper.insert(config);
+
+        if (isNew) {
+            modelConfigMapper.insert(config);
+        } else {
+            modelConfigMapper.updateById(config);
+            dynamicModelService.refreshModelCacheById(String.valueOf(config.getId()));
+        }
     }
 
     /**

@@ -23,6 +23,8 @@ export interface ChatInputProps {
   setInput: (text: string) => void
   setIsUploading: (value: boolean) => void;
   handleSketchUpload?: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  /** Render without its own card so it can be hosted inside the composer shell. */
+  embedded?: boolean;
 }
 
 export interface ErrorDisplayProps {

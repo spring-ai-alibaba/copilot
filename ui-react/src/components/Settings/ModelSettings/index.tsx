@@ -26,7 +26,7 @@ import {
     DownOutlined,
     UpOutlined
 } from '@ant-design/icons';
-import {AIModel, Provider, createModel, deleteModel, getModels, getProviders, getModelsByProvider, ModelCreateRequest, testModel, updateModel, checkProviderHealth, DiscoveredModel, LlmServiceProvider, LlmModel, getMyLlms, toggleModelStatus, deleteModelProvider, checkModelHealth, updateModelConfig, checkOpenAiCompatibleHealth} from '@/api/models';
+import {AIModel, Provider, createModel, deleteModel, getModels, getProviders, getModelsByProvider, ModelCreateRequest, testModel, updateModel, checkProviderHealth, DiscoveredModel, LlmServiceProvider, LlmModel, getMyLlms, toggleModelStatus, deleteModelProvider, checkModelHealth, updateModelConfig, checkCustomProviderHealth} from '@/api/models';
 import {eventEmitter} from '@/components/AiChat/utils/EventEmitter';
 import './ModelSettings.css';
 import Chatgpt from '@/icon/Chatgpt';
@@ -220,10 +220,11 @@ export default function ModelSettings() {
       return;
     }
 
-    // 检查是否为 OpenAiCompatible 供应商
-    const isOpenAiCompatible = selectedProvider.providerCode === 'OpenAiCompatible';
+    // OpenAI Compatible 与 Anthropic 都允许使用自定义中转站 Base URL。
+    const usesCustomEndpoint = ['OpenAiCompatible', 'Anthropic']
+      .includes(selectedProvider.providerCode);
     
-    if (isOpenAiCompatible) {
+    if (usesCustomEndpoint) {
       if (!baseUrl) {
         message.error('请输入 Base URL');
         return;
@@ -237,8 +238,9 @@ export default function ModelSettings() {
     setTestingProvider(id);
     try {
       let result;
-      if (isOpenAiCompatible) {
-        result = await checkOpenAiCompatibleHealth({
+      if (usesCustomEndpoint) {
+        result = await checkCustomProviderHealth({
+          providerCode: selectedProvider.providerCode,
           apiUrl: baseUrl,
           apiKey,
           testModelName: modelName,
@@ -631,6 +633,7 @@ export default function ModelSettings() {
         }}
         footer={null}
         width={600}
+        zIndex={10100}
       >
         <Form
           form={form}
@@ -721,14 +724,24 @@ export default function ModelSettings() {
         }}
         footer={null}
         width={480}
+        zIndex={10100}
       >
         <div className="api-config-section">
-          {selectedProvider?.providerCode === 'OpenAiCompatible' ? (
+          {selectedProvider?.providerCode === 'OpenAiCompatible'
+            || selectedProvider?.providerCode === 'Anthropic' ? (
             <>
+              <div
+                className="mb-4 rounded-lg border border-border bg-muted/40 px-3 py-2 text-xs text-muted-foreground"
+              >
+                调用协议：
+                {selectedProvider?.providerCode === 'Anthropic'
+                  ? ' Anthropic Messages API（/v1/messages）'
+                  : ' OpenAI Chat Completions（/v1/chat/completions）'}
+              </div>
               <div className="config-item" style={{ marginBottom: 16 }}>
                 <div style={{ marginBottom: 8, fontWeight: 500 }}>Base URL</div>
                 <Input
-                  placeholder="请输入 Base URL，例如：https://api.example.com/v1"
+                  placeholder="请输入中转站 Base URL，例如：https://api.example.com"
                   className="config-input"
                   value={baseUrl}
                   onChange={(e) => setBaseUrl(e.target.value)}
@@ -747,7 +760,11 @@ export default function ModelSettings() {
               <div className="config-item" style={{ marginBottom: 16 }}>
                 <div style={{ marginBottom: 8, fontWeight: 500 }}>模型名称</div>
                 <Input
-                  placeholder="请输入模型名称，例如：gpt-3.5-turbo"
+                  placeholder={
+                    selectedProvider?.providerCode === 'Anthropic'
+                      ? '请输入模型名称，例如：claude-sonnet-4-6'
+                      : '请输入模型名称，例如：gpt-4.1'
+                  }
                   className="config-input"
                   value={modelName}
                   onChange={(e) => setModelName(e.target.value)}
@@ -804,6 +821,7 @@ export default function ModelSettings() {
         }}
         footer={null}
         width={480}
+        zIndex={10100}
       >
         <Form
           form={addModelForm}
@@ -885,6 +903,7 @@ export default function ModelSettings() {
         }}
         footer={null}
         width={480}
+        zIndex={10100}
       >
         <Form
           form={editModelForm}

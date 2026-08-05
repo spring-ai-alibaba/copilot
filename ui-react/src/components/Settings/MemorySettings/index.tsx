@@ -353,6 +353,7 @@ export default function MemorySettings() {
                 />
 
                 <Modal
+                  zIndex={10100}
                   title={t("memory.actions.addPreference")}
                   open={prefsModalOpen}
                   onCancel={() => setPrefsModalOpen(false)}

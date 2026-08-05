@@ -9,6 +9,14 @@ import {db} from "../../../utils/indexDB";
 import {v4 as uuidv4} from "uuid";
 import {eventEmitter} from "../utils/EventEmitter";
 import {MessageItem} from "./components/MessageItem";
+import {
+    isTodoWriteTool,
+    parseTodoTasks,
+    PlanDecision,
+    PlanDecisionState,
+    PlanWorkspacePanel,
+    stripPlanWorkspaceTimeline,
+} from "./components/PlanWorkspacePanel";
 import {ChatInput, ChatMode} from "./components/ChatInput";
 import Tips from "./components/Tips";
 import {parseMessage} from "../../../utils/messagepParseJson";
@@ -18,7 +26,9 @@ import {updateFileSystemNow} from "../../WeIde/services";
 import {parseMessages, streamingFileManager, normalizeFilePath} from "../useSseMessageParser";
 import {useTranslation} from "react-i18next";
 import { apiUrl } from "@/api/base";
-import useChatModeStore from "../../../stores/chatModeSlice";
+import useChatModeStore, {
+    ExecutionMode,
+} from "../../../stores/chatModeSlice";
 import useTerminalStore from "@/stores/terminalSlice";
 import {checkExecList, checkFinish} from "../utils/checkFinish";
 import {useUrlData} from "@/hooks/useUrlData";
@@ -26,7 +36,11 @@ import useMCPTools from "@/hooks/useMCPTools";
 import {FileSystemStatus} from "./components/FileSystemStatus";
 import {handleFileSystemEvent, isFileSystemEvent} from "../utils/fileSystemEventHandler";
 import {useConversationStore} from "@/stores/conversationSlice";
-import {getConversationMessages} from "@/api/conversation";
+import {
+    getConversationMessages,
+    getPlanWorkspace,
+    PlanWorkspaceState,
+} from "@/api/conversation";
 import { LoaderCircle } from "lucide-react";
 import { AppLogo } from "@/components/AppLogo";
 
@@ -127,7 +141,7 @@ export const BaseChat = ({uuid: propUuid}: { uuid?: string }) => {
         clearErrors,
         setOldFiles
     } = useFileStore();
-    const {mode} = useChatModeStore();
+    const {mode, executionMode} = useChatModeStore();
     // 使用全局状态
     const {
         uploadedImages,
@@ -158,10 +172,17 @@ export const BaseChat = ({uuid: propUuid}: { uuid?: string }) => {
     const fetchingRef = useRef(false);
     const lastModeRef = useRef<ChatMode | null>(null);
     const modeRef = useRef(mode);
+    const executionModeRef = useRef(executionMode);
+    const pendingPlanDecisionRef = useRef<PlanDecision | null>(null);
+    const planWorkspaceLiveVersionRef = useRef(0);
 
     useEffect(() => {
         modeRef.current = mode;
     }, [mode]);
+
+    useEffect(() => {
+        executionModeRef.current = executionMode;
+    }, [executionMode]);
 
     const fetchModelList = useCallback(() => {
         if (fetchingRef.current) {
@@ -481,10 +502,40 @@ export const BaseChat = ({uuid: propUuid}: { uuid?: string }) => {
     const {openModal} = useLimitModalStore();
 
     const [messages, setMessagesa] = useState<WeMessages>([]);
+    const [planDecisionState, setPlanDecisionState] =
+        useState<PlanDecisionState | null>(null);
+    const [planWorkspace, setPlanWorkspace] =
+        useState<PlanWorkspaceState | null>(null);
     const {enabledMCPs} = useMCPTools()
+
+    useEffect(() => {
+        setPlanDecisionState(null);
+        setPlanWorkspace(null);
+        if (!currentConversationId) return;
+
+        const conversationId = currentConversationId;
+        const liveVersion = planWorkspaceLiveVersionRef.current;
+        const controller = new AbortController();
+        getPlanWorkspace(conversationId, controller.signal)
+            .then((workspace) => {
+                if (
+                    !controller.signal.aborted &&
+                    useConversationStore.getState().currentConversationId === conversationId &&
+                    planWorkspaceLiveVersionRef.current === liveVersion
+                ) {
+                    setPlanWorkspace(workspace);
+                }
+            })
+            .catch((error) => {
+                if (error instanceof DOMException && error.name === "AbortError") return;
+                console.warn("加载计划工作区失败:", error);
+            });
+        return () => controller.abort();
+    }, [currentConversationId]);
 
     // 自定义 fetch 函数来处理 SSE 流数据
     const customFetch = async (url: string, options: any) => {
+        let streamConversationId = currentConversationId || '';
         try {
             const latestToken = useUserStore.getState().token;
             if (!latestToken) {
@@ -523,6 +574,7 @@ export const BaseChat = ({uuid: propUuid}: { uuid?: string }) => {
 
                 // 修改请求体格式：用message替换messages数组
                 const memoryFlags = useMemoryStore.getState();
+                const pendingPlanDecision = pendingPlanDecisionRef.current;
                 const modifiedBody = {
                     ...requestBody,
                     message: latestMessage, // 单个消息对象
@@ -531,11 +583,26 @@ export const BaseChat = ({uuid: propUuid}: { uuid?: string }) => {
                     tools: toolsForBackend, // 添加启用的 MCP 工具
                     enablePreferences: memoryFlags.enablePreferencesInChat,
                     enablePreferenceLearning: memoryFlags.enablePreferenceLearningInChat,
+                    planMode:
+                        executionModeRef.current === ExecutionMode.Plan ||
+                        Boolean(pendingPlanDecision),
+                    planAction: pendingPlanDecision?.action,
+                    planFeedback: pendingPlanDecision?.feedback,
                 };
+                streamConversationId = String(modifiedBody.conversationId || '');
                 delete modifiedBody.messages; // 删除原来的messages数组
 
                 // 更新options中的body
                 options.body = JSON.stringify(modifiedBody);
+                pendingPlanDecisionRef.current = null;
+
+                if (pendingPlanDecision) {
+                    setPlanDecisionState((current) =>
+                        current?.conversationId === currentConversationId
+                            ? {...current, status: "running"}
+                            : current,
+                    );
+                }
 
                 if (toolsForBackend.length > 0) {
                     console.log('[customFetch] 发送 MCP 工具到后端:', toolsForBackend);
@@ -582,7 +649,6 @@ export const BaseChat = ({uuid: propUuid}: { uuid?: string }) => {
                 string,
                 { name: string; argsBuffer: string; ended: boolean }
             >();
-            let reasoningBuffer = '';
 
             const encodeTimelineBlock = (language: string, value: unknown) =>
                 `\n\n\`\`\`${language}\n${encodeURIComponent(
@@ -595,6 +661,7 @@ export const BaseChat = ({uuid: propUuid}: { uuid?: string }) => {
                 toolCallId: string,
                 state: { name: string; argsBuffer: string; ended: boolean },
                 result?: unknown,
+                status?: 'running' | 'completed' | 'result' | 'error',
             ) => {
                 let args: unknown = {};
                 try {
@@ -607,7 +674,7 @@ export const BaseChat = ({uuid: propUuid}: { uuid?: string }) => {
                     toolName: state.name,
                     args,
                     result,
-                    state: result === undefined ? (state.ended ? 'completed' : 'call') : 'result',
+                    state: status ?? (result === undefined ? 'running' : 'result'),
                 });
             };
 
@@ -642,10 +709,20 @@ export const BaseChat = ({uuid: propUuid}: { uuid?: string }) => {
                 // 用 SSE event 名（UPPER 枚举名）路由；回退到 JSON.type
                 const type = (eventName || parsed.type || '').toUpperCase();
                 let transformedText = '';
+                const belongsToCurrentConversation = () => {
+                    const eventConversationId = String(
+                        parsed.conversationId || parsed.threadId || streamConversationId || '',
+                    );
+                    const selectedConversationId =
+                        useConversationStore.getState().currentConversationId;
+                    return !eventConversationId || !selectedConversationId ||
+                        eventConversationId === selectedConversationId;
+                };
 
                 // 会话ID控制事件：后端在新建会话时回传，前端需写入 store 以支撑后续多轮
                 if (eventName === 'conversation-id' && parsed.conversationId) {
                     const conversationId = String(parsed.conversationId);
+                    streamConversationId = conversationId;
                     if (useConversationStore.getState().currentConversationId !== conversationId) {
                         streamAssignedConversationIdRef.current = conversationId;
                         setCurrentConversation(conversationId);
@@ -655,13 +732,10 @@ export const BaseChat = ({uuid: propUuid}: { uuid?: string }) => {
 
                 if (type.startsWith('REASONING_')) {
                     const delta = parsed.delta ?? parsed.content ?? parsed.text ?? '';
-                    if (typeof delta === 'string' && delta) reasoningBuffer += delta;
-                    if (type.endsWith('_END') && reasoningBuffer.trim()) {
-                        transformedText += encodeTimelineBlock(
-                            'arc-reasoning',
-                            reasoningBuffer,
-                        );
-                        reasoningBuffer = '';
+                    if (typeof delta === 'string' && delta) {
+                        // 每个 delta 立即进入消息流；MessageItem 会在渲染前把多个
+                        // arc-reasoning 块折叠为一张持续增长的思考卡片。
+                        transformedText += encodeTimelineBlock('arc-reasoning', delta);
                     }
                     return transformedText;
                 }
@@ -676,11 +750,16 @@ export const BaseChat = ({uuid: propUuid}: { uuid?: string }) => {
                         const tcId = parsed.toolCallId;
                         const tcName = parsed.toolCallName;
                         if (tcId && tcName) {
-                            toolCallStates.set(tcId, {
+                            const state = {
                                 name: tcName,
                                 argsBuffer: '',
                                 ended: false,
-                            });
+                            };
+                            toolCallStates.set(tcId, state);
+                            // 工具名一到就展示，避免参数生成或工具执行期间页面空白。
+                            if (!isTodoWriteTool(tcName)) {
+                                transformedText += flushToolCall(tcId, state, undefined, 'running');
+                            }
                         }
                         break;
                     }
@@ -699,6 +778,26 @@ export const BaseChat = ({uuid: propUuid}: { uuid?: string }) => {
                         if (st) {
                             handleToolCallEnd(st.name, st.argsBuffer);
                             st.ended = true;
+                            if (isTodoWriteTool(st.name)) {
+                                if (!belongsToCurrentConversation()) break;
+                                const tasks = parseTodoTasks(st.argsBuffer);
+                                if (tasks.length) {
+                                    const completed = tasks.every((task) => task.status === 'completed');
+                                    planWorkspaceLiveVersionRef.current += 1;
+                                    setPlanWorkspace((current) => ({
+                                        conversationId: current?.conversationId || String(currentConversationId || ''),
+                                        status: completed ? 'COMPLETED' : 'EXECUTING',
+                                        message: completed ? 'Todo 已全部完成' : 'Agent 正在按计划执行',
+                                        decisionAllowed: false,
+                                        review: current?.review,
+                                        tasks,
+                                        updatedAt: new Date().toISOString(),
+                                    }));
+                                }
+                            } else {
+                                // 参数已完整，更新同一张运行中卡片。
+                                transformedText += flushToolCall(tcId, st, undefined, 'running');
+                            }
                         }
                         break;
                     }
@@ -706,7 +805,28 @@ export const BaseChat = ({uuid: propUuid}: { uuid?: string }) => {
                         const tcId = parsed.toolCallId;
                         const st = tcId ? toolCallStates.get(tcId) : undefined;
                         if (tcId && st) {
-                            transformedText += flushToolCall(tcId, st, parsed.content);
+                            if (isTodoWriteTool(st.name)) {
+                                if (!belongsToCurrentConversation()) {
+                                    toolCallStates.delete(tcId);
+                                    break;
+                                }
+                                const tasks = parseTodoTasks(st.argsBuffer, parsed.content);
+                                if (tasks.length) {
+                                    const completed = tasks.every((task) => task.status === 'completed');
+                                    planWorkspaceLiveVersionRef.current += 1;
+                                    setPlanWorkspace((current) => ({
+                                        conversationId: current?.conversationId || String(currentConversationId || ''),
+                                        status: completed ? 'COMPLETED' : 'EXECUTING',
+                                        message: completed ? 'Todo 已全部完成' : '任务进度已更新',
+                                        decisionAllowed: false,
+                                        review: current?.review,
+                                        tasks,
+                                        updatedAt: new Date().toISOString(),
+                                    }));
+                                }
+                            } else {
+                                transformedText += flushToolCall(tcId, st, parsed.content);
+                            }
                             toolCallStates.delete(tcId);
                         } else {
                             transformedText += encodeTimelineBlock('arc-tool', {
@@ -720,23 +840,106 @@ export const BaseChat = ({uuid: propUuid}: { uuid?: string }) => {
                         break;
                     }
                     case 'RUN_FINISHED': {
-                        if (reasoningBuffer.trim()) {
-                            transformedText += encodeTimelineBlock(
-                                'arc-reasoning',
-                                reasoningBuffer,
-                            );
-                            reasoningBuffer = '';
-                        }
                         toolCallStates.forEach((state, toolCallId) => {
-                            transformedText += flushToolCall(toolCallId, state);
+                            if (!isTodoWriteTool(state.name)) {
+                                transformedText += flushToolCall(
+                                    toolCallId,
+                                    state,
+                                    undefined,
+                                    'completed',
+                                );
+                            }
                         });
                         toolCallStates.clear();
-                        transformedText += 'data: [DONE]\n\n';
+                        break;
+                    }
+                    case 'PLAN-STATUS': {
+                        if (!belongsToCurrentConversation()) break;
+                        const conversationId = String(
+                            parsed.conversationId || currentConversationId || '',
+                        );
+                        const rawStatus = String(parsed.status || '').toUpperCase();
+                        const status = rawStatus === 'RUNNING'
+                            ? 'EXECUTING'
+                            : rawStatus === 'PENDING'
+                                ? 'PENDING_APPROVAL'
+                                : rawStatus;
+                        if (conversationId && ['PLANNING', 'NEEDS_INPUT', 'PENDING_APPROVAL', 'REVISING', 'EXECUTING', 'COMPLETED', 'FAILED'].includes(status)) {
+                            planWorkspaceLiveVersionRef.current += 1;
+                            setPlanWorkspace((current) => ({
+                                conversationId,
+                                status: status as PlanWorkspaceState['status'],
+                                message: parsed.message,
+                                decisionAllowed: typeof parsed.decisionAllowed === 'boolean'
+                                    ? parsed.decisionAllowed
+                                    : status === 'PENDING_APPROVAL' || (Boolean(current?.decisionAllowed) && ['FAILED', 'NEEDS_INPUT'].includes(status)),
+                                // 新一轮规划尚未产生计划时，不能复用上一版会话快照。
+                                review: status === 'PLANNING' ? undefined : current?.review,
+                                tasks: status === 'PLANNING' ? [] : current?.tasks || [],
+                                updatedAt: new Date().toISOString(),
+                            }));
+                            setPlanDecisionState((current) => ({
+                                conversationId,
+                                action: current?.action || 'APPROVE',
+                                status: (status === 'EXECUTING' ? 'running' : status.toLowerCase()) as PlanDecisionState['status'],
+                                message: parsed.message,
+                            }));
+                        }
+                        break;
+                    }
+                    case 'PLAN-REVIEW': {
+                        if (!belongsToCurrentConversation()) break;
+                        // 新计划（包括驳回后的修订版）到达时恢复工作面板状态。
+                        planWorkspaceLiveVersionRef.current += 1;
+                        setPlanDecisionState(null);
+                        const rawStatus = String(parsed.status || 'PENDING').toUpperCase();
+                        const status = rawStatus === 'NEEDS_INPUT'
+                            ? 'NEEDS_INPUT'
+                            : 'PENDING_APPROVAL';
+                        setPlanWorkspace({
+                            conversationId: String(parsed.conversationId || currentConversationId || ''),
+                            status,
+                            message: String(parsed.message || (status === 'NEEDS_INPUT'
+                                ? '请先补充阻塞信息，再生成最终可执行计划'
+                                : '等待审批')),
+                            decisionAllowed: typeof parsed.decisionAllowed === 'boolean'
+                                ? parsed.decisionAllowed
+                                : true,
+                            review: parsed,
+                            tasks: [],
+                            updatedAt: new Date().toISOString(),
+                        });
                         break;
                     }
                     case 'RUN_ERROR': {
                         const errorMessage = parsed.message || parsed.error || 'Agent 运行失败';
                         console.error('[AG-UI] run error:', errorMessage);
+                        toolCallStates.forEach((state, toolCallId) => {
+                            transformedText += flushToolCall(
+                                toolCallId,
+                                state,
+                                undefined,
+                                'error',
+                            );
+                        });
+                        toolCallStates.clear();
+                        setPlanDecisionState((current) =>
+                            current
+                                ? {
+                                    ...current,
+                                    status: 'failed',
+                                    message: String(errorMessage),
+                                }
+                                : current,
+                        );
+                        if (belongsToCurrentConversation()) {
+                            setPlanWorkspace((current) => current ? {
+                                ...current,
+                                status: 'FAILED',
+                                message: String(errorMessage),
+                            } : current);
+                            planWorkspaceLiveVersionRef.current += 1;
+                        }
                         transformedText += encodeTimelineBlock('arc-error', String(errorMessage));
                         break;
                     }
@@ -985,11 +1188,15 @@ export const BaseChat = ({uuid: propUuid}: { uuid?: string }) => {
     }, [isLoading, files]);
 
     useEffect(() => {
+        // AI SDK 已经按 chunk 更新 realMessages；展示层必须跟随每次变化。
+        // 原来的 200ms 门限没有 trailing 刷新，最后一个快速 chunk 会一直
+        // 留在 realMessages 中，直到 plan-review 到达才突然显示全部卡片。
+        setMessagesa(realMessages as WeMessages);
+
         if (Date.now() - parseTimeRef.current > 200 && isLoading) {
-            setMessagesa(realMessages as WeMessages);
             parseTimeRef.current = Date.now();
 
-            const needParseMessages = messages.filter(
+            const needParseMessages = realMessages.filter(
                 (m) => !refUuidMessages.current.includes(m.id)
             );
             parseMessages(needParseMessages);
@@ -999,7 +1206,6 @@ export const BaseChat = ({uuid: propUuid}: { uuid?: string }) => {
             clearErrors();
         }
         if (!isLoading) {
-            setMessagesa(realMessages as WeMessages);
             // 非流式状态下（加载历史/切换会话后），确保默认展示最新一条
             if (pendingScrollToBottomRef.current) {
                 pendingScrollToBottomRef.current = false;
@@ -1090,7 +1296,10 @@ export const BaseChat = ({uuid: propUuid}: { uuid?: string }) => {
 
     // 仅展示 user/assistant，过滤 tool/system/空消息
     const filterMessages = messages.filter(
-        (e) => (e.role === "user" || e.role === "assistant") && !!e.content?.trim()
+        (e) =>
+            (e.role === "user" || e.role === "assistant") &&
+            !!stripPlanWorkspaceTimeline(e.content || "").trim() &&
+            !e.content.includes("<planDecision>")
     );
     // 修改上传处理函数
     const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -1198,6 +1407,59 @@ export const BaseChat = ({uuid: propUuid}: { uuid?: string }) => {
             }, 100);
         } catch (error) {
             toast.error("Failed to upload files");
+        }
+    };
+
+    const handlePlanDecision = async (decision: PlanDecision) => {
+        if (isLoading) {
+            return;
+        }
+        if (!currentConversationId) {
+            toast.error(
+                t("chat.planMode.missingConversation", {
+                    defaultValue: "当前计划缺少会话信息，请重新生成计划",
+                }),
+            );
+            return;
+        }
+
+        setPlanDecisionState({
+            conversationId: currentConversationId,
+            action: decision.action,
+            status: "submitting",
+        });
+        setPlanWorkspace((current) => current ? {
+            ...current,
+            status: decision.action === "APPROVE" ? "EXECUTING" : "REVISING",
+            message: decision.action === "APPROVE" ? "正在提交审批并准备执行" : "正在提交反馈并修改计划",
+            decisionAllowed: false,
+        } : current);
+        planWorkspaceLiveVersionRef.current += 1;
+        pendingPlanDecisionRef.current = decision;
+        try {
+            await append({
+                role: "user",
+                content: `<planDecision>${encodeURIComponent(
+                    JSON.stringify(decision),
+                )}</planDecision>`,
+            });
+        } catch (error) {
+            pendingPlanDecisionRef.current = null;
+            const message =
+                error instanceof Error ? error.message : "计划审批请求失败";
+            setPlanDecisionState({
+                conversationId: currentConversationId,
+                action: decision.action,
+                status: "failed",
+                message,
+            });
+            setPlanWorkspace((current) => current ? {
+                ...current,
+                status: "FAILED",
+                message,
+                decisionAllowed: true,
+            } : current);
+            toast.error(message);
         }
     };
 
@@ -1403,27 +1665,37 @@ export const BaseChat = ({uuid: propUuid}: { uuid?: string }) => {
                 ref={composerOverlayRef}
                 className="pointer-events-none absolute inset-x-0 bottom-0 z-30 bg-gradient-to-t from-background via-background/95 to-transparent pt-9"
             >
-                <div className="pointer-events-auto">
-                    <ChatInput
-                        input={input}
-                        setMessages={setMessages}
-                        append={append}
-                        messages={messages}
-                        stopRuning={stop}
-                        setInput={setInput}
-                        isLoading={isLoading}
-                        isUploading={isUploading}
-                        uploadedImages={uploadedImages}
-                        baseModal={baseModal}
-                        handleInputChange={handleInputChange}
-                        handleKeySubmit={handleKeySubmit}
-                        handleSubmitWithFiles={handleSubmitWithFiles}
-                        handleFileSelect={handleFileSelect}
-                        removeImage={removeImage}
-                        addImages={addImages}
-                        setIsUploading={setIsUploading}
-                        setBaseModal={setBaseModal}
-                    />
+                <div className="pointer-events-auto mx-auto w-full max-w-[760px] px-3 sm:px-5">
+                    <div className="arc-composer-card overflow-visible">
+                        <PlanWorkspacePanel
+                            workspace={planWorkspace}
+                            isLoading={isLoading}
+                            decisionState={planDecisionState}
+                            onDecision={handlePlanDecision}
+                            integrated
+                        />
+                        <ChatInput
+                            input={input}
+                            setMessages={setMessages}
+                            append={append}
+                            messages={messages}
+                            stopRuning={stop}
+                            setInput={setInput}
+                            isLoading={isLoading}
+                            isUploading={isUploading}
+                            uploadedImages={uploadedImages}
+                            baseModal={baseModal}
+                            handleInputChange={handleInputChange}
+                            handleKeySubmit={handleKeySubmit}
+                            handleSubmitWithFiles={handleSubmitWithFiles}
+                            handleFileSelect={handleFileSelect}
+                            removeImage={removeImage}
+                            addImages={addImages}
+                            setIsUploading={setIsUploading}
+                            setBaseModal={setBaseModal}
+                            embedded
+                        />
+                    </div>
                 </div>
             </div>
         </div>

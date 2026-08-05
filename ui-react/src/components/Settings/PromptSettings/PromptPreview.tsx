@@ -88,6 +88,7 @@ export function PromptPreview({ visible, prompt, onCancel }: PromptPreviewProps)
 
   return (
     <Modal
+      zIndex={10100}
       title={
         <div className="flex items-center gap-2">
           <FileTextOutlined />

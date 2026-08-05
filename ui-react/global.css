@@ -497,3 +497,27 @@
     transition-duration: 1ms !important;
   }
 }
+
+/* 确保 antd 的 message / notification / modal 显示在 Settings 全屏层（z-index:10000）之上 */
+.ant-message {
+  z-index: 10200 !important;
+}
+.ant-notification {
+  z-index: 10200 !important;
+}
+.ant-modal-root {
+  z-index: 10100 !important;
+}
+.ant-modal-mask {
+  z-index: 10100 !important;
+}
+.ant-modal-wrap {
+  z-index: 10101 !important;
+}
+.ant-popover,
+.ant-tooltip,
+.ant-dropdown,
+.ant-select-dropdown,
+.ant-picker-dropdown {
+  z-index: 10150 !important;
+}

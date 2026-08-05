@@ -13,6 +13,7 @@ import "highlight.js/styles/github-dark.css"; // 暗色主题
 import {useTranslation} from 'react-i18next';
 import { safeJsonParse } from '@/utils/safeJsonParse';
 import { AppLogo } from "@/components/AppLogo";
+import { isTodoWriteTool as isWorkspaceTodoTool, stripPlanWorkspaceTimeline } from "../PlanWorkspacePanel";
 
 const codeStyles = `
   .hljs-attr {
@@ -109,7 +110,73 @@ function getDisplayContent(message: Message) {
   const streamContent = processStreamParts(filteredMessage.parts);
   const rawContent = typeof filteredMessage.content === "string" ? filteredMessage.content : "";
   const content = streamContent || rawContent;
-  return isThinkContent(content) ? processThinkContent(content) : content;
+  const normalizedContent = isThinkContent(content)
+    ? processThinkContent(content)
+    : content;
+  return collapseLiveTimelineBlocks(stripPlanWorkspaceTimeline(normalizedContent));
+}
+
+const LIVE_TIMELINE_BLOCK_PATTERN =
+  /```(arc-reasoning|arc-tool)\n([\s\S]*?)\n```/g;
+
+/**
+ * AG-UI 会持续追加 reasoning delta 和同一工具的状态快照。
+ * Markdown 本身是追加流，无法回写旧代码块，因此渲染前把它们折叠成：
+ * - 一张不断增长的 reasoning 卡片；
+ * - 每个 toolCallId 只保留最新状态。
+ */
+function collapseLiveTimelineBlocks(content: string) {
+  const matches = Array.from(content.matchAll(LIVE_TIMELINE_BLOCK_PATTERN));
+  if (matches.length < 2) {
+    return content;
+  }
+
+  const reasoningMatches = matches.filter((match) => match[1] === "arc-reasoning");
+  const reasoningContent = reasoningMatches
+    .map((match) => decodeTimelinePayload(match[2] || ""))
+    .join("");
+  const latestReasoningOffset =
+    reasoningMatches[reasoningMatches.length - 1]?.index;
+
+  const latestToolOffsets = new Map<string, number>();
+  for (const match of matches) {
+    if (match[1] !== "arc-tool" || match.index === undefined) continue;
+    try {
+      const payload = JSON.parse(
+        decodeTimelinePayload(match[2] || ""),
+      ) as { toolCallId?: string };
+      if (payload.toolCallId) {
+        latestToolOffsets.set(payload.toolCallId, match.index);
+      }
+    } catch {
+      // 不完整的流式块保持原样，由 Markdown 在后续 chunk 到达后重新解析。
+    }
+  }
+
+  const pattern = new RegExp(LIVE_TIMELINE_BLOCK_PATTERN.source, "g");
+  return content
+    .replace(pattern, (block, language, payload, offset: number) => {
+      if (language === "arc-reasoning") {
+        if (offset !== latestReasoningOffset) return "";
+        return `\`\`\`arc-reasoning\n${encodeURIComponent(reasoningContent)}\n\`\`\``;
+      }
+
+      try {
+        const tool = JSON.parse(
+          decodeTimelinePayload(payload),
+        ) as { toolCallId?: string };
+        if (
+          tool.toolCallId &&
+          latestToolOffsets.get(tool.toolCallId) !== offset
+        ) {
+          return "";
+        }
+      } catch {
+        return block;
+      }
+      return block;
+    })
+    .replace(/\n{3,}/g, "\n\n");
 }
 
 interface MessageItemProps {
@@ -480,17 +547,19 @@ export const processThinkContent = (content: string) => {
   return result.trim();
 };
 
+type TimelineToolInvocation = {
+  args: unknown;
+  result?: unknown;
+  state: string;
+  step?: number;
+  toolCallId: string;
+  toolName: string;
+};
+
 const ToolInvocationCard = ({
   toolInvocation,
 }: {
-  toolInvocation: {
-    args: any;
-    result?: unknown;
-    state: string;
-    step?: number;
-    toolCallId: string;
-    toolName: string;
-  };
+  toolInvocation: TimelineToolInvocation;
   messageId: string;
   onUpdateMessage?: (messageId: string, content: {
     text: string;
@@ -504,6 +573,7 @@ const ToolInvocationCard = ({
   const completed =
     toolInvocation.result !== undefined ||
     ["result", "output-available", "completed"].includes(toolInvocation.state);
+  const failed = toolInvocation.state === "error";
 
   return (
     <div className="my-3 overflow-hidden rounded-xl border border-border/70 bg-card/65">
@@ -527,12 +597,14 @@ const ToolInvocationCard = ({
         <span
           className={classNames(
             "rounded-full px-2 py-0.5 text-[9px] font-medium",
-            completed
+            failed
+              ? "bg-red-500/10 text-red-600 dark:text-red-300"
+              : completed
               ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-300"
               : "bg-amber-500/10 text-amber-600 dark:text-amber-300",
           )}
         >
-          {completed ? "完成" : "运行中"}
+          {failed ? "失败" : completed ? "完成" : "运行中"}
         </span>
         <svg
           className={classNames("h-3.5 w-3.5 text-muted-foreground transition-transform", expanded && "rotate-180")}
@@ -677,6 +749,7 @@ export const MessageItem: React.FC<MessageItemProps> = ({
                   {/* 修改工具调用卡片的渲染 */}
                   {message.parts?.map((part, index) => {
                     if (part.type === "tool-invocation") {
+                      if (isWorkspaceTodoTool(part.toolInvocation.toolName)) return null;
                       return (
                         <ToolInvocationCard
                           key={index}
@@ -693,7 +766,7 @@ export const MessageItem: React.FC<MessageItemProps> = ({
                     remarkPlugins={[remarkGfm]}
                     components={{
                       code({ node, className, children, ...props }) {
-                        const match = /language-(\w+)(?::(.+))?/.exec(
+                        const match = /language-([\w-]+)(?::(.+))?/.exec(
                           className || ""
                         );
                         const isInline = !match;
@@ -724,9 +797,16 @@ export const MessageItem: React.FC<MessageItemProps> = ({
                           return <RunErrorCard message={decodeTimelinePayload(content)} />;
                         }
 
+                        if (language === "arc-plan") {
+                          return null;
+                        }
+
                         if (language === "arc-tool") {
                           try {
-                            const invocation = safeJsonParse(decodeTimelinePayload(content));
+                            const invocation = safeJsonParse(
+                              decodeTimelinePayload(content),
+                            ) as TimelineToolInvocation;
+                            if (isWorkspaceTodoTool(invocation.toolName)) return null;
                             return (
                               <ToolInvocationCard
                                 toolInvocation={invocation}

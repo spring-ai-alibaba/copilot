@@ -70,15 +70,31 @@ public class LoginHelper {
 
     /** 获取用户id */
     public static Long getUserId() {
-        Long userId;
+        SaStorage storage = SaHolder.getStorage();
+        Long userId = Convert.toLong(storage.get(USER_KEY));
+        if (ObjectUtil.isNotNull(userId)) {
+            return userId;
+        }
+
+        // Sa-Token 的 extra 在部分请求链路中可能不可用，先尝试读取，失败后再从
+        // token session 中保存的 LoginUser 回退，避免已登录请求得到 null userId。
         try {
-            userId = Convert.toLong(SaHolder.getStorage().get(USER_KEY));
-            if (ObjectUtil.isNull(userId)) {
-                userId = Convert.toLong(StpUtil.getExtra(USER_KEY));
-                SaHolder.getStorage().set(USER_KEY, userId);
+            userId = Convert.toLong(StpUtil.getExtra(USER_KEY));
+        } catch (Exception ignored) {
+            // 继续尝试 token session。
+        }
+
+        if (ObjectUtil.isNull(userId)) {
+            try {
+                LoginUser loginUser = getLoginUser();
+                userId = loginUser != null ? loginUser.getUserId() : null;
+            } catch (Exception ignored) {
+                // 未登录或 token session 不可用时返回 null。
             }
-        } catch (Exception e) {
-            return null;
+        }
+
+        if (ObjectUtil.isNotNull(userId)) {
+            storage.set(USER_KEY, userId);
         }
         return userId;
     }

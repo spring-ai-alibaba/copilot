@@ -229,6 +229,16 @@ app:
       - .html
       - .css
       - .sql
+
+  # CodeGraph 仅向 Plan Agent 暴露只读查询工具。服务端会在会话代码工作区后台
+  # 建立/同步索引；Agent 不具备 init/sync 或任意 Shell 权限。
+  code-graph:
+    enabled: true
+    auto-index: true
+    executable: codegraph
+    timeout-seconds: 12
+    index-timeout-seconds: 90
+    max-output-bytes: 49152
   # 安全配置
   security:
     approval-mode: DEFAULT  # DEFAULT, AUTO_EDIT, YOLO
@@ -257,8 +267,5 @@ app:
       connection-timeout: 10
       # 最大重试次数
       max-retries: 3
-
-
-
 
 

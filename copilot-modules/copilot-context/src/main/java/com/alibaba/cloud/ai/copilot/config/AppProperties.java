@@ -20,6 +20,7 @@ public class AppProperties {
     private Workspace workspace = new Workspace();
     private Security security = new Security();
     private Tools tools = new Tools();
+    private CodeGraph codeGraph = new CodeGraph();
     private Conversation conversation = new Conversation();
     private Memory memory = new Memory();
 
@@ -91,6 +92,33 @@ public class AppProperties {
         public ToolConfig getShell() { return shell; }
         public void setShell(ToolConfig shell) { this.shell = shell; }
     }
+
+    /** CodeGraph 仅用于 Plan 阶段的只读代码关系查询。 */
+    public static class CodeGraph {
+        private boolean enabled = true;
+        /** 是否由服务端为会话工作区自动建立或更新索引。 */
+        private boolean autoIndex = true;
+        private String executable = "codegraph";
+        private int timeoutSeconds = 12;
+        private int indexTimeoutSeconds = 90;
+        private int maxOutputBytes = 48 * 1024;
+
+        public boolean isEnabled() { return enabled; }
+        public void setEnabled(boolean enabled) { this.enabled = enabled; }
+        public boolean isAutoIndex() { return autoIndex; }
+        public void setAutoIndex(boolean autoIndex) { this.autoIndex = autoIndex; }
+        public String getExecutable() { return executable; }
+        public void setExecutable(String executable) { this.executable = executable; }
+        public int getTimeoutSeconds() { return timeoutSeconds; }
+        public void setTimeoutSeconds(int timeoutSeconds) { this.timeoutSeconds = timeoutSeconds; }
+        public int getIndexTimeoutSeconds() { return indexTimeoutSeconds; }
+        public void setIndexTimeoutSeconds(int indexTimeoutSeconds) { this.indexTimeoutSeconds = indexTimeoutSeconds; }
+        public int getMaxOutputBytes() { return maxOutputBytes; }
+        public void setMaxOutputBytes(int maxOutputBytes) { this.maxOutputBytes = maxOutputBytes; }
+    }
+
+    public CodeGraph getCodeGraph() { return codeGraph; }
+    public void setCodeGraph(CodeGraph codeGraph) { this.codeGraph = codeGraph; }
 
     /**
      * 工具配置

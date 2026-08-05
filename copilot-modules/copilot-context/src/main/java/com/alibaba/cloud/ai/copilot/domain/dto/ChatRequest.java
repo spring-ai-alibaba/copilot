@@ -33,6 +33,22 @@ public class ChatRequest {
      */
     private Boolean enablePreferenceLearning;
 
+    /**
+     * 是否启用 Plan Mode。启用后 Agent 只能只读探索并写计划，
+     * 计划经过人工审批后才会进入执行阶段。
+     */
+    private Boolean planMode;
+
+    /**
+     * 对待审批计划的操作：APPROVE / REJECT。
+     */
+    private String planAction;
+
+    /**
+     * 驳回计划时的人类反馈。
+     */
+    private String planFeedback;
+
     private PromptExtra otherConfig;
     
     private List<ToolInfo> tools;

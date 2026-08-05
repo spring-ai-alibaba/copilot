@@ -29,6 +29,86 @@ export interface ChatMessage {
   createdAt?: string;
 }
 
+export type PlanWorkspaceStatus =
+  | "IDLE"
+  | "PLANNING"
+  | "NEEDS_INPUT"
+  | "PENDING_APPROVAL"
+  | "REVISING"
+  | "EXECUTING"
+  | "COMPLETED"
+  | "FAILED";
+
+export interface PlanWorkspaceTask {
+  id?: string;
+  content: string;
+  status: "pending" | "in_progress" | "completed";
+  priority?: "high" | "medium" | "low";
+  owner?: string;
+  blockedBy?: string[];
+}
+
+export interface PlanWorkspaceReview {
+  reviewId: string;
+  planFile?: string;
+  planContent: string;
+  /** 默认展示给审批者的决策摘要，缺失时回退到原始计划。 */
+  summary?: string;
+  changes?: Array<{
+    title: string;
+    files?: string[];
+    symbols?: string[];
+    action?: string;
+    reason?: string;
+    impact?: string;
+    acceptanceCriteria?: string[];
+  }>;
+  scopeOut?: string[];
+  verifications?: Array<{
+    type?: string;
+    description: string;
+    command?: string;
+    expectedResult?: string;
+  }>;
+  risks?: string[];
+  questions?: Array<{
+    question: string;
+    blocking?: boolean;
+    suggestedAnswer?: string;
+  }>;
+  evidenceStatus?: "AVAILABLE" | "INDEXING" | "SYNCING" | "NOT_A_CODE_PROJECT" | "DISABLED" | "FAILED" | "UNAVAILABLE";
+  evidence?: Array<{
+    source: string;
+    type: "AFFECTED_TESTS" | "CALL_CHAIN_IMPACT" | string;
+    subject: string;
+    summary: string;
+    relatedFiles?: string[];
+  }>;
+  affectedFiles?: string[];
+  filePreviews?: Array<{
+    path: string;
+    startLine: number;
+    endLine: number;
+    content: string;
+    status: "AVAILABLE" | "UNAVAILABLE";
+  }>;
+  gitStatus?: string;
+  riskLevel?: "LOW" | "MEDIUM" | "HIGH";
+  permissionMode?: "DEFAULT" | "DONT_ASK" | "BYPASS";
+  executionPolicy?: string;
+  status?: string;
+}
+
+export interface PlanWorkspaceState {
+  conversationId: string;
+  status: PlanWorkspaceStatus;
+  message?: string;
+  decisionAllowed: boolean;
+  review?: PlanWorkspaceReview;
+  tasks: PlanWorkspaceTask[];
+  updatedAt?: string;
+}
+
 /**
  * 创建会话
  */
@@ -141,6 +221,32 @@ export const getConversationMessages = async (
   return result.data;
 };
 
+/** 获取会话的计划与执行工作区快照。 */
+export const getPlanWorkspace = async (
+  conversationId: string,
+  signal?: AbortSignal
+): Promise<PlanWorkspaceState> => {
+  const response = await fetch(
+    apiUrl(`/api/chat/conversations/${conversationId}/plan-workspace`),
+    {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${localStorage.getItem("token") || ""}`,
+      },
+      signal,
+    }
+  );
+
+  if (!response.ok) {
+    throw new Error("获取计划工作区失败");
+  }
+  const result = await response.json();
+  if (result.code !== 200) {
+    throw new Error(result.msg || "获取计划工作区失败");
+  }
+  return result.data;
+};
+
 /**
  * 更新会话标题
  */
@@ -193,4 +299,3 @@ export const deleteConversation = async (
     throw new Error(result.msg || "删除会话失败");
   }
 };
-

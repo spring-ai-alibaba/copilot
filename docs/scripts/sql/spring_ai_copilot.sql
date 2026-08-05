@@ -210,7 +210,7 @@ CREATE TABLE `model_llm_factories`
     INDEX           `idx_status`(`status` ASC) USING BTREE,
     INDEX           `idx_tags`(`tags` ASC) USING BTREE,
     INDEX           `idx_code`(`provider_code` ASC) USING BTREE
-) ENGINE = InnoDB AUTO_INCREMENT = 11 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci COMMENT = '模型厂商' ROW_FORMAT = DYNAMIC;
+) ENGINE = InnoDB AUTO_INCREMENT = 12 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci COMMENT = '模型厂商' ROW_FORMAT = DYNAMIC;
 
 -- ----------------------------
 -- Records of model_llm_factories
@@ -227,8 +227,11 @@ INSERT INTO `model_llm_factories`
 VALUES (9, '硅基流动', 'SILICONFLOW', NULL, 'LLM,Text Embedding,Image2Text,ASR,Chat', 40, 0, '2026-01-11 21:46:52',
         '2026-01-11 21:46:52');
 INSERT INTO `model_llm_factories`
-VALUES (10, '自定义供应商', 'OpenAiCompatible', NULL, 'LLM,Text Embedding,Image2Text,ASR,Chat', 40, 0,
+VALUES (10, '自定义供应商（OpenAI Compatible）', 'OpenAiCompatible', NULL, 'LLM,Text Embedding,Image2Text,ASR,Chat', 40, 0,
         '2026-01-11 21:46:52', '2026-01-11 21:46:52');
+INSERT INTO `model_llm_factories`
+VALUES (11, 'Anthropic / Claude', 'Anthropic', NULL, 'LLM,Image2Text,Chat', 35, 0,
+        '2026-07-27 00:00:00', '2026-07-27 00:00:00');
 
 -- ----------------------------
 -- Table structure for model_llm
@@ -253,7 +256,7 @@ CREATE TABLE `model_llm`
     INDEX          `idx_status`(`status` ASC) USING BTREE,
     INDEX          `idx_tags`(`tags` ASC) USING BTREE,
     CONSTRAINT `modell_llm_ibfk_1` FOREIGN KEY (`fid`) REFERENCES `model_llm_factories` (`provider_code`) ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE = InnoDB AUTO_INCREMENT = 116 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci COMMENT = '厂商模型信息' ROW_FORMAT = DYNAMIC;
+) ENGINE = InnoDB AUTO_INCREMENT = 117 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci COMMENT = '厂商模型信息' ROW_FORMAT = DYNAMIC;
 
 -- ----------------------------
 -- Records of model_llm
@@ -400,6 +403,9 @@ VALUES (114, 'DeepSeek', 'deepseek-reasoner', 'CHAT', 64000, 'LLM,CHAT', 1, 1, '
 INSERT INTO `model_llm`
 VALUES (115, 'ALiBaiLian', 'qwen3-max-preview', 'CHAT', 64000, 'LLM,CHAT,128k', 1, 1, '2025-12-08 09:14:14',
         '2025-12-08 13:59:28');
+INSERT INTO `model_llm`
+VALUES (116, 'Anthropic', 'claude-sonnet-4-6', 'CHAT', 200000, 'LLM,CHAT,TOOLS,IMAGE2TEXT', 1, 1,
+        '2026-07-27 00:00:00', '2026-07-27 00:00:00');
 
 -- ----------------------------
 -- Table structure for sys_user
