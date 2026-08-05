@@ -6,15 +6,19 @@ import com.alibaba.cloud.ai.copilot.mapper.ChatMessageMapper;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.agentscope.core.state.AgentStateStore;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 
 import java.util.List;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -79,6 +83,23 @@ class PlanWorkspaceStateServiceImplTest {
         assertEquals("review-v2", restored.getReview().getReviewId());
         assertEquals(1, restored.getTasks().size());
         assertFalse(restored.isDecisionAllowed());
+    }
+
+    @Test
+    void persistsBlockingPlanAsNeedsInputWhileKeepingRevisionAvailable() throws Exception {
+        service.recordReview("conversation", Map.of(
+                "reviewId", "review-v3",
+                "planContent", "# 实施计划",
+                "status", "NEEDS_INPUT",
+                "decisionAllowed", true));
+
+        ArgumentCaptor<ChatMessageEntity> events = ArgumentCaptor.forClass(ChatMessageEntity.class);
+        verify(mapper, times(3)).insert(events.capture());
+
+        PlanWorkspaceDTO status = objectMapper.readValue(
+                events.getAllValues().get(2).getContent(), PlanWorkspaceDTO.class);
+        assertEquals("NEEDS_INPUT", status.getStatus());
+        assertTrue(status.isDecisionAllowed());
     }
 
     private ChatMessageEntity event(String content) {

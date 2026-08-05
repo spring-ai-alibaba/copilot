@@ -121,6 +121,7 @@ export const parseTodoTasks = (source: unknown, result?: unknown): PlanWorkspace
 const statusMeta: Record<PlanWorkspaceState["status"], { title: string; description: string; tone: string }> = {
   IDLE: { title: "计划与执行", description: "暂无计划", tone: "text-muted-foreground" },
   PLANNING: { title: "正在生成计划", description: "Agent 正在分析上下文并整理实施步骤", tone: "text-blue-600 dark:text-blue-300" },
+  NEEDS_INPUT: { title: "需要补充信息", description: "请回答阻塞问题后，Agent 会重新生成可审批计划", tone: "text-amber-700 dark:text-amber-300" },
   PENDING_APPROVAL: { title: "计划等待审批", description: "确认方案后 Agent 才会开始修改", tone: "text-amber-700 dark:text-amber-300" },
   REVISING: { title: "正在修改计划", description: "Agent 正在根据反馈生成新版本", tone: "text-blue-600 dark:text-blue-300" },
   EXECUTING: { title: "计划正在执行", description: "可展开查看任务进度与已批准计划", tone: "text-blue-600 dark:text-blue-300" },
@@ -235,7 +236,7 @@ const ReviewDetails = ({ review }: { review: PlanWorkspaceReview }) => {
       {review.questions?.length ? (
         <section className="rounded-xl border border-amber-500/25 bg-amber-500/[0.06] px-3 py-2.5 text-[10px] leading-4">
           <div className="mb-1 font-semibold text-amber-700 dark:text-amber-300">需要你决定</div>
-          {review.questions.map((item, index) => <div key={`${item.question}-${index}`} className="text-foreground/85">· {item.question}{item.suggestedAnswer ? `（建议：${item.suggestedAnswer}）` : ""}</div>)}
+          {review.questions.map((item, index) => <div key={`${item.question}-${index}`} className="flex gap-1.5 text-foreground/85"><span className={classNames("shrink-0 rounded px-1 py-0.5 text-[9px] font-semibold", item.blocking ? "bg-amber-500/15 text-amber-800 dark:text-amber-200" : "bg-sky-500/10 text-sky-700 dark:text-sky-300")}>{item.blocking ? "需确认" : "可选"}</span><span>· {item.question}{item.suggestedAnswer ? `（建议：${item.suggestedAnswer}）` : ""}</span></div>)}
         </section>
       ) : null}
 
@@ -305,7 +306,7 @@ export const PlanWorkspacePanel = ({
     if (!status || status === previousStatus.current) return;
     if (["REVISING", "COMPLETED"].includes(status)) setExpanded(false);
     if (status === "EXECUTING" && previousStatus.current !== undefined) setExpanded(false);
-    if (status === "FAILED") setExpanded(true);
+    if (["FAILED", "NEEDS_INPUT"].includes(status)) setExpanded(true);
     previousStatus.current = status;
   }, [workspace?.status]);
 
@@ -320,10 +321,14 @@ export const PlanWorkspacePanel = ({
   const busy = ["PLANNING", "REVISING", "EXECUTING"].includes(workspace.status) && isLoading;
   const activeDecision = decisionState?.conversationId === workspace.conversationId ? decisionState : null;
   const decisionBusy = activeDecision?.status === "submitting" || activeDecision?.status === "running";
-  const canDecide = workspace.decisionAllowed && !!workspace.review && !isLoading && !decisionBusy;
+  const hasBlockingQuestion = Boolean(workspace.review?.questions?.some((item) => item.blocking));
+  const needsInput = workspace.status === "NEEDS_INPUT" || hasBlockingQuestion;
+  const canRevise = workspace.decisionAllowed && !!workspace.review && !isLoading && !decisionBusy;
+  const canApprove = canRevise && !needsInput;
 
   const submit = (action: PlanDecision["action"]) => {
-    if (!canDecide) return;
+    if (action === "APPROVE" && !canApprove) return;
+    if (action === "REJECT" && !canRevise) return;
     if (action === "REJECT" && !feedback.trim()) {
       setShowFeedback(true);
       return;
@@ -353,7 +358,7 @@ export const PlanWorkspacePanel = ({
           aria-label={expanded ? "收起计划与执行" : "展开计划与执行"}
         >
           <span className={classNames("flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-muted", meta.tone)}>
-            {busy ? <LoaderCircle className="h-4 w-4 animate-spin" /> : workspace.status === "COMPLETED" ? <CheckCircle2 className="h-4 w-4" /> : workspace.status === "FAILED" ? <AlertCircle className="h-4 w-4" /> : <ListTodo className="h-4 w-4" />}
+            {busy ? <LoaderCircle className="h-4 w-4 animate-spin" /> : workspace.status === "COMPLETED" ? <CheckCircle2 className="h-4 w-4" /> : ["FAILED", "NEEDS_INPUT"].includes(workspace.status) ? <AlertCircle className="h-4 w-4" /> : <ListTodo className="h-4 w-4" />}
           </span>
           <span className="min-w-0 flex-1">
             <span className={classNames("block text-sm font-semibold", meta.tone)}>{meta.title}</span>
@@ -376,16 +381,17 @@ export const PlanWorkspacePanel = ({
           )}>
             <div className="min-h-0 flex-1 overflow-y-auto px-4 py-3 [scrollbar-width:thin]">
               {workspace.status === "FAILED" && <div className="mb-3 rounded-lg border border-destructive/25 bg-destructive/[0.06] px-3 py-2 text-xs text-destructive">{workspace.message || "计划执行失败，请检查模型或工具配置后重试。"}</div>}
+              {workspace.status === "NEEDS_INPUT" && <div className="mb-3 rounded-lg border border-amber-500/25 bg-amber-500/[0.06] px-3 py-2 text-xs leading-5 text-amber-800 dark:text-amber-200">{workspace.review ? "请在下方补充阻塞信息并重新生成计划；补充完成前不能批准执行。" : (workspace.message || "请在输入框补充需求后继续生成计划。")}</div>}
               {workspace.tasks.length > 0 && <section className="mb-4"><div className="mb-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">Todo 进度</div><TaskList tasks={workspace.tasks} /></section>}
-              {workspace.review && <section><div className="mb-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">{workspace.decisionAllowed ? "待审批计划" : "已批准计划"}</div><ReviewDetails review={workspace.review} /></section>}
+              {workspace.review && <section><div className="mb-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">{workspace.status === "NEEDS_INPUT" ? "需补充的信息" : workspace.decisionAllowed ? "待审批计划" : "已批准计划"}</div><ReviewDetails review={workspace.review} /></section>}
             </div>
 
             {workspace.decisionAllowed && workspace.review && (
               <div className="shrink-0 border-t border-border/65 bg-card/95 px-4 py-3 backdrop-blur">
-                {showFeedback && <textarea value={feedback} onChange={(event) => setFeedback(event.target.value)} rows={2} placeholder="说明需要修改的地方" className="mb-2 w-full resize-none rounded-lg border border-border bg-background px-3 py-2 text-xs outline-none focus:border-amber-500/60" />}
+                {(showFeedback || needsInput) && <textarea value={feedback} onChange={(event) => setFeedback(event.target.value)} rows={2} placeholder={needsInput ? "请逐项补充需要确认的信息，Agent 会据此重新生成计划" : "说明需要修改的地方"} className="mb-2 w-full resize-none rounded-lg border border-border bg-background px-3 py-2 text-xs outline-none focus:border-amber-500/60" />}
                 <div className="flex justify-end gap-2">
-                  <button type="button" disabled={!canDecide} onClick={() => submit("REJECT")} className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-2 text-xs font-medium text-foreground disabled:opacity-45"><X className="h-3.5 w-3.5" />修改计划</button>
-                  <button type="button" disabled={!canDecide} onClick={() => submit("APPROVE")} className="inline-flex items-center gap-1.5 rounded-lg bg-foreground px-3 py-2 text-xs font-medium text-background disabled:opacity-45"><Check className="h-3.5 w-3.5" />{decisionBusy ? "处理中…" : "批准并执行"}</button>
+                  <button type="button" disabled={!canRevise} onClick={() => submit("REJECT")} className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-2 text-xs font-medium text-foreground disabled:opacity-45"><X className="h-3.5 w-3.5" />{needsInput ? "补充并修改计划" : "修改计划"}</button>
+                  <button type="button" disabled={!canApprove} title={needsInput ? "请先补充阻塞信息并重新生成计划" : undefined} onClick={() => submit("APPROVE")} className="inline-flex items-center gap-1.5 rounded-lg bg-foreground px-3 py-2 text-xs font-medium text-background disabled:opacity-45"><Check className="h-3.5 w-3.5" />{decisionBusy ? "处理中…" : "批准并执行"}</button>
                 </div>
               </div>
             )}

@@ -32,6 +32,7 @@ export interface ChatMessage {
 export type PlanWorkspaceStatus =
   | "IDLE"
   | "PLANNING"
+  | "NEEDS_INPUT"
   | "PENDING_APPROVAL"
   | "REVISING"
   | "EXECUTING"

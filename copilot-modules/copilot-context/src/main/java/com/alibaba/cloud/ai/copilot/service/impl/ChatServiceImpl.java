@@ -436,7 +436,7 @@ public class ChatServiceImpl implements ChatService {
         }
     }
 
-    private String sendPlanReviewIfPending(
+    String sendPlanReviewIfPending(
             SseEmitter emitter,
             HarnessAgent agent,
             String conversationId,
@@ -450,11 +450,9 @@ public class ChatServiceImpl implements ChatService {
             sendPlanStatus(
                     emitter,
                     conversationId,
-                    "FAILED",
-                    "Agent 仍处于计划模式，但没有生成 PLAN.md，请重新提交任务");
-            sseEventService.sendRunError(
-                    emitter,
-                    "Agent 仍处于计划模式，但没有生成 PLAN.md，请重新提交任务");
+                    "NEEDS_INPUT",
+                    "Agent 需要补充信息后才能生成计划；请在输入框补充需求后继续",
+                    false);
             return "";
         }
 
@@ -499,7 +497,16 @@ public class ChatServiceImpl implements ChatService {
             payload.put("riskLevel", riskLevel.name());
             payload.put("permissionMode", riskLevel.permissionMode().name());
             payload.put("executionPolicy", riskLevel.executionPolicy());
-            payload.put("status", "PENDING");
+            boolean hasBlockingQuestion = summary.getQuestions().stream()
+                    .anyMatch(PlanWorkspaceDTO.PlanQuestion::isBlocking);
+            payload.put("status", hasBlockingQuestion ? "NEEDS_INPUT" : "PENDING");
+            payload.put(
+                    "message",
+                    hasBlockingQuestion
+                            ? "请先补充阻塞信息，再生成最终可执行计划"
+                            : "等待审批");
+            // 有阻塞问题时前端会禁用“批准”，但仍允许提交补充信息以修订当前计划。
+            payload.put("decisionAllowed", true);
             planWorkspaceStateService.recordReview(conversationId, payload);
             sseEventService.sendSseEvent(emitter, "plan-review", payload);
             String payloadJson = JsonUtils.getJsonCodec().toJson(payload);

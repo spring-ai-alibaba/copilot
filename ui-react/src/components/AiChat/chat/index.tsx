@@ -859,8 +859,12 @@ export const BaseChat = ({uuid: propUuid}: { uuid?: string }) => {
                             parsed.conversationId || currentConversationId || '',
                         );
                         const rawStatus = String(parsed.status || '').toUpperCase();
-                        const status = rawStatus === 'RUNNING' ? 'EXECUTING' : rawStatus;
-                        if (conversationId && ['PLANNING', 'PENDING_APPROVAL', 'REVISING', 'EXECUTING', 'COMPLETED', 'FAILED'].includes(status)) {
+                        const status = rawStatus === 'RUNNING'
+                            ? 'EXECUTING'
+                            : rawStatus === 'PENDING'
+                                ? 'PENDING_APPROVAL'
+                                : rawStatus;
+                        if (conversationId && ['PLANNING', 'NEEDS_INPUT', 'PENDING_APPROVAL', 'REVISING', 'EXECUTING', 'COMPLETED', 'FAILED'].includes(status)) {
                             planWorkspaceLiveVersionRef.current += 1;
                             setPlanWorkspace((current) => ({
                                 conversationId,
@@ -868,9 +872,10 @@ export const BaseChat = ({uuid: propUuid}: { uuid?: string }) => {
                                 message: parsed.message,
                                 decisionAllowed: typeof parsed.decisionAllowed === 'boolean'
                                     ? parsed.decisionAllowed
-                                    : status === 'PENDING_APPROVAL' || (Boolean(current?.decisionAllowed) && status === 'FAILED'),
-                                review: current?.review,
-                                tasks: current?.tasks || [],
+                                    : status === 'PENDING_APPROVAL' || (Boolean(current?.decisionAllowed) && ['FAILED', 'NEEDS_INPUT'].includes(status)),
+                                // 新一轮规划尚未产生计划时，不能复用上一版会话快照。
+                                review: status === 'PLANNING' ? undefined : current?.review,
+                                tasks: status === 'PLANNING' ? [] : current?.tasks || [],
                                 updatedAt: new Date().toISOString(),
                             }));
                             setPlanDecisionState((current) => ({
@@ -884,14 +889,22 @@ export const BaseChat = ({uuid: propUuid}: { uuid?: string }) => {
                     }
                     case 'PLAN-REVIEW': {
                         if (!belongsToCurrentConversation()) break;
-                        // 新计划（包括驳回后的修订版）到达时恢复为可审批状态。
+                        // 新计划（包括驳回后的修订版）到达时恢复工作面板状态。
                         planWorkspaceLiveVersionRef.current += 1;
                         setPlanDecisionState(null);
+                        const rawStatus = String(parsed.status || 'PENDING').toUpperCase();
+                        const status = rawStatus === 'NEEDS_INPUT'
+                            ? 'NEEDS_INPUT'
+                            : 'PENDING_APPROVAL';
                         setPlanWorkspace({
                             conversationId: String(parsed.conversationId || currentConversationId || ''),
-                            status: 'PENDING_APPROVAL',
-                            message: '等待审批',
-                            decisionAllowed: true,
+                            status,
+                            message: String(parsed.message || (status === 'NEEDS_INPUT'
+                                ? '请先补充阻塞信息，再生成最终可执行计划'
+                                : '等待审批')),
+                            decisionAllowed: typeof parsed.decisionAllowed === 'boolean'
+                                ? parsed.decisionAllowed
+                                : true,
                             review: parsed,
                             tasks: [],
                             updatedAt: new Date().toISOString(),

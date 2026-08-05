@@ -6,6 +6,7 @@ import org.junit.jupiter.api.Test;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class PlanReviewSummaryParserTest {
@@ -62,5 +63,22 @@ class PlanReviewSummaryParserTest {
 
         assertTrue(review.getSummary().contains("修复搜索页"));
         assertEquals(1, review.getChanges().size());
+    }
+
+    @Test
+    void distinguishesBlockingQuestionsAndExtractsRecommendations() {
+        PlanWorkspaceDTO.PlanReview review = parser.parse("""
+                ## 待确认
+                - [阻塞] 品牌名称使用什么？；建议：先使用“Acme Cloud”占位
+                - [非阻塞] 首页是否展示客户案例？；建议：第一版暂不展示
+                """);
+
+        assertEquals(2, review.getQuestions().size());
+        assertTrue(review.getQuestions().get(0).isBlocking());
+        assertEquals("品牌名称使用什么？", review.getQuestions().get(0).getQuestion());
+        assertEquals("先使用“Acme Cloud”占位", review.getQuestions().get(0).getSuggestedAnswer());
+        assertFalse(review.getQuestions().get(1).isBlocking());
+        assertEquals("首页是否展示客户案例？", review.getQuestions().get(1).getQuestion());
+        assertEquals("第一版暂不展示", review.getQuestions().get(1).getSuggestedAnswer());
     }
 }

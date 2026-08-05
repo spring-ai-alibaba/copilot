@@ -51,5 +51,7 @@ class CopilotAgentFactoryTest {
         assertTrue(prompt.contains("不得用管道、子 Shell 或脚本包装绕过"));
         assertTrue(prompt.contains("CodeGraph 工具"));
         assertTrue(prompt.contains("存在真实风险的项目必须改为 [x]"));
+        assertTrue(prompt.contains("信息不足时也不得只向用户追问"));
+        assertTrue(prompt.contains("[非阻塞]"));
     }
 }

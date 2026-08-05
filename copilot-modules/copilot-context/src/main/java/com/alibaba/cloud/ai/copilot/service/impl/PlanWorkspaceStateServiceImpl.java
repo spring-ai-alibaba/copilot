@@ -133,7 +133,18 @@ public class PlanWorkspaceStateServiceImpl implements PlanWorkspaceStateService 
                 reviewPayload, PlanWorkspaceDTO.PlanReview.class);
         persistEvent(conversationId, REVIEW_EVENT, review);
         recordTasks(conversationId, List.of());
-        recordStatus(conversationId, "PENDING_APPROVAL", "等待审批", true);
+        String requestedStatus = String.valueOf(reviewPayload.getOrDefault("status", "PENDING"));
+        boolean needsInput = "NEEDS_INPUT".equalsIgnoreCase(requestedStatus);
+        Object decisionAllowedValue = reviewPayload.get("decisionAllowed");
+        boolean decisionAllowed = !(decisionAllowedValue instanceof Boolean)
+                || (Boolean) decisionAllowedValue;
+        recordStatus(
+                conversationId,
+                needsInput ? "NEEDS_INPUT" : "PENDING_APPROVAL",
+                needsInput
+                        ? "请先补充阻塞信息，再生成最终可执行计划"
+                        : "等待审批",
+                decisionAllowed);
     }
 
     @Override

@@ -12,6 +12,7 @@ import com.alibaba.cloud.ai.copilot.service.SseEventService;
 import com.alibaba.cloud.ai.copilot.service.PlanWorkspaceStateService;
 import io.agentscope.core.agui.event.AguiEvent;
 import io.agentscope.core.permission.PermissionMode;
+import io.agentscope.harness.agent.HarnessAgent;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.mockito.MockedStatic;
@@ -26,8 +27,10 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.when;
 
 class ChatServiceImplTest {
 
@@ -81,6 +84,39 @@ class ChatServiceImplTest {
         assertEquals(PermissionMode.DONT_ASK, medium.permissionMode());
         assertEquals(ChatServiceImpl.PlanRiskLevel.LOW, low);
         assertEquals(PermissionMode.BYPASS, low.permissionMode());
+    }
+
+    @Test
+    void keepsPlanModeRecoverableWhenModelOnlyRequestsMoreInformation(@TempDir Path workspace) {
+        CopilotAgentFactory agentFactory = mock(CopilotAgentFactory.class);
+        SseEventService sseEventService = mock(SseEventService.class);
+        PlanWorkspaceStateService workspaceStateService = mock(PlanWorkspaceStateService.class);
+        ChatServiceImpl service = new ChatServiceImpl(
+                agentFactory,
+                sseEventService,
+                mock(ConversationService.class),
+                mock(ChatMessageMapper.class),
+                mock(AppProperties.class),
+                mock(KnowledgeAvailabilityChecker.class),
+                workspaceStateService,
+                new PlanReviewSummaryParser(),
+                mock(CodeGraphPlanEvidenceAssembler.class),
+                mock(CodeGraphIndexingService.class));
+        HarnessAgent agent = mock(HarnessAgent.class);
+        SseEmitter emitter = new SseEmitter();
+
+        when(agent.isPlanModeActive(null, "conversation")).thenReturn(true);
+        when(agentFactory.resolvePlanFile("conversation"))
+                .thenReturn(workspace.resolve("PLAN.md"));
+
+        service.sendPlanReviewIfPending(emitter, agent, "conversation", true);
+
+        verify(workspaceStateService).recordStatus(
+                "conversation",
+                "NEEDS_INPUT",
+                "Agent 需要补充信息后才能生成计划；请在输入框补充需求后继续",
+                false);
+        verify(sseEventService, never()).sendRunError(emitter, "Agent 仍处于计划模式，但没有生成 PLAN.md，请重新提交任务");
     }
 
     @Test

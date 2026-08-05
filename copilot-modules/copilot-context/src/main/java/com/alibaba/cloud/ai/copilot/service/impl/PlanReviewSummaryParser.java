@@ -25,6 +25,10 @@ public class PlanReviewSummaryParser {
     private static final Pattern FIELD_PATTERN = Pattern.compile(
             "^\\s*[-*]?\\s*([^：:]+)[：:]\\s*(.+?)\\s*$");
     private static final Pattern FILE_PATTERN = Pattern.compile("`([^`\\n]+\\.[A-Za-z0-9_-]+(?::\\d+(?:-\\d+)?)?)`");
+    private static final Pattern QUESTION_TYPE_PATTERN = Pattern.compile(
+            "^\\s*(?:\\[(阻塞|非阻塞)]|(阻塞|非阻塞)[：:])\\s*");
+    private static final Pattern QUESTION_SUGGESTION_PATTERN = Pattern.compile(
+            "(?:[；;。]\\s*|\\s+)建议[：:]\\s*(.+?)\\s*$");
 
     public PlanWorkspaceDTO.PlanReview parse(String planContent) {
         PlanWorkspaceDTO.PlanReview review = new PlanWorkspaceDTO.PlanReview();
@@ -143,10 +147,25 @@ public class PlanReviewSummaryParser {
     private List<PlanWorkspaceDTO.PlanQuestion> parseQuestions(String planContent) {
         String questions = section(planContent, "待确认", "需要确认", "开放问题");
         List<PlanWorkspaceDTO.PlanQuestion> result = new ArrayList<>();
-        for (String question : bullets(questions)) {
+        for (String rawQuestion : bullets(questions)) {
             PlanWorkspaceDTO.PlanQuestion item = new PlanWorkspaceDTO.PlanQuestion();
+            Matcher type = QUESTION_TYPE_PATTERN.matcher(rawQuestion);
+            boolean blocking = true;
+            String question = rawQuestion;
+            if (type.find()) {
+                blocking = !"非阻塞".equals(type.group(1) == null ? type.group(2) : type.group(1));
+                question = rawQuestion.substring(type.end()).strip();
+            }
+            Matcher suggestion = QUESTION_SUGGESTION_PATTERN.matcher(question);
+            if (suggestion.find()) {
+                item.setSuggestedAnswer(suggestion.group(1).strip());
+                question = question.substring(0, suggestion.start())
+                        .replaceFirst("[；;。]\\s*$", "")
+                        .strip();
+            }
             item.setQuestion(question);
-            item.setBlocking(true);
+            // 历史计划未使用新标签时默认按阻塞处理，避免在有歧义时误放行审批。
+            item.setBlocking(blocking);
             result.add(item);
         }
         return result;
