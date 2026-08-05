@@ -39,6 +39,9 @@ public class PlanWorkspaceDTO {
         private List<String> risks = new ArrayList<>();
         /** 阻塞审批前需要用户选择的问题。 */
         private List<PlanQuestion> questions = new ArrayList<>();
+        /** CodeGraph 等代码理解器生成的可审查证据。 */
+        private String evidenceStatus;
+        private List<PlanEvidence> evidence = new ArrayList<>();
         private String riskLevel;
         private List<String> affectedFiles = new ArrayList<>();
         private List<FilePreview> filePreviews = new ArrayList<>();
@@ -74,6 +77,16 @@ public class PlanWorkspaceDTO {
         private String question;
         private boolean blocking;
         private String suggestedAnswer;
+    }
+
+    @Data
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public static class PlanEvidence {
+        private String source;
+        private String type;
+        private String subject;
+        private String summary;
+        private List<String> relatedFiles = new ArrayList<>();
     }
 
     @Data

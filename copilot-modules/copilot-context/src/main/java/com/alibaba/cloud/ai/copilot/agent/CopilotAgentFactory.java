@@ -117,9 +117,10 @@ public class CopilotAgentFactory {
         //    toolkit：补 delete_file 工具（自带 FilesystemTool 不含 delete）
         Toolkit toolkit = new Toolkit();
         toolkit.registerTool(new DeleteFileTool(rootDirectory));
-        if (planModeEnabled && planningPhaseActive && codeGraphService.isAvailable(workspacePath)) {
-            toolkit.registerTool(new CodeGraphTool(codeGraphService, workspacePath));
-            log.info("为 Plan Agent 注册 CodeGraph 只读工具: workspace={}", workspacePath);
+        Path conversationWorkspace = resolveConversationWorkspace(conversationId);
+        if (planModeEnabled && planningPhaseActive && codeGraphService.isAvailable(conversationWorkspace)) {
+            toolkit.registerTool(new CodeGraphTool(codeGraphService, conversationWorkspace));
+            log.info("为 Plan Agent 注册 CodeGraph 只读工具: workspace={}", conversationWorkspace);
         }
 
         HarnessAgent.Builder builder = HarnessAgent.builder()

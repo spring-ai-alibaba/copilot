@@ -74,6 +74,14 @@ export interface PlanWorkspaceReview {
     blocking?: boolean;
     suggestedAnswer?: string;
   }>;
+  evidenceStatus?: "AVAILABLE" | "UNAVAILABLE";
+  evidence?: Array<{
+    source: string;
+    type: "AFFECTED_TESTS" | string;
+    subject: string;
+    summary: string;
+    relatedFiles?: string[];
+  }>;
   affectedFiles?: string[];
   filePreviews?: Array<{
     path: string;

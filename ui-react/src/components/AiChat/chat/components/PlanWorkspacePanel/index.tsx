@@ -211,6 +211,13 @@ const ReviewDetails = ({ review }: { review: PlanWorkspaceReview }) => {
         </section>
       ) : null}
 
+      {review.evidence?.length ? (
+        <section className="rounded-xl border border-sky-500/20 bg-sky-500/[0.045] px-3 py-2.5 text-[10px] leading-4">
+          <div className="mb-1.5 flex items-center gap-1.5 font-semibold text-sky-700 dark:text-sky-300"><GitBranch className="h-3.5 w-3.5" />代码证据 <span className="rounded bg-background/70 px-1.5 py-0.5 text-[9px] font-medium text-muted-foreground">CodeGraph</span></div>
+          <div className="space-y-2">{review.evidence.map((item, index) => <div key={`${item.subject}-${index}`}><div className="text-foreground/85">{item.summary}</div>{item.relatedFiles?.length ? <div className="mt-1 flex flex-wrap gap-1">{item.relatedFiles.map((file) => <span key={file} className="rounded bg-background/80 px-1.5 py-0.5 font-mono text-[9px] text-foreground/70">{file}</span>)}</div> : null}</div>)}</div>
+        </section>
+      ) : null}
+
       {(review.risks?.length || review.scopeOut?.length) ? (
         <section className="rounded-xl border border-border/60 bg-muted/15 px-3 py-2.5 text-[10px] leading-4">
           {review.risks?.length ? <div><div className="mb-1 font-semibold text-amber-700 dark:text-amber-300">风险与边界</div>{review.risks.map((riskItem) => <div key={riskItem} className="text-foreground/80">· {riskItem}</div>)}</div> : null}

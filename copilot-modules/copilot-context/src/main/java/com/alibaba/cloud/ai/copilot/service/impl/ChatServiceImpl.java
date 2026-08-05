@@ -90,6 +90,7 @@ public class ChatServiceImpl implements ChatService {
     private final KnowledgeAvailabilityChecker knowledgeAvailabilityChecker;
     private final PlanWorkspaceStateService planWorkspaceStateService;
     private final PlanReviewSummaryParser planReviewSummaryParser;
+    private final CodeGraphPlanEvidenceAssembler codeGraphPlanEvidenceAssembler;
     private final Set<String> activePlanExecutions = ConcurrentHashMap.newKeySet();
 
     @Override
@@ -476,6 +477,10 @@ public class ChatServiceImpl implements ChatService {
             payload.put("risks", summary.getRisks());
             payload.put("questions", summary.getQuestions());
             payload.put("affectedFiles", affectedFiles);
+            CodeGraphPlanEvidenceAssembler.EvidenceResult evidence =
+                    codeGraphPlanEvidenceAssembler.assemble(workspace, affectedFiles);
+            payload.put("evidenceStatus", evidence.status());
+            payload.put("evidence", evidence.evidence());
             payload.put("filePreviews", buildFilePreviews(workspace, affectedFiles));
             payload.put("gitStatus", collectGitStatus(workspace));
             payload.put("riskLevel", riskLevel.name());

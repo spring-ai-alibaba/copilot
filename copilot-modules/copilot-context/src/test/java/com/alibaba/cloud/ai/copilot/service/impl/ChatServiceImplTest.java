@@ -39,7 +39,8 @@ class ChatServiceImplTest {
                 mock(AppProperties.class),
                 mock(KnowledgeAvailabilityChecker.class),
                 mock(PlanWorkspaceStateService.class),
-                new PlanReviewSummaryParser());
+                new PlanReviewSummaryParser(),
+                mock(CodeGraphPlanEvidenceAssembler.class));
     }
 
     @Test
@@ -139,7 +140,8 @@ class ChatServiceImplTest {
                 mock(AppProperties.class),
                 mock(KnowledgeAvailabilityChecker.class),
                 mock(PlanWorkspaceStateService.class),
-                new PlanReviewSummaryParser());
+                new PlanReviewSummaryParser(),
+                mock(CodeGraphPlanEvidenceAssembler.class));
         SseEmitter emitter = new SseEmitter();
 
         try (MockedStatic<LoginHelper> loginHelper = mockStatic(LoginHelper.class)) {
@@ -165,7 +167,8 @@ class ChatServiceImplTest {
                 mock(AppProperties.class),
                 mock(KnowledgeAvailabilityChecker.class),
                 mock(PlanWorkspaceStateService.class),
-                new PlanReviewSummaryParser());
+                new PlanReviewSummaryParser(),
+                mock(CodeGraphPlanEvidenceAssembler.class));
         SseEmitter emitter = new SseEmitter();
         ChatRequest request = new ChatRequest();
         request.setPlanAction("APPROVE");
