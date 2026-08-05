@@ -89,6 +89,7 @@ public class ChatServiceImpl implements ChatService {
     private final AppProperties appProperties;
     private final KnowledgeAvailabilityChecker knowledgeAvailabilityChecker;
     private final PlanWorkspaceStateService planWorkspaceStateService;
+    private final PlanReviewSummaryParser planReviewSummaryParser;
     private final Set<String> activePlanExecutions = ConcurrentHashMap.newKeySet();
 
     @Override
@@ -467,6 +468,13 @@ public class ChatServiceImpl implements ChatService {
             payload.put("reviewId", UUID.randomUUID().toString());
             payload.put("planFile", planFile.toString());
             payload.put("planContent", content);
+            PlanWorkspaceDTO.PlanReview summary = planReviewSummaryParser.parse(content);
+            payload.put("summary", summary.getSummary());
+            payload.put("changes", summary.getChanges());
+            payload.put("scopeOut", summary.getScopeOut());
+            payload.put("verifications", summary.getVerifications());
+            payload.put("risks", summary.getRisks());
+            payload.put("questions", summary.getQuestions());
             payload.put("affectedFiles", affectedFiles);
             payload.put("filePreviews", buildFilePreviews(workspace, affectedFiles));
             payload.put("gitStatus", collectGitStatus(workspace));

@@ -3,6 +3,7 @@ package com.alibaba.cloud.ai.copilot.agent;
 import com.alibaba.cloud.ai.copilot.config.AppProperties;
 import com.alibaba.cloud.ai.copilot.domain.entity.ModelConfigEntity;
 import com.alibaba.cloud.ai.copilot.service.DynamicModelService;
+import com.alibaba.cloud.ai.copilot.service.CodeGraphService;
 import io.agentscope.core.model.Model;
 import io.agentscope.core.tool.Toolkit;
 import io.agentscope.extensions.mysql.state.MysqlAgentStateStore;
@@ -39,6 +40,7 @@ public class CopilotAgentFactory {
     private final DynamicModelService dynamicModelService;
     private final AppProperties appProperties;
     private final MysqlAgentStateStore agentStateStore;
+    private final CodeGraphService codeGraphService;
 
     private static final String AGENT_NAME = "copilot_agent";
     private static final String PLAN_ROOT_DIRECTORY = "plans";
@@ -115,6 +117,10 @@ public class CopilotAgentFactory {
         //    toolkit：补 delete_file 工具（自带 FilesystemTool 不含 delete）
         Toolkit toolkit = new Toolkit();
         toolkit.registerTool(new DeleteFileTool(rootDirectory));
+        if (planModeEnabled && planningPhaseActive && codeGraphService.isAvailable(workspacePath)) {
+            toolkit.registerTool(new CodeGraphTool(codeGraphService, workspacePath));
+            log.info("为 Plan Agent 注册 CodeGraph 只读工具: workspace={}", workspacePath);
+        }
 
         HarnessAgent.Builder builder = HarnessAgent.builder()
                 .name(AGENT_NAME)
@@ -188,12 +194,9 @@ public class CopilotAgentFactory {
                 "3. 大文件先用 write_file 创建可运行的精简骨架，再按工具参数规范调用 edit_file 分段完善；" +
                 "每段成功后再继续下一段，禁止一次生成完整的大型页面。\n" +
                 "4. 参数校验失败时，必须检查必填字段并缩小单次内容，禁止使用相同参数原样重试。\n\n" +
-                "【前端开发规范 - 必须遵守】\n" +
-                "1. 禁止手写大量CSS！必须使用 Tailwind CSS 框架\n" +
-                "2. HTML页面必须引入 Tailwind CSS CDN：<script src=\"https://cdn.tailwindcss.com\"></script>\n" +
                 "【技术栈】\n" +
-                "擅长 java+vue+element 技术栈，用户没有明确编程需求时正常对话即可，" +
-                "前端开发默认使用 HTML + Tailwind CSS，保持简洁专业的风格。";
+                "先从项目真实配置、现有依赖与代码风格识别技术栈；不得假定 Java、Vue、React 或 Tailwind。" +
+                "只有用户明确要求从零创建页面时，才选择合适且尽量少依赖的实现方案。";
 
         if (!planModeEnabled) {
             return basePrompt;
@@ -217,6 +220,8 @@ public class CopilotAgentFactory {
                 "禁止的命令：任何重定向写入、tee、sed -i、rm、mv、cp、touch、mkdir、" +
                 "包安装、数据库写入、网络写操作、git add/commit/push/reset/checkout。\n" +
                 "不得用管道、子 Shell 或脚本包装绕过以上限制。\n" +
+                "如已提供 CodeGraph 工具，优先使用它确认关键符号的调用链、影响范围或关联测试；" +
+                "若工具不可用，使用现有 read_file、grep_files 和 git 只读探索作为回退。\n" +
                 "探索完成后必须调用 plan_write，并严格使用以下 Markdown 结构。\n" +
                 "所有文件路径都必须使用反引号包裹，例如 `src/main/App.java:20-40`，供审批界面生成改前片段：\n\n" +
                 "## 任务理解\n" +
@@ -239,6 +244,8 @@ public class CopilotAgentFactory {
                 "存在真实风险的项目必须改为 [x] 并说明具体影响；确认不存在的项目保持 [ ] 并写明“无”。\n\n" +
                 "## 回滚方案\n" +
                 "- 如果失败，如何恢复：\n\n" +
+                "## 待确认（没有则写“无”）\n" +
+                "- 仅记录会阻塞实施、需要用户选择的问题，并说明推荐选项：\n\n" +
                 "写入完整计划后调用 plan_exit 请求人工审批。在审批通过前不要开始执行。";
     }
 }

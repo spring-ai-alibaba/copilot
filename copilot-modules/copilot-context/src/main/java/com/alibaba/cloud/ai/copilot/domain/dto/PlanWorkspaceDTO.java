@@ -27,6 +27,18 @@ public class PlanWorkspaceDTO {
         private String reviewId;
         private String planFile;
         private String planContent;
+        /** 面向审批者的一句话交付摘要，由 PLAN.md 自动提取。 */
+        private String summary;
+        /** 面向审批者的结构化变更步骤。 */
+        private List<PlanChange> changes = new ArrayList<>();
+        /** 明确不会涉及的范围。 */
+        private List<String> scopeOut = new ArrayList<>();
+        /** 可执行或可观察的验证项。 */
+        private List<PlanVerification> verifications = new ArrayList<>();
+        /** 需要用户关注的实际风险。 */
+        private List<String> risks = new ArrayList<>();
+        /** 阻塞审批前需要用户选择的问题。 */
+        private List<PlanQuestion> questions = new ArrayList<>();
         private String riskLevel;
         private List<String> affectedFiles = new ArrayList<>();
         private List<FilePreview> filePreviews = new ArrayList<>();
@@ -34,6 +46,34 @@ public class PlanWorkspaceDTO {
         private String permissionMode;
         private String executionPolicy;
         private String status;
+    }
+
+    @Data
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public static class PlanChange {
+        private String title;
+        private List<String> files = new ArrayList<>();
+        private String action;
+        private String reason;
+        private String impact;
+        private List<String> acceptanceCriteria = new ArrayList<>();
+    }
+
+    @Data
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public static class PlanVerification {
+        private String type;
+        private String description;
+        private String command;
+        private String expectedResult;
+    }
+
+    @Data
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public static class PlanQuestion {
+        private String question;
+        private boolean blocking;
+        private String suggestedAnswer;
     }
 
     @Data

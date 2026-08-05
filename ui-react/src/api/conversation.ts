@@ -51,6 +51,29 @@ export interface PlanWorkspaceReview {
   reviewId: string;
   planFile?: string;
   planContent: string;
+  /** 默认展示给审批者的决策摘要，缺失时回退到原始计划。 */
+  summary?: string;
+  changes?: Array<{
+    title: string;
+    files?: string[];
+    action?: string;
+    reason?: string;
+    impact?: string;
+    acceptanceCriteria?: string[];
+  }>;
+  scopeOut?: string[];
+  verifications?: Array<{
+    type?: string;
+    description: string;
+    command?: string;
+    expectedResult?: string;
+  }>;
+  risks?: string[];
+  questions?: Array<{
+    question: string;
+    blocking?: boolean;
+    suggestedAnswer?: string;
+  }>;
   affectedFiles?: string[];
   filePreviews?: Array<{
     path: string;

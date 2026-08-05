@@ -157,6 +157,34 @@ const ReviewDetails = ({ review }: { review: PlanWorkspaceReview }) => {
   const risk = review.riskLevel || "LOW";
   return (
     <div className="space-y-3">
+      {review.summary && (
+        <section className="rounded-xl border border-primary/15 bg-primary/[0.045] px-3 py-2.5">
+          <div className="mb-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-primary/80">你将得到什么</div>
+          <p className="text-xs leading-5 text-foreground/90">{review.summary}</p>
+        </section>
+      )}
+
+      {review.changes?.length ? (
+        <section>
+          <div className="mb-1.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">计划怎么做</div>
+          <div className="space-y-2">
+            {review.changes.map((change, index) => (
+              <div key={`${change.title}-${index}`} className="rounded-xl border border-border/60 bg-muted/20 px-3 py-2.5">
+                <div className="flex items-start gap-2">
+                  <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-foreground text-[9px] font-semibold text-background">{index + 1}</span>
+                  <div className="min-w-0 flex-1">
+                    <div className="text-xs font-medium text-foreground">{change.title}</div>
+                    {(change.action || change.impact || change.reason) && <p className="mt-1 text-[10px] leading-4 text-muted-foreground">{[change.action, change.impact, change.reason].filter(Boolean).join(" · ")}</p>}
+                    {change.files?.length ? <div className="mt-1.5 flex flex-wrap gap-1">{change.files.map((file) => <span key={file} className="rounded bg-background px-1.5 py-0.5 font-mono text-[9px] text-foreground/75">{file}</span>)}</div> : null}
+                    {change.acceptanceCriteria?.length ? <p className="mt-1.5 text-[10px] leading-4 text-emerald-700 dark:text-emerald-300">完成标准：{change.acceptanceCriteria.join("；")}</p> : null}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      ) : null}
+
       <div className="flex flex-wrap items-center gap-2">
         <span className={classNames(
           "inline-flex items-center gap-1 rounded-full px-2 py-1 text-[9px] font-semibold",
@@ -176,17 +204,43 @@ const ReviewDetails = ({ review }: { review: PlanWorkspaceReview }) => {
 
       {review.executionPolicy && <div className="flex items-start gap-2 rounded-lg border border-border/60 bg-muted/30 px-3 py-2 text-[10px] leading-4 text-muted-foreground"><LockKeyhole className="mt-0.5 h-3.5 w-3.5 shrink-0" /><span>{review.executionPolicy}</span></div>}
 
-      <div className="arc-message-markdown prose prose-sm max-w-none rounded-xl border border-border/60 bg-background px-4 py-3 text-xs dark:prose-invert">
-        <ReactMarkdown remarkPlugins={[remarkGfm]}>{review.planContent}</ReactMarkdown>
-      </div>
+      {review.verifications?.length ? (
+        <section>
+          <div className="mb-1.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">如何验证</div>
+          <div className="space-y-1.5">{review.verifications.map((item, index) => <div key={`${item.description}-${index}`} className="rounded-lg border border-border/60 bg-muted/20 px-3 py-2 text-[10px] leading-4 text-foreground/85"><span className="mr-1.5 font-semibold text-muted-foreground">{item.type || "验证"}</span>{item.description}{item.command && <code className="mt-1 block w-fit rounded bg-background px-1.5 py-0.5 text-[9px] text-muted-foreground">{item.command}</code>}</div>)}</div>
+        </section>
+      ) : null}
 
-      {review.filePreviews?.map((preview) => (
-        <details key={preview.path} className="rounded-lg border border-border/60 bg-muted/20">
-          <summary className="cursor-pointer px-3 py-2 font-mono text-[10px] text-foreground/80">{preview.path}</summary>
-          <pre className="overflow-x-auto border-t border-border/60 px-3 py-2 text-[10px] leading-5 text-muted-foreground">{preview.content}</pre>
-        </details>
-      ))}
-      {review.gitStatus && <details className="rounded-lg border border-border/60 bg-muted/20"><summary className="flex cursor-pointer items-center gap-1.5 px-3 py-2 text-[10px] font-medium"><GitBranch className="h-3 w-3" />Git 状态</summary><pre className="overflow-x-auto border-t border-border/60 px-3 py-2 text-[10px] text-muted-foreground">{review.gitStatus}</pre></details>}
+      {(review.risks?.length || review.scopeOut?.length) ? (
+        <section className="rounded-xl border border-border/60 bg-muted/15 px-3 py-2.5 text-[10px] leading-4">
+          {review.risks?.length ? <div><div className="mb-1 font-semibold text-amber-700 dark:text-amber-300">风险与边界</div>{review.risks.map((riskItem) => <div key={riskItem} className="text-foreground/80">· {riskItem}</div>)}</div> : null}
+          {review.scopeOut?.length ? <div className={classNames(review.risks?.length && "mt-2")}><div className="mb-1 font-semibold text-muted-foreground">不修改的范围</div>{review.scopeOut.map((scope) => <div key={scope} className="text-muted-foreground">· {scope}</div>)}</div> : null}
+        </section>
+      ) : null}
+
+      {review.questions?.length ? (
+        <section className="rounded-xl border border-amber-500/25 bg-amber-500/[0.06] px-3 py-2.5 text-[10px] leading-4">
+          <div className="mb-1 font-semibold text-amber-700 dark:text-amber-300">需要你决定</div>
+          {review.questions.map((item, index) => <div key={`${item.question}-${index}`} className="text-foreground/85">· {item.question}{item.suggestedAnswer ? `（建议：${item.suggestedAnswer}）` : ""}</div>)}
+        </section>
+      ) : null}
+
+      <details className="rounded-xl border border-border/60 bg-muted/[0.12]">
+        <summary className="cursor-pointer px-3 py-2 text-[10px] font-medium text-muted-foreground">技术详情与原始计划</summary>
+        <div className="space-y-3 border-t border-border/60 px-3 py-3">
+          <div className="arc-message-markdown prose prose-sm max-w-none rounded-xl border border-border/60 bg-background px-4 py-3 text-xs dark:prose-invert">
+            <ReactMarkdown remarkPlugins={[remarkGfm]}>{review.planContent}</ReactMarkdown>
+          </div>
+
+          {review.filePreviews?.map((preview) => (
+            <details key={preview.path} className="rounded-lg border border-border/60 bg-muted/20">
+              <summary className="cursor-pointer px-3 py-2 font-mono text-[10px] text-foreground/80">{preview.path}</summary>
+              <pre className="overflow-x-auto border-t border-border/60 px-3 py-2 text-[10px] leading-5 text-muted-foreground">{preview.content}</pre>
+            </details>
+          ))}
+          {review.gitStatus && <details className="rounded-lg border border-border/60 bg-muted/20"><summary className="flex cursor-pointer items-center gap-1.5 px-3 py-2 text-[10px] font-medium"><GitBranch className="h-3 w-3" />Git 状态</summary><pre className="overflow-x-auto border-t border-border/60 px-3 py-2 text-[10px] text-muted-foreground">{review.gitStatus}</pre></details>}
+        </div>
+      </details>
     </div>
   );
 };

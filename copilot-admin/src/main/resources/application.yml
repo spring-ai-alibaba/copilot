@@ -229,6 +229,14 @@ app:
       - .html
       - .css
       - .sql
+
+  # CodeGraph 仅在已索引的工作区为 Plan Agent 注册只读查询工具。
+  # 索引建立/同步必须由部署或运维流程执行，Agent 不具备 init/sync 权限。
+  code-graph:
+    enabled: true
+    executable: codegraph
+    timeout-seconds: 12
+    max-output-bytes: 49152
   # 安全配置
   security:
     approval-mode: DEFAULT  # DEFAULT, AUTO_EDIT, YOLO
@@ -257,8 +265,6 @@ app:
       connection-timeout: 10
       # 最大重试次数
       max-retries: 3
-
-
 
 
 
