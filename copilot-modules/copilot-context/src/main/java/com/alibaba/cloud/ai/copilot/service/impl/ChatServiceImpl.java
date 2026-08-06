@@ -130,7 +130,11 @@ public class ChatServiceImpl implements ChatService {
         FailClosedAgentStateStore.LeaseBoundAgentStateStore scopedStateStore = null;
         boolean newConversationPersisted = false;
         try {
-            final long runDeadlineNanos = runDeadlineFromNow(runTimeout);
+            // An unlimited run uses a far-future deadline so the remaining run/SSE
+            // timeout math below stays on a single code path.
+            final long runDeadlineNanos = runTimeout == null
+                    ? Long.MAX_VALUE
+                    : runDeadlineFromNow(runTimeout);
             // Fail before committing an SSE response. This also prevents a Store outage from
             // being interpreted as a fresh empty conversation by AgentScope 2.0.0.
             lease.assertOwned();
@@ -151,7 +155,8 @@ public class ChatServiceImpl implements ChatService {
             final FailClosedAgentStateStore.LeaseBoundAgentStateStore requestStateStore =
                     agentStateStore.bind(lease, userKey, finalConversationId);
             scopedStateStore = requestStateStore;
-            final HarnessAgent agent = agentFactory.buildAgent(modelConfigId, requestStateStore);
+            final HarnessAgent agent = agentFactory.buildAgent(
+                    modelConfigId, requestStateStore, finalConversationId);
             builtAgent = agent;
             final AuthenticatedAgentDelegate requestAgent =
                     createScopedAgent(agent, userKey, finalConversationId);
@@ -262,7 +267,8 @@ public class ChatServiceImpl implements ChatService {
             Flux<AguiEvent> aguiEvents = withOverallDeadline(rawAguiEvents, runDeadlineNanos)
                     .onErrorResume(TimeoutException.class, error -> {
                         log.warn("Agent 执行超时: conversationId={}, timeoutMs={}",
-                                finalConversationId, runTimeout.toMillis());
+                                finalConversationId,
+                                runTimeout == null ? "unlimited" : runTimeout.toMillis());
                         return Flux.just(
                                 new AguiEvent.RunError(
                                         finalConversationId,
@@ -359,9 +365,16 @@ public class ChatServiceImpl implements ChatService {
         }
     }
 
+    /**
+     * Returns the overall run timeout, or {@code null} when unlimited
+     * ({@code app.conversation.run-timeout-seconds <= 0}). Unlimited removes the
+     * server-side backstop against hung runs; the session lease renewal watchdog
+     * still protects the conversation lock, but prefer a large finite value in
+     * production.
+     */
     private Duration resolveRunTimeout() {
         if (runTimeoutSeconds <= 0) {
-            throw new ServiceException("聊天运行超时配置无效", 500);
+            return null;
         }
         return Duration.ofSeconds(runTimeoutSeconds);
     }

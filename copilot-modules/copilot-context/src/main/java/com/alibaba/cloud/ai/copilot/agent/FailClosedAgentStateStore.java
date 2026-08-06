@@ -1,9 +1,12 @@
 package com.alibaba.cloud.ai.copilot.agent;
 
 import com.alibaba.cloud.ai.copilot.domain.state.ConversationStateNamespace;
+import io.agentscope.core.message.Msg;
+import io.agentscope.core.state.AgentState;
 import io.agentscope.core.state.AgentStateStore;
 import io.agentscope.core.state.ListHashUtil;
 import io.agentscope.core.state.State;
+import io.agentscope.core.state.legacy.ToolkitState;
 import io.agentscope.core.util.JsonUtils;
 
 import java.sql.PreparedStatement;
@@ -484,7 +487,11 @@ public final class FailClosedAgentStateStore implements AgentStateStore {
 
     public static final class LeaseBoundAgentStateStore implements AgentStateStore {
 
+        private static final String LEGACY_MEMORY_MESSAGES_SLOT = "memory_messages";
+        private static final String LEGACY_TOOLKIT_ACTIVE_GROUPS_SLOT = "toolkit_activeGroups";
+
         private volatile Binding binding;
+        private volatile AgentState authenticatedAgentState;
 
         private LeaseBoundAgentStateStore(
                 FailClosedAgentStateStore store,
@@ -520,10 +527,23 @@ public final class FailClosedAgentStateStore implements AgentStateStore {
                 Class<T> stateClass) {
             return failClosedRead(userId, sessionId, () -> {
                 Binding current = requireBinding();
-                assertScope(current, userId, sessionId);
+                boolean frameworkAgentStateProbe = isAgentScopeDefaultStateProbe(
+                        current, userId, sessionId, stateKey, stateClass);
+                boolean frameworkLegacyToolkitProbe = isAgentScopeLegacyToolkitProbe(
+                        current, userId, sessionId, stateKey, stateClass);
+                boolean frameworkProbe = frameworkAgentStateProbe
+                        || frameworkLegacyToolkitProbe;
+                String resolvedUserId = frameworkProbe
+                        ? current.expectedUserId()
+                        : userId;
+                assertScope(current, resolvedUserId, sessionId);
                 current.lease().assertOwned();
-                Optional<T> value = current.store().get(
-                        userId, sessionId, stateKey, stateClass);
+                Optional<T> value = frameworkAgentStateProbe && authenticatedAgentState != null
+                        ? Optional.of(stateClass.cast(authenticatedAgentState))
+                        : current.store().get(
+                                resolvedUserId, sessionId, stateKey, stateClass);
+                rememberAuthenticatedAgentState(
+                        current, resolvedUserId, sessionId, stateKey, stateClass, value);
                 current.lease().assertOwned();
                 return value;
             });
@@ -537,10 +557,15 @@ public final class FailClosedAgentStateStore implements AgentStateStore {
                 Class<T> stateClass) {
             return failClosedRead(userId, sessionId, () -> {
                 Binding current = requireBinding();
-                assertScope(current, userId, sessionId);
+                boolean frameworkLegacyMessagesProbe = isAgentScopeLegacyMessagesProbe(
+                        current, userId, sessionId, stateKey, stateClass);
+                String resolvedUserId = frameworkLegacyMessagesProbe
+                        ? current.expectedUserId()
+                        : userId;
+                assertScope(current, resolvedUserId, sessionId);
                 current.lease().assertOwned();
                 List<T> values = current.store().getList(
-                        userId, sessionId, stateKey, stateClass);
+                        resolvedUserId, sessionId, stateKey, stateClass);
                 current.lease().assertOwned();
                 return values;
             });
@@ -590,6 +615,7 @@ public final class FailClosedAgentStateStore implements AgentStateStore {
         public void close() {
             // AgentScope 2.0.0 retains one shutdown saver per request-built Agent for the JVM
             // lifetime. Detach the request graph while leaving the shared store/DataSource open.
+            authenticatedAgentState = null;
             binding = null;
         }
 
@@ -618,6 +644,61 @@ public final class FailClosedAgentStateStore implements AgentStateStore {
             if (!current.expectedUserId().equals(userId)
                     || !current.expectedSessionId().equals(sessionId)) {
                 throw scopeMismatch(current, userId, sessionId);
+            }
+        }
+
+        private boolean isAgentScopeDefaultStateProbe(
+                Binding current,
+                String userId,
+                String sessionId,
+                String stateKey,
+                Class<?> stateClass) {
+            // AgentScope 2.0.0's shutdown recovery check calls getAgentState() without the
+            // active RuntimeContext. Its default session is set to this conversation by the
+            // factory; map only that read-only agent_state probe back to the authenticated slot.
+            return userId == null
+                    && current.expectedSessionId().equals(sessionId)
+                    && ConversationStateNamespace.AGENT_STATE_SLOT.equals(stateKey)
+                    && AgentState.class.equals(stateClass);
+        }
+
+        private boolean isAgentScopeLegacyMessagesProbe(
+                Binding current,
+                String userId,
+                String sessionId,
+                String stateKey,
+                Class<?> stateClass) {
+            return userId == null
+                    && current.expectedSessionId().equals(sessionId)
+                    && LEGACY_MEMORY_MESSAGES_SLOT.equals(stateKey)
+                    && Msg.class.equals(stateClass);
+        }
+
+        private boolean isAgentScopeLegacyToolkitProbe(
+                Binding current,
+                String userId,
+                String sessionId,
+                String stateKey,
+                Class<?> stateClass) {
+            return userId == null
+                    && current.expectedSessionId().equals(sessionId)
+                    && LEGACY_TOOLKIT_ACTIVE_GROUPS_SLOT.equals(stateKey)
+                    && ToolkitState.class.equals(stateClass);
+        }
+
+        private <T extends State> void rememberAuthenticatedAgentState(
+                Binding current,
+                String userId,
+                String sessionId,
+                String stateKey,
+                Class<T> stateClass,
+                Optional<T> value) {
+            if (current.expectedUserId().equals(userId)
+                    && current.expectedSessionId().equals(sessionId)
+                    && ConversationStateNamespace.AGENT_STATE_SLOT.equals(stateKey)
+                    && AgentState.class.equals(stateClass)
+                    && value.isPresent()) {
+                authenticatedAgentState = (AgentState) value.get();
             }
         }
 

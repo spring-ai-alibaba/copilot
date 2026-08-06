@@ -70,13 +70,15 @@ public class SessionRunGuard {
             @Value("${app.conversation.run-timeout-seconds:300}") long runTimeoutSeconds) {
         this.dataSource = Objects.requireNonNull(dataSource, "dataSource must not be null");
         this.qualifiedTableName = qualifyTable(resolveCatalog(dataSource));
-        if (runTimeoutSeconds <= 0) {
-            throw new IllegalArgumentException("runTimeoutSeconds must be positive");
-        }
+        // runTimeoutSeconds <= 0 means the run has no overall deadline, so the maximum-hold
+        // ceiling is lifted too. The short lease TTL still applies: the watchdog renews while the
+        // run is alive, and a crashed process loses the lock when the database lease expires.
         this.leaseMillis = TimeUnit.SECONDS.toMillis(LEASE_TTL_SECONDS);
         this.localLeaseNanos = TimeUnit.MILLISECONDS.toNanos(leaseMillis);
-        this.maximumHoldNanos = TimeUnit.SECONDS.toNanos(
-                Math.addExact(runTimeoutSeconds, MAXIMUM_HOLD_GRACE_SECONDS));
+        this.maximumHoldNanos = runTimeoutSeconds <= 0
+                ? Long.MAX_VALUE
+                : TimeUnit.SECONDS.toNanos(
+                        Math.addExact(runTimeoutSeconds, MAXIMUM_HOLD_GRACE_SECONDS));
         this.renewalIntervalMillis = Math.max(
                 MINIMUM_RENEWAL_INTERVAL_MILLIS,
                 Math.min(MAXIMUM_RENEWAL_INTERVAL_MILLIS, leaseMillis / 3));

@@ -97,7 +97,7 @@ class ChatServiceImplTest {
     @Test
     void doesNotCreateConversationWhenAgentBuildFails() {
         arrangeAuthorizedRequest();
-        when(agentFactory.buildAgent(MODEL_ID, requestStateStore))
+        when(agentFactory.buildAgent(eq(MODEL_ID), eq(requestStateStore), anyString()))
                 .thenThrow(new IllegalStateException("agent setup failed"));
 
         ServiceException error = invokeAsLoggedIn(newChatRequest());
@@ -123,7 +123,7 @@ class ChatServiceImplTest {
         ServiceException error = invokeAsLoggedIn(newChatRequest());
 
         assertEquals(503, error.getCode());
-        verify(agentFactory, never()).buildAgent(anyString(), any());
+        verify(agentFactory, never()).buildAgent(anyString(), any(), anyString());
         verify(conversationService, never())
                 .createConversation(eq(USER_ID), any(), anyString(), any());
     }
@@ -132,7 +132,8 @@ class ChatServiceImplTest {
     void closesAgentWhenConversationCreationFails() {
         arrangeAuthorizedRequest();
         HarnessAgent agent = mock(HarnessAgent.class);
-        when(agentFactory.buildAgent(MODEL_ID, requestStateStore)).thenReturn(agent);
+        when(agentFactory.buildAgent(eq(MODEL_ID), eq(requestStateStore), anyString()))
+                .thenReturn(agent);
         when(conversationService.createConversation(eq(USER_ID), any(), anyString(), eq(lease)))
                 .thenThrow(new IllegalStateException("database unavailable"));
 
@@ -149,7 +150,8 @@ class ChatServiceImplTest {
     void compensatesPersistedConversationWhenLaterSetupFails() {
         arrangeAuthorizedRequest();
         HarnessAgent agent = mock(HarnessAgent.class);
-        when(agentFactory.buildAgent(MODEL_ID, requestStateStore)).thenReturn(agent);
+        when(agentFactory.buildAgent(eq(MODEL_ID), eq(requestStateStore), anyString()))
+                .thenReturn(agent);
         when(conversationService.createConversation(
                 eq(USER_ID), any(), anyString(), eq(lease)))
                 .thenAnswer(invocation -> invocation.<String>getArgument(2));

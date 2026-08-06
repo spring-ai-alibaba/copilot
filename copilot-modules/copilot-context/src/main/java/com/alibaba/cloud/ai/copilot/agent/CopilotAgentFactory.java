@@ -46,9 +46,13 @@ public class CopilotAgentFactory {
      *
      * @param modelConfigId 模型配置 ID（model_config.id）
      * @param requestStateStore 绑定当前请求原始租约的状态存储
+     * @param conversationId 当前请求的可信会话 ID
      * @return 新建的 HarnessAgent
      */
-    public HarnessAgent buildAgent(String modelConfigId, AgentStateStore requestStateStore) {
+    public HarnessAgent buildAgent(
+            String modelConfigId,
+            AgentStateStore requestStateStore,
+            String conversationId) {
         // 1. 获取 agentscope Model（缓存命中或按配置新建）
         Model model = dynamicModelService.getChatModelWithConfigId(modelConfigId);
 
@@ -86,6 +90,9 @@ public class CopilotAgentFactory {
 
         HarnessAgent agent = HarnessAgent.builder()
                 .name(AGENT_NAME)
+                // AgentScope 2.0.0 performs one no-context graceful-shutdown state lookup before
+                // the model call. Keep that internal lookup on the request's conversation slot.
+                .defaultSessionId(conversationId)
                 .model(model)
                 .sysPrompt(prompt)
                 .workspace(workspacePath)
