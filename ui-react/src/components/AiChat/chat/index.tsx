@@ -26,7 +26,12 @@ import useMCPTools from "@/hooks/useMCPTools";
 import {FileSystemStatus} from "./components/FileSystemStatus";
 import {handleFileSystemEvent, isFileSystemEvent} from "../utils/fileSystemEventHandler";
 import {useConversationStore} from "@/stores/conversationSlice";
-import {getConversationMessages} from "@/api/conversation";
+import {useContextStore} from "@/stores/contextSlice";
+import {
+    getConversation,
+    getConversationMessages,
+    type Conversation,
+} from "@/api/conversation";
 import { LoaderCircle } from "lucide-react";
 import { AppLogo } from "@/components/AppLogo";
 
@@ -77,6 +82,7 @@ enum ModelTypes {
 export interface IModelOption {
     key: string;
     name: string;
+    modelConfigId?: string | number;
     useImage: boolean;
     quota: number;
     from?: string;
@@ -84,6 +90,22 @@ export interface IModelOption {
     provider?: string;
     functionCall?: boolean;
 }
+
+type CachedConversation = {
+    sessionToken: string | null;
+    conversation: Conversation;
+};
+
+type CachedModelBinding = {
+    sessionToken: string | null;
+    modelConfigId: string | number;
+};
+
+type ConversationMetadataState = {
+    conversationId: string | null;
+    sessionToken: string | null;
+    status: "idle" | "loading" | "resolved" | "error";
+};
 
 function convertToBoltAction(obj: Record<string, string>): string {
     return Object.entries(obj)
@@ -105,6 +127,9 @@ export const BaseChat = ({uuid: propUuid}: { uuid?: string }) => {
     const pendingScrollToBottomRef = useRef(false);
     // 流内首次拿到会话 ID 时只同步选中态，不把它误判成用户主动切换会话。
     const streamAssignedConversationIdRef = useRef<string | null>(null);
+    const contextRunCleanupsRef = useRef(new Set<() => void>());
+    const chatRequestAbortersRef = useRef(new Map<() => void, string>());
+    const conversationHistoryRequestRef = useRef(0);
 
     const [baseModal, setBaseModal] = useState<IModelOption>({
         key: ModelTypes.Claude35sonnet,
@@ -138,7 +163,75 @@ export const BaseChat = ({uuid: propUuid}: { uuid?: string }) => {
         modelOptions,
     } = useChatStore();
     const {resetTerminals} = useTerminalStore();
-    const {currentConversationId, setCurrentConversation} = useConversationStore();
+    const {conversations, currentConversationId, setCurrentConversation} = useConversationStore();
+    const token = useUserStore((state) => state.token);
+    const isAuthenticated = useUserStore((state) => state.isAuthenticated);
+    const openLoginModal = useUserStore((state) => state.openLoginModal);
+    const updateContextFromEvent = useContextStore((state) => state.updateFromEvent);
+    const setContextRunning = useContextStore((state) => state.setRunning);
+    const [resolvedConversations, setResolvedConversations] = useState<
+        Map<string, CachedConversation>
+    >(() => new Map());
+    const resolvedConversationsRef = useRef(resolvedConversations);
+    const [conversationModelBindings, setConversationModelBindings] = useState<
+        Map<string, CachedModelBinding>
+    >(() => new Map());
+    const conversationModelBindingsRef = useRef(conversationModelBindings);
+    const [conversationMetadataState, setConversationMetadataState] =
+        useState<ConversationMetadataState>({
+            conversationId: null,
+            sessionToken: null,
+            status: "idle",
+        });
+
+    useEffect(() => {
+        // These caches are deliberately component-local, so clear them explicitly at the same
+        // authentication boundary as the Zustand conversation/context stores.
+        const emptyConversations = new Map<string, CachedConversation>();
+        const emptyBindings = new Map<string, CachedModelBinding>();
+        resolvedConversationsRef.current = emptyConversations;
+        conversationModelBindingsRef.current = emptyBindings;
+        setResolvedConversations(emptyConversations);
+        setConversationModelBindings(emptyBindings);
+        setConversationMetadataState({
+            conversationId: null,
+            sessionToken: token,
+            status: "idle",
+        });
+    }, [token]);
+
+    const cacheConversationModelBinding = useCallback((
+        conversationId: string,
+        modelConfigId: string | number,
+        sessionToken: string | null,
+    ) => {
+        const nextBindings = new Map(conversationModelBindingsRef.current);
+        nextBindings.set(conversationId, {sessionToken, modelConfigId});
+        conversationModelBindingsRef.current = nextBindings;
+        setConversationModelBindings(nextBindings);
+    }, []);
+
+    const cacheResolvedConversation = useCallback((
+        conversation: Conversation,
+        sessionToken: string | null,
+    ) => {
+        const conversationId = String(conversation.conversationId);
+        const normalizedConversation = {...conversation, conversationId};
+        const nextConversations = new Map(resolvedConversationsRef.current);
+        nextConversations.set(conversationId, {
+            sessionToken,
+            conversation: normalizedConversation,
+        });
+        resolvedConversationsRef.current = nextConversations;
+        setResolvedConversations(nextConversations);
+        if (normalizedConversation.modelConfigId != null) {
+            cacheConversationModelBinding(
+                conversationId,
+                normalizedConversation.modelConfigId,
+                sessionToken,
+            );
+        }
+    }, [cacheConversationModelBinding]);
     const filesInitObj = {} as Record<string, string>;
     const filesUpdateObj = {} as Record<string, string>;
     Object.keys(isFirstSend).forEach((key) => {
@@ -155,32 +248,39 @@ export const BaseChat = ({uuid: propUuid}: { uuid?: string }) => {
 
     const updateConvertToBoltAction = convertToBoltAction(filesUpdateObj);
 
-    const fetchingRef = useRef(false);
-    const lastModeRef = useRef<ChatMode | null>(null);
     const modeRef = useRef(mode);
+    const modelListRequestRef = useRef(0);
+    const modelListAbortControllerRef = useRef<AbortController | null>(null);
 
     useEffect(() => {
         modeRef.current = mode;
     }, [mode]);
 
-    const fetchModelList = useCallback(() => {
-        if (fetchingRef.current) {
-            return;
-        }
-
-        fetchingRef.current = true;
-        const currentMode = modeRef.current;
-        const isBuilderMode = currentMode === ChatMode.Builder;
+    const fetchModelList = useCallback((
+        requestedMode: ChatMode,
+        sessionToken: string | null,
+    ) => {
+        modelListAbortControllerRef.current?.abort();
+        const controller = new AbortController();
+        modelListAbortControllerRef.current = controller;
+        const requestId = ++modelListRequestRef.current;
+        const isCurrentRequest = () =>
+            requestId === modelListRequestRef.current &&
+            useUserStore.getState().token === sessionToken &&
+            modeRef.current === requestedMode;
+        const isBuilderMode = requestedMode === ChatMode.Builder;
         const url = apiUrl(`/api/model/list?buildMode=${isBuilderMode}`);
 
         fetch(url, {
             method: "GET",
+            signal: controller.signal,
             headers: {
                 "Content-Type": "application/json",
             },
         })
             .then((res) => res.json())
             .then((data) => {
+                if (!isCurrentRequest()) return;
                 console.log("Fetched model list:", data);
                 if (Array.isArray(data)) {
                     setModelOptions(data);
@@ -196,26 +296,214 @@ export const BaseChat = ({uuid: propUuid}: { uuid?: string }) => {
                 }
             })
             .catch((error) => {
+                if (controller.signal.aborted || !isCurrentRequest()) return;
                 console.error("Failed to fetch model list:", error);
                 setModelOptions([]);
             })
             .finally(() => {
-                fetchingRef.current = false;
+                if (modelListAbortControllerRef.current === controller) {
+                    modelListAbortControllerRef.current = null;
+                }
             });
-    }, []);
+    }, [setModelOptions]);
 
     useEffect(() => {
-        if (lastModeRef.current === null || lastModeRef.current !== mode) {
-            lastModeRef.current = mode;
-            fetchModelList();
+        // Model visibility is account-scoped. Clear the previous account's options immediately,
+        // then accept a response only if both its token and mode still match.
+        setModelOptions([]);
+        setBaseModal({
+            key: "unselected-model",
+            name: "",
+            useImage: false,
+            quota: 0,
+            functionCall: false,
+        });
+        fetchModelList(mode, token);
+        return () => {
+            modelListAbortControllerRef.current?.abort();
+        };
+    }, [fetchModelList, mode, setModelOptions, token]);
+
+    const listedConversation = useMemo(
+        () => conversations.find(
+            (conversation) => conversation.conversationId === currentConversationId,
+        ),
+        [conversations, currentConversationId],
+    );
+    const cachedConversationEntry = currentConversationId
+        ? resolvedConversations.get(currentConversationId)
+        : undefined;
+    const cachedConversation = cachedConversationEntry?.sessionToken === token
+        ? cachedConversationEntry.conversation
+        : undefined;
+    const activeConversation = listedConversation ?? cachedConversation;
+    const cachedModelBindingEntry = currentConversationId
+        ? conversationModelBindings.get(currentConversationId)
+        : undefined;
+    const cachedModelConfigId = cachedModelBindingEntry?.sessionToken === token
+        ? cachedModelBindingEntry.modelConfigId
+        : undefined;
+    const boundModelConfigId = activeConversation?.modelConfigId ?? cachedModelConfigId;
+    const metadataStateMatchesCurrentConversation =
+        conversationMetadataState.conversationId === currentConversationId &&
+        conversationMetadataState.sessionToken === token;
+    const conversationMetadataLoading = Boolean(
+        currentConversationId &&
+        !activeConversation &&
+        (!metadataStateMatchesCurrentConversation || conversationMetadataState.status !== "error"),
+    );
+    const conversationMetadataLoadFailed = Boolean(
+        currentConversationId &&
+        !activeConversation &&
+        metadataStateMatchesCurrentConversation &&
+        conversationMetadataState.status === "error",
+    );
+
+    useEffect(() => {
+        const conversationId = currentConversationId;
+        const sessionToken = token;
+
+        if (!conversationId) {
+            setConversationMetadataState({
+                conversationId: null,
+                sessionToken,
+                status: "idle",
+            });
+            return;
         }
-    }, [mode, fetchModelList]);
+
+        if (!sessionToken) {
+            setConversationMetadataState({
+                conversationId,
+                sessionToken,
+                status: "error",
+            });
+            return;
+        }
+
+        if (listedConversation) {
+            cacheResolvedConversation(listedConversation, sessionToken);
+            setConversationMetadataState({
+                conversationId,
+                sessionToken,
+                status: "resolved",
+            });
+            return;
+        }
+
+        const cachedEntry = resolvedConversationsRef.current.get(conversationId);
+        if (cachedEntry?.sessionToken === sessionToken) {
+            setConversationMetadataState({
+                conversationId,
+                sessionToken,
+                status: "resolved",
+            });
+            return;
+        }
+
+        let cancelled = false;
+        setConversationMetadataState({
+            conversationId,
+            sessionToken,
+            status: "loading",
+        });
+
+        void getConversation(conversationId)
+            .then((conversation) => {
+                if (
+                    cancelled ||
+                    useUserStore.getState().token !== sessionToken
+                ) {
+                    return;
+                }
+                if (String(conversation?.conversationId) !== conversationId) {
+                    throw new Error("Conversation metadata response did not match the request");
+                }
+                cacheResolvedConversation(conversation, sessionToken);
+                setConversationMetadataState({
+                    conversationId,
+                    sessionToken,
+                    status: "resolved",
+                });
+            })
+            .catch((error) => {
+                if (cancelled || useUserStore.getState().token !== sessionToken) return;
+                console.error("Failed to load conversation metadata:", error);
+                setConversationMetadataState({
+                    conversationId,
+                    sessionToken,
+                    status: "error",
+                });
+            });
+
+        return () => {
+            cancelled = true;
+        };
+    }, [
+        cacheResolvedConversation,
+        currentConversationId,
+        listedConversation,
+        token,
+    ]);
+
+    const boundModelOption = useMemo(
+        () => boundModelConfigId == null
+            ? undefined
+            : modelOptions.find(
+                (model) => String(model.modelConfigId) === String(boundModelConfigId),
+            ),
+        [boundModelConfigId, modelOptions],
+    );
+    const boundModelUnavailable = Boolean(
+        boundModelConfigId != null &&
+        modelOptions.length > 0 &&
+        !boundModelOption,
+    );
+
+    useEffect(() => {
+        if (modelOptions.length === 0) return;
+        if (boundModelConfigId == null) {
+            // Leaving a conversation whose bound model disappeared must also leave its synthetic
+            // "unavailable" option behind. Keep a valid user selection, otherwise fall back to
+            // the first currently available model for the next conversation.
+            setBaseModal((current) => modelOptions.some(
+                (model) => String(model.modelConfigId) === String(current.modelConfigId),
+            ) ? current : modelOptions[0]);
+            return;
+        }
+        if (boundModelOption) {
+            setBaseModal((current) =>
+                String(current.modelConfigId) === String(boundModelConfigId)
+                    ? current
+                    : boundModelOption,
+            );
+            return;
+        }
+        setBaseModal((current) => {
+            if (
+                String(current.modelConfigId) === String(boundModelConfigId) &&
+                current.key === `unavailable-${boundModelConfigId}`
+            ) {
+                return current;
+            }
+            return {
+                key: `unavailable-${boundModelConfigId}`,
+                name: t("chat.errors.conversation_model_unavailable", {
+                    defaultValue: "该会话绑定的模型已不可用",
+                }),
+                modelConfigId: boundModelConfigId,
+                useImage: false,
+                quota: 0,
+                functionCall: false,
+            };
+        });
+    }, [boundModelConfigId, boundModelOption, modelOptions, t]);
 
     // 监听模型状态变化事件，重新获取模型列表
     useEffect(() => {
         const unsubscribe = eventEmitter.on('model:status-changed', () => {
             console.log('Model status changed, refreshing model list...');
-            fetchModelList();
+            fetchModelList(modeRef.current, useUserStore.getState().token);
         });
 
         return () => {
@@ -369,9 +657,18 @@ export const BaseChat = ({uuid: propUuid}: { uuid?: string }) => {
     };
 
     // 加载会话历史消息（新版本）
-    const loadConversationHistory = async (conversationId: string) => {
+    const loadConversationHistory = async (
+        conversationId: string,
+        sessionToken: string | null,
+        requestId: number,
+    ) => {
+        const isCurrentRequest = () =>
+            conversationHistoryRequestRef.current === requestId &&
+            useUserStore.getState().token === sessionToken &&
+            useConversationStore.getState().currentConversationId === conversationId;
         try {
             const historyMessages = await getConversationMessages(conversationId);
+            if (!isCurrentRequest()) return;
             if (historyMessages.length > 0) {
                 // 转换为 useChat 期望的格式
                 const formattedMessages: WeMessages = historyMessages
@@ -380,6 +677,7 @@ export const BaseChat = ({uuid: propUuid}: { uuid?: string }) => {
                         id: uuidv4(),
                         role: msg.role as "user" | "assistant",
                         content: msg.content,
+                        createdAt: msg.createdAt ? new Date(msg.createdAt) : undefined,
                     }));
 
                 // 解析文件
@@ -404,6 +702,7 @@ export const BaseChat = ({uuid: propUuid}: { uuid?: string }) => {
                 setIsUpdateSend();
             }
         } catch (error) {
+            if (!isCurrentRequest()) return;
             console.error("加载会话历史失败:", error);
             toast.error("加载会话历史失败");
         }
@@ -411,6 +710,8 @@ export const BaseChat = ({uuid: propUuid}: { uuid?: string }) => {
 
     // 监听会话切换事件
     useEffect(() => {
+        const historyRequestId = ++conversationHistoryRequestRef.current;
+        const sessionToken = token;
         const isStreamAssignment =
             currentConversationId !== null &&
             streamAssignedConversationIdRef.current === currentConversationId;
@@ -422,7 +723,11 @@ export const BaseChat = ({uuid: propUuid}: { uuid?: string }) => {
 
         if (currentConversationId) {
             // 加载会话历史消息
-            loadConversationHistory(currentConversationId);
+            void loadConversationHistory(
+                currentConversationId,
+                sessionToken,
+                historyRequestId,
+            );
             refUuidMessages.current = [];
         } else {
             // 如果没有选中会话，清空消息
@@ -433,7 +738,7 @@ export const BaseChat = ({uuid: propUuid}: { uuid?: string }) => {
             setIsUpdateSend();
             resetTerminals();
         }
-    }, [currentConversationId]);
+    }, [currentConversationId, token]);
 
     // 监听聊天选择事件（兼容旧版本）
     useEffect(() => {
@@ -475,9 +780,6 @@ export const BaseChat = ({uuid: propUuid}: { uuid?: string }) => {
         // 清理订阅
         return () => unsubscribe();
     }, [chatUuid, files]);
-    const token = useUserStore((state) => state.token);
-    const isAuthenticated = useUserStore((state) => state.isAuthenticated);
-    const openLoginModal = useUserStore((state) => state.openLoginModal);
     const {openModal} = useLimitModalStore();
 
     const [messages, setMessagesa] = useState<WeMessages>([]);
@@ -485,6 +787,36 @@ export const BaseChat = ({uuid: propUuid}: { uuid?: string }) => {
 
     // 自定义 fetch 函数来处理 SSE 流数据
     const customFetch = async (url: string, options: any) => {
+        let contextRunToken: string | null = null;
+        let contextRunConversationId: string | null = null;
+        let requestConversationId: string | null = null;
+        let contextRunFinished = false;
+        let abortRequest: (() => void) | null = null;
+        let detachUpstreamAbort: (() => void) | null = null;
+        const assignContextRun = (conversationId: string | null) => {
+            if (contextRunFinished || contextRunConversationId === conversationId) return;
+            if (contextRunConversationId) {
+                setContextRunning(contextRunConversationId, false);
+            }
+            contextRunConversationId = conversationId;
+            if (conversationId) {
+                setContextRunning(conversationId, true);
+            }
+        };
+        const finishContextRun = () => {
+            if (contextRunFinished) return;
+            contextRunFinished = true;
+            contextRunCleanupsRef.current.delete(finishContextRun);
+            if (abortRequest) {
+                chatRequestAbortersRef.current.delete(abortRequest);
+            }
+            detachUpstreamAbort?.();
+            if (contextRunConversationId) {
+                setContextRunning(contextRunConversationId, false);
+            }
+        };
+        contextRunCleanupsRef.current.add(finishContextRun);
+
         try {
             const latestToken = useUserStore.getState().token;
             if (!latestToken) {
@@ -495,6 +827,89 @@ export const BaseChat = ({uuid: propUuid}: { uuid?: string }) => {
                 (authError as Error & {status?: number}).status = 401;
                 throw authError;
             }
+            contextRunToken = latestToken;
+            const conversationState = useConversationStore.getState();
+            requestConversationId = conversationState.currentConversationId;
+            const listedRequestConversation = requestConversationId
+                ? conversationState.conversations.find(
+                    (conversation) => conversation.conversationId === requestConversationId,
+                )
+                : undefined;
+            const cachedRequestConversationEntry = requestConversationId
+                ? resolvedConversationsRef.current.get(requestConversationId)
+                : undefined;
+            const cachedRequestConversation =
+                cachedRequestConversationEntry?.sessionToken === latestToken
+                    ? cachedRequestConversationEntry.conversation
+                    : undefined;
+            const requestConversation = listedRequestConversation ?? cachedRequestConversation;
+            const cachedRequestBindingEntry = requestConversationId
+                ? conversationModelBindingsRef.current.get(requestConversationId)
+                : undefined;
+            const cachedRequestModelConfigId =
+                cachedRequestBindingEntry?.sessionToken === latestToken
+                    ? cachedRequestBindingEntry.modelConfigId
+                    : undefined;
+            const requestBoundModelConfigId =
+                requestConversation?.modelConfigId ??
+                cachedRequestModelConfigId;
+            const requestMetadataResolved = Boolean(
+                requestConversation || cachedRequestModelConfigId != null,
+            );
+            if (requestConversationId && !requestMetadataResolved) {
+                const metadataError = new Error(
+                    t("chat.errors.conversation_loading", {
+                        defaultValue: "正在加载会话信息，请稍后重试",
+                    }),
+                );
+                (metadataError as Error & {status?: number}).status = 409;
+                throw metadataError;
+            }
+            // Legacy clients could pre-create a conversation without modelConfigId. Let its first
+            // post-upgrade message use the current valid selection; the backend binds it exactly
+            // once in the same fenced transaction that persists this user message.
+            const requestModelConfigId = requestConversationId
+                ? requestBoundModelConfigId ?? baseModal.modelConfigId
+                : baseModal.modelConfigId;
+            if (requestModelConfigId == null) {
+                const modelError = new Error(
+                    t("models.errors.no_models_configured", {
+                        defaultValue: "请选择可用模型后再发送消息",
+                    }),
+                );
+                (modelError as Error & {status?: number}).status = 422;
+                throw modelError;
+            }
+            const availableModels = useChatStore.getState().modelOptions;
+            const requestModelIsAvailable = availableModels.some(
+                    (model) => String(model.modelConfigId) === String(requestModelConfigId),
+            );
+            if (!requestModelIsAvailable) {
+                const modelError = new Error(
+                    requestConversationId
+                        ? t("chat.errors.conversation_model_unavailable", {
+                            defaultValue: "该会话绑定的模型已不可用，请新建会话后重试",
+                        })
+                        : t("chat.errors.selected_model_unavailable", {
+                            defaultValue: "所选模型已不可用，请重新选择后重试",
+                        }),
+                );
+                (modelError as Error & {status?: number}).status = 422;
+                throw modelError;
+            }
+            const requestController = new AbortController();
+            const upstreamSignal = options.signal as AbortSignal | undefined;
+            const relayUpstreamAbort = () => requestController.abort(upstreamSignal?.reason);
+            if (upstreamSignal?.aborted) {
+                relayUpstreamAbort();
+            } else if (upstreamSignal) {
+                upstreamSignal.addEventListener("abort", relayUpstreamAbort, { once: true });
+                detachUpstreamAbort = () =>
+                    upstreamSignal.removeEventListener("abort", relayUpstreamAbort);
+            }
+            options.signal = requestController.signal;
+            abortRequest = () => requestController.abort();
+            chatRequestAbortersRef.current.set(abortRequest, latestToken);
             options.headers = {
                 ...(options.headers || {}),
                 Authorization: `Bearer ${latestToken}`,
@@ -526,8 +941,10 @@ export const BaseChat = ({uuid: propUuid}: { uuid?: string }) => {
                 const modifiedBody = {
                     ...requestBody,
                     message: latestMessage, // 单个消息对象
-                    modelConfigId: (baseModal as any).modelConfigId, // 添加必需的modelConfigId参数
-                    conversationId: currentConversationId || undefined, // 添加会话ID
+                    modelConfigId: requestModelConfigId == null
+                        ? undefined
+                        : String(requestModelConfigId), // 现有会话必须沿用其绑定模型
+                    conversationId: requestConversationId || undefined, // 添加会话ID
                     tools: toolsForBackend, // 添加启用的 MCP 工具
                     enablePreferences: memoryFlags.enablePreferencesInChat,
                     enablePreferenceLearning: memoryFlags.enablePreferenceLearningInChat,
@@ -542,10 +959,30 @@ export const BaseChat = ({uuid: propUuid}: { uuid?: string }) => {
                 }
             }
 
+            assignContextRun(requestConversationId);
             const response = await fetch(url, options);
 
             if (!response.ok) {
                 const responseText = await response.text();
+                if (
+                    requestConversationId &&
+                    (response.status === 409 || response.status === 422)
+                ) {
+                    // A legacy null-model conversation can be bound by another tab between our
+                    // metadata read and first message. Refresh after a conflict so the exact
+                    // backend binding is cached and the selector becomes locked on the next render.
+                    try {
+                        const refreshedConversation = await getConversation(requestConversationId);
+                        if (useUserStore.getState().token === contextRunToken) {
+                            cacheResolvedConversation(refreshedConversation, contextRunToken);
+                        }
+                    } catch (metadataRefreshError) {
+                        console.error(
+                            "Failed to refresh conversation after model binding conflict:",
+                            metadataRefreshError,
+                        );
+                    }
+                }
                 let errorMessage = responseText;
                 try {
                     const payload = JSON.parse(responseText);
@@ -568,6 +1005,7 @@ export const BaseChat = ({uuid: propUuid}: { uuid?: string }) => {
 
             // 如果不是流式响应，直接返回
             if (!response.body) {
+                finishContextRun();
                 return response;
             }
 
@@ -645,10 +1083,34 @@ export const BaseChat = ({uuid: propUuid}: { uuid?: string }) => {
 
                 // 会话ID控制事件：后端在新建会话时回传，前端需写入 store 以支撑后续多轮
                 if (eventName === 'conversation-id' && parsed.conversationId) {
+                    if (useUserStore.getState().token !== contextRunToken) return '';
                     const conversationId = String(parsed.conversationId);
+                    assignContextRun(conversationId);
+                    if (requestModelConfigId != null) {
+                        cacheConversationModelBinding(
+                            conversationId,
+                            requestModelConfigId,
+                            contextRunToken,
+                        );
+                    }
                     if (useConversationStore.getState().currentConversationId !== conversationId) {
                         streamAssignedConversationIdRef.current = conversationId;
                         setCurrentConversation(conversationId);
+                    }
+                    return '';
+                }
+
+                if (type === 'CUSTOM') {
+                    if (useUserStore.getState().token !== contextRunToken) return '';
+                    const threadId = String(
+                        parsed.threadId ||
+                        contextRunConversationId ||
+                        requestConversationId ||
+                        '',
+                    );
+                    const eventNameValue = String(parsed.name || '');
+                    if (threadId && eventNameValue) {
+                        updateContextFromEvent(threadId, eventNameValue, parsed.value);
                     }
                     return '';
                 }
@@ -720,6 +1182,7 @@ export const BaseChat = ({uuid: propUuid}: { uuid?: string }) => {
                         break;
                     }
                     case 'RUN_FINISHED': {
+                        finishContextRun();
                         if (reasoningBuffer.trim()) {
                             transformedText += encodeTimelineBlock(
                                 'arc-reasoning',
@@ -735,6 +1198,7 @@ export const BaseChat = ({uuid: propUuid}: { uuid?: string }) => {
                         break;
                     }
                     case 'RUN_ERROR': {
+                        finishContextRun();
                         const errorMessage = parsed.message || parsed.error || 'Agent 运行失败';
                         console.error('[AG-UI] run error:', errorMessage);
                         transformedText += encodeTimelineBlock('arc-error', String(errorMessage));
@@ -778,6 +1242,7 @@ export const BaseChat = ({uuid: propUuid}: { uuid?: string }) => {
                                 if (transformedText) {
                                     controller.enqueue(new TextEncoder().encode(transformedText));
                                 }
+                                finishContextRun();
                                 controller.close();
                                 return;
                             }
@@ -789,12 +1254,14 @@ export const BaseChat = ({uuid: propUuid}: { uuid?: string }) => {
                             }
                             return pump();
                         }).catch(error => {
+                            finishContextRun();
                             controller.error(error);
                         });
                     }
                     return pump();
                 },
                 cancel(reason) {
+                    finishContextRun();
                     return reader.cancel(reason);
                 },
             });
@@ -807,6 +1274,7 @@ export const BaseChat = ({uuid: propUuid}: { uuid?: string }) => {
             });
 
         } catch (error) {
+            finishContextRun();
             throw error;
         }
     };
@@ -959,6 +1427,22 @@ export const BaseChat = ({uuid: propUuid}: { uuid?: string }) => {
             );
         },
     });
+
+    useEffect(() => () => {
+        chatRequestAbortersRef.current.forEach((_, abort) => abort());
+        chatRequestAbortersRef.current.clear();
+        contextRunCleanupsRef.current.forEach((finish) => finish());
+        contextRunCleanupsRef.current.clear();
+    }, []);
+
+    useEffect(() => {
+        chatRequestAbortersRef.current.forEach((requestToken, abort) => {
+            if (requestToken !== token) {
+                abort();
+            }
+        });
+    }, [token]);
+
     const {status, type} = useUrlData({append});
 
     // 官网跳转进来监听 url
@@ -1160,8 +1644,32 @@ export const BaseChat = ({uuid: propUuid}: { uuid?: string }) => {
         }
 
         // 检查模型列表是否为空
+        if (conversationMetadataLoading) {
+            toast.info(
+                t("chat.errors.conversation_loading", {
+                    defaultValue: "正在加载会话信息，请稍后重试",
+                }),
+            );
+            return;
+        }
+        if (conversationMetadataLoadFailed) {
+            toast.error(
+                t("chat.errors.conversation_load_failed", {
+                    defaultValue: "无法加载会话信息，请重新选择会话后重试",
+                }),
+            );
+            return;
+        }
         if (!modelOptions || modelOptions.length === 0) {
             toast.error(t('models.errors.no_models_configured') || '请先配置模型，然后再发送消息');
+            return;
+        }
+        if (boundModelUnavailable) {
+            toast.error(
+                t("chat.errors.conversation_model_unavailable", {
+                    defaultValue: "该会话绑定的模型已不可用，请新建会话后重试",
+                }),
+            );
             return;
         }
 
@@ -1415,6 +1923,10 @@ export const BaseChat = ({uuid: propUuid}: { uuid?: string }) => {
                         isUploading={isUploading}
                         uploadedImages={uploadedImages}
                         baseModal={baseModal}
+                        modelSelectionLocked={
+                            currentConversationId != null && boundModelConfigId != null
+                        }
+                        modelUnavailable={boundModelUnavailable}
                         handleInputChange={handleInputChange}
                         handleKeySubmit={handleKeySubmit}
                         handleSubmitWithFiles={handleSubmitWithFiles}

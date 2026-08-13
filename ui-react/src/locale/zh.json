@@ -40,6 +40,10 @@
       "add_image_failed": "添加图片失败",
       "auth_required": "请先登录后再发送消息",
       "request_failed": "请求失败，请稍后重试",
+      "conversation_loading": "正在加载会话信息，请稍后重试",
+      "conversation_load_failed": "无法加载会话信息，请重新选择会话后重试",
+      "conversation_model_unavailable": "该会话绑定的模型已不可用，请新建会话后重试",
+      "selected_model_unavailable": "所选模型已不可用，请重新选择后重试",
       "view_problem": "查看问题"
     },
     "success": {
@@ -82,6 +86,7 @@
       "workspaceMention": "输入 @ 可引用工作区文件",
       "selectModel": "选择模型",
       "availableModels": "可用模型",
+      "conversationModelLocked": "已有会话将继续使用创建时绑定的模型",
       "stopReceiving": "停止接收",
       "sendMessage": "发送消息",
       "composerHint": "Enter 发送 · Shift + Enter 换行"
@@ -562,7 +567,61 @@
       "switchToDark": "切换到暗色",
       "settings": "设置",
       "collapseProjectTools": "收起项目工具",
-      "openProjectTools": "打开项目工具"
+      "openProjectTools": "打开项目工具",
+      "context": "上下文"
+    },
+    "contextPanel": {
+      "title": "上下文状态",
+      "description": "查看当前会话为下一轮推理保留的上下文。",
+      "close": "关闭上下文面板",
+      "status": "状态",
+      "states": {
+        "empty": "空",
+        "active": "使用中",
+        "compacted": "已压缩"
+      },
+      "retainedMessages": "保留消息",
+      "compactionSummary": "压缩摘要",
+      "summaryPresent": "已生成",
+      "summaryAbsent": "未生成",
+      "compactionThreshold": "压缩阈值",
+      "revision": "版本",
+      "updatedAt": "最近更新",
+      "resetAt": "上次重置",
+      "notAvailable": "暂无",
+      "tokenUsage": {
+        "title": "最近一次 Token 用量",
+        "input": "输入",
+        "output": "输出",
+        "cached": "缓存",
+        "total": "总计",
+        "empty": "暂无运行用量"
+      },
+      "reset": "重置上下文",
+      "resetting": "正在重置...",
+      "resetSuccess": "上下文已重置",
+      "resetHint": "当前会话正在运行，完成后才能重置上下文。",
+      "resetWhileRunning": "请等待当前运行结束",
+      "retry": "重试",
+      "loading": "正在加载上下文...",
+      "refreshing": "正在更新...",
+      "unavailable": "当前上下文暂不可用，请稍后重试。",
+      "errors": {
+        "unauthorized": "登录状态已失效，请重新登录。",
+        "forbidden": "无权查看此会话的上下文。",
+        "notFound": "此会话的上下文不存在。",
+        "conflict": "会话正在运行，请稍后再试。",
+        "loadUnavailable": "上下文服务暂时不可用，请稍后重试。",
+        "resetUnavailable": "上下文重置暂时不可用，请稍后重试。",
+        "load": "加载上下文失败，请重试。",
+        "reset": "重置上下文失败，请重试。"
+      },
+      "resetConfirm": {
+        "title": "重置当前上下文？",
+        "description": "聊天记录会保留，但 Agent 下一轮推理不会再读取本次重置前的上下文。",
+        "confirm": "确认重置",
+        "cancel": "取消"
+      }
     },
     "sidebar": {
       "close": "关闭侧栏",
@@ -587,7 +646,8 @@
       "deleteDialog": {
         "title": "删除这个对话？",
         "description": "“{{title}}”将被永久删除，此操作无法撤销。",
-        "confirm": "删除"
+        "confirm": "删除",
+        "cancel": "取消"
       },
       "time": {
         "justNow": "刚刚",

@@ -45,6 +45,8 @@ export const ChatInput: React.FC<ChatInputPropsType> = ({
   setIsUploading,
   handleSketchUpload,
   baseModal,
+  modelSelectionLocked,
+  modelUnavailable,
   setBaseModal,
 }) => {
   const { files, errors, removeError } = useFileStore();
@@ -513,6 +515,8 @@ export const ChatInput: React.FC<ChatInputPropsType> = ({
                   isLoading={isLoading}
                   isUploading={isUploading}
                   baseModal={baseModal}
+                  modelSelectionLocked={modelSelectionLocked}
+                  modelUnavailable={modelUnavailable}
                   setMessages={setMessages}
                   append={append}
                   messages={messages}

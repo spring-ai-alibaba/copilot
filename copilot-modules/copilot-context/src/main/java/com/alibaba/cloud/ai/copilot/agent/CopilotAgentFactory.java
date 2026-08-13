@@ -4,8 +4,8 @@ import com.alibaba.cloud.ai.copilot.config.AppProperties;
 import com.alibaba.cloud.ai.copilot.domain.entity.ModelConfigEntity;
 import com.alibaba.cloud.ai.copilot.service.DynamicModelService;
 import io.agentscope.core.model.Model;
+import io.agentscope.core.state.AgentStateStore;
 import io.agentscope.core.tool.Toolkit;
-import io.agentscope.extensions.mysql.state.MysqlAgentStateStore;
 import io.agentscope.harness.agent.HarnessAgent;
 import io.agentscope.harness.agent.filesystem.spec.LocalFilesystemSpec;
 import io.agentscope.harness.agent.memory.compaction.CompactionConfig;
@@ -28,8 +28,8 @@ import java.nio.file.Paths;
  * 工具调用全程流式：streamEvents() 产出 TOOL_CALL_DELTA / TOOL_RESULT_TEXT_DELTA 等事件，
  * 经 AguiAgentAdapter 转 AG-UI 事件发往前端。</p>
  *
- * <p>会话历史/长期记忆的 Middleware 在阶段2 接入；阶段1 agent 自身无持久化中间件，
- * 仅靠每次请求携带的 user message 工作（多轮历史加载在阶段2 补）。</p>
+ * <p>短期会话上下文由 AgentScope AgentStateStore 自动恢复和持久化；长期记忆、偏好与
+ * RAG 注入不在本类处理。</p>
  */
 @Slf4j
 @Component
@@ -38,7 +38,6 @@ public class CopilotAgentFactory {
 
     private final DynamicModelService dynamicModelService;
     private final AppProperties appProperties;
-    private final MysqlAgentStateStore agentStateStore;
 
     private static final String AGENT_NAME = "copilot_agent";
 
@@ -46,9 +45,14 @@ public class CopilotAgentFactory {
      * 构建一个绑定指定模型配置的 HarnessAgent。
      *
      * @param modelConfigId 模型配置 ID（model_config.id）
+     * @param requestStateStore 绑定当前请求原始租约的状态存储
+     * @param conversationId 当前请求的可信会话 ID
      * @return 新建的 HarnessAgent
      */
-    public HarnessAgent buildAgent(String modelConfigId) {
+    public HarnessAgent buildAgent(
+            String modelConfigId,
+            AgentStateStore requestStateStore,
+            String conversationId) {
         // 1. 获取 agentscope Model（缓存命中或按配置新建）
         Model model = dynamicModelService.getChatModelWithConfigId(modelConfigId);
 
@@ -65,9 +69,14 @@ public class CopilotAgentFactory {
         // 4. 消息压缩（替代原 SummarizationHook）
         AppProperties.Conversation.Summarization sum = appProperties.getConversation().getSummarization();
         CompactionConfig compaction = CompactionConfig.builder()
-                .triggerMessages(sum.getMaxTokensBeforeSummary())
+                // Token threshold and retained message count are different units. Disable the
+                // framework defaults so a message count cannot trigger an unexpected compaction.
+                .triggerMessages(0)
+                .triggerTokens(sum.getMaxTokensBeforeSummary())
                 .keepMessages(sum.getMessagesToKeep())
-                .flushBeforeCompact(true)
+                .keepTokens(0)
+                .flushBeforeCompact(false)
+                .offloadBeforeCompact(false)
                 .build();
 
         // 5. 系统 prompt（与原 ChatServiceImpl 一致）
@@ -81,13 +90,17 @@ public class CopilotAgentFactory {
 
         HarnessAgent agent = HarnessAgent.builder()
                 .name(AGENT_NAME)
+                // AgentScope 2.0.0 performs one no-context graceful-shutdown state lookup before
+                // the model call. Keep that internal lookup on the request's conversation slot.
+                .defaultSessionId(conversationId)
                 .model(model)
                 .sysPrompt(prompt)
                 .workspace(workspacePath)
                 .filesystem(filesystemSpec)
                 .toolkit(toolkit)
                 .compaction(compaction)
-                .stateStore(agentStateStore)
+                .disableToolResultEviction()
+                .stateStore(requestStateStore)
                 .maxIters(50)
                 .build();
 

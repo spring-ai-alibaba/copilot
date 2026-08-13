@@ -41,7 +41,8 @@ public class LoginHelper {
         if (ObjectUtil.isNotNull(deviceType)) {
             model.setDevice(deviceType.getDevice());
         }
-        StpUtil.login(loginUser.getLoginId(), model.setExtra(USER_KEY, loginUser.getUserId()));
+        // userId 通过 Token-Session 中的 LoginUser 传递（SaLoginModel.setExtra 仅在 JWT 模式生效）
+        StpUtil.login(loginUser.getLoginId(), model);
         StpUtil.getTokenSession().set(LOGIN_USER_KEY, loginUser);
     }
 
@@ -74,8 +75,13 @@ public class LoginHelper {
         try {
             userId = Convert.toLong(SaHolder.getStorage().get(USER_KEY));
             if (ObjectUtil.isNull(userId)) {
-                userId = Convert.toLong(StpUtil.getExtra(USER_KEY));
-                SaHolder.getStorage().set(USER_KEY, userId);
+                // 注意：StpUtil.getExtra() 只在 JWT 模式下生效，默认 token 风格会直接抛
+                // ApiDisabledException，因此这里改为从 Token-Session 中的 LoginUser 读取。
+                LoginUser loginUser = getLoginUser();
+                if (ObjectUtil.isNotNull(loginUser)) {
+                    userId = loginUser.getUserId();
+                    SaHolder.getStorage().set(USER_KEY, userId);
+                }
             }
         } catch (Exception e) {
             return null;

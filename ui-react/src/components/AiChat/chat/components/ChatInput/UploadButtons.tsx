@@ -37,6 +37,8 @@ export const UploadButtons: React.FC<UploadButtonsProps> = ({
   onImageClick,
   onSketchClick,
   baseModal,
+  modelSelectionLocked,
+  modelUnavailable,
   setBaseModal,
 }) => {
   const [addMenuOpen, setAddMenuOpen] = useState(false);
@@ -67,6 +69,7 @@ export const UploadButtons: React.FC<UploadButtonsProps> = ({
   }, []);
 
   const handleModelSelect = (model: IModelOption) => {
+    if (modelSelectionLocked) return;
     setBaseModal(model);
     clearImages();
     setModelMenuOpen(false);
@@ -74,6 +77,16 @@ export const UploadButtons: React.FC<UploadButtonsProps> = ({
 
   const ProviderIcon = aiProvierIcon[(baseModal.provider || "").toLowerCase()];
   const controlsDisabled = isLoading || isUploading;
+  const modelControlDisabled = controlsDisabled;
+  const modelControlTitle = modelUnavailable
+    ? t("chat.errors.conversation_model_unavailable", {
+        defaultValue: "该会话绑定的模型已不可用，请新建会话后重试",
+      })
+    : modelSelectionLocked
+      ? t("chat.buttons.conversationModelLocked", {
+          defaultValue: "已有会话将继续使用创建时绑定的模型",
+        })
+      : baseModal.name;
 
   return (
     <div ref={rootRef} className="flex min-w-0 items-center gap-1">
@@ -152,15 +165,18 @@ export const UploadButtons: React.FC<UploadButtonsProps> = ({
         <button
           type="button"
           onClick={() => {
+            if (modelControlDisabled) return;
             setModelMenuOpen((current) => !current);
             setAddMenuOpen(false);
           }}
           className={cn(
             "arc-composer-model max-w-[210px]",
             modelMenuOpen && "bg-foreground/[0.065] text-foreground",
+            modelControlDisabled && "cursor-not-allowed opacity-60",
           )}
+          disabled={modelControlDisabled}
           aria-expanded={modelMenuOpen}
-          title={baseModal.name}
+          title={modelControlTitle}
         >
           {ProviderIcon ? <ProviderIcon className="h-3.5 w-3.5 shrink-0" /> : null}
           <span className="truncate">
@@ -218,7 +234,9 @@ export const UploadButtons: React.FC<UploadButtonsProps> = ({
                       key={model.key || `model-${index}`}
                       type="button"
                       onClick={() => handleModelSelect(model as IModelOption)}
-                      className="arc-popover-item"
+                      disabled={modelSelectionLocked}
+                      title={modelSelectionLocked ? modelControlTitle : model.name}
+                      className="arc-popover-item disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-muted/70">
                         {Icon ? <Icon className="h-3.5 w-3.5" /> : <Code2 className="h-3.5 w-3.5" />}

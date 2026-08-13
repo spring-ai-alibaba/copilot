@@ -11,6 +11,8 @@ export interface ChatInputProps {
   isUploading: boolean;
   uploadedImages: FilePreview[];
   baseModal: IModelOption;
+  modelSelectionLocked?: boolean;
+  modelUnavailable?: boolean;
   messages: Message[];
   setMessages: (message: Message[]) => void;
   setBaseModal: (value: IModelOption) => void;
@@ -43,6 +45,8 @@ export interface UploadButtonsProps {
   setMessages: (messages: Message[]) => void;
   messages: Message[]
   baseModal: IModelOption;
+  modelSelectionLocked?: boolean;
+  modelUnavailable?: boolean;
   setBaseModal: (value: IModelOption) => void;
   onImageClick: () => void;
   handleSubmitWithFiles: (_ , value: string) => void;

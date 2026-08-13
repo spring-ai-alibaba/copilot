@@ -19,6 +19,25 @@ SET
 FOREIGN_KEY_CHECKS = 0;
 
     -- ----------------------------
+-- Table structure for agentscope_sessions
+-- ----------------------------
+-- AgentScope 会话状态表：存储模型上下文（agent_state）、上下文元数据 sidecar（context_meta）
+-- 以及 SessionRunGuard 的跨副本租约行。DDL 与 agentscope-extensions-mysql 2.0.0
+-- MysqlAgentStateStore 自动建表语句保持一致；注意重新导入本脚本会清空所有会话上下文。
+-- 生产环境建议通过本脚本建表，并设置 app.conversation.agent-state.create-if-not-exist=false
+DROP TABLE IF EXISTS `agentscope_sessions`;
+CREATE TABLE `agentscope_sessions`
+(
+    `session_id` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '会话标识（AgentScope session / sidecar / 租约锁键）',
+    `state_key`  varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '状态键（agent_state / context_meta / 租约标记）',
+    `item_index` int                                                         NOT NULL DEFAULT 0 COMMENT '分片序号（长状态分片存储时使用）',
+    `state_data` longtext                                                    NOT NULL COMMENT '状态数据（JSON 序列化 / 租约 owner+过期时间）',
+    `created_at` datetime                                                             DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    `updated_at` datetime                                                             DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    PRIMARY KEY (`session_id`, `state_key`, `item_index`) USING BTREE
+) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT = 'AgentScope 会话状态表（模型上下文 + 上下文元数据 + 会话租约）' ROW_FORMAT = Dynamic;
+
+    -- ----------------------------
 -- Table structure for chat_memory_store
 -- ----------------------------
 DROP TABLE IF EXISTS `chat_chat_memory_store`;

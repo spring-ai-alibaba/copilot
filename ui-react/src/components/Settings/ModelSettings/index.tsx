@@ -1,12 +1,13 @@
 import React, {useEffect, useState} from 'react';
 import {useTranslation} from 'react-i18next';
 import {
+    App as AntdApp,
     Button,
+    ConfigProvider,
     Divider,
     Form,
     Input,
     InputNumber,
-    message,
     Modal,
     Popconfirm,
     Select,
@@ -38,8 +39,13 @@ import SiliconFlow from '@/icon/SiliconFlow';
 const { Option } = Select;
 const { TextArea } = Input;
 
-export default function ModelSettings() {
+// 设置页是全屏 Portal 覆盖层（z-index: 10000），antd 弹层默认 z-index 只有 1000，
+// 不抬高基准值的话 Modal/Popconfirm/message 都会被设置页遮住，看起来像“点击没反应”。
+const SETTINGS_POPUP_Z_INDEX_BASE = 10010;
+
+function ModelSettingsContent() {
   const { t } = useTranslation();
+  const { message } = AntdApp.useApp();
   const [providers, setProviders] = useState<Provider[]>([]);
   const [models, setModels] = useState<LlmModel[]>([]);
   const [llmProviders, setLlmProviders] = useState<LlmServiceProvider[]>([]);
@@ -940,5 +946,15 @@ export default function ModelSettings() {
         </Form>
       </Modal>
     </div>
+  );
+}
+
+export default function ModelSettings() {
+  return (
+    <ConfigProvider theme={{ token: { zIndexPopupBase: SETTINGS_POPUP_Z_INDEX_BASE } }}>
+      <AntdApp>
+        <ModelSettingsContent />
+      </AntdApp>
+    </ConfigProvider>
   );
 }

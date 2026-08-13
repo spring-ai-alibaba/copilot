@@ -693,7 +693,7 @@ export const MessageItem: React.FC<MessageItemProps> = ({
                     remarkPlugins={[remarkGfm]}
                     components={{
                       code({ node, className, children, ...props }) {
-                        const match = /language-(\w+)(?::(.+))?/.exec(
+                        const match = /language-([\w-]+)(?::(.+))?/.exec(
                           className || ""
                         );
                         const isInline = !match;

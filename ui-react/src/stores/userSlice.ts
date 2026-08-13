@@ -2,6 +2,8 @@ import {authService} from "@/api/auth"
 import {create} from "zustand"
 import {persist} from "zustand/middleware"
 import { apiUrl } from "@/api/base"
+import { useConversationStore } from "@/stores/conversationSlice"
+import { useContextStore } from "@/stores/contextSlice"
 import { safeJsonParse, safeJsonStringify } from "@/utils/safeJsonParse"
 
 
@@ -27,13 +29,22 @@ interface UserState {
   setUser: (user: User | null) => void
   setToken: (token: string | null) => void
   login: (user: User, token: string) => void
+  replaceSession: (user: User, token: string) => void
   logout: () => void
   updateUser: (userData: Partial<User>) => void
   openLoginModal: () => void
   closeLoginModal: () => void
-  fetchUser: () => Promise<User>
+  fetchUser: (tokenOverride?: string) => Promise<User | undefined>
   isLoading: boolean
 }
+
+const clearUserScopedState = () => {
+  useConversationStore.getState().clearAll()
+  useContextStore.getState().clearAll()
+}
+
+const userIdentity = (user: User | null | undefined) => user?.id || user?.userId
+let fetchUserRequestSequence = 0
 
 const useUserStore = create<UserState>()(
   persist(
@@ -51,75 +62,113 @@ const useUserStore = create<UserState>()(
       },
 
       setUser: (user) => {
+        fetchUserRequestSequence++
+        const currentUser = get().user
+        const identityChanged = Boolean(
+          currentUser && user && userIdentity(currentUser) !== userIdentity(user),
+        )
         if (user) {
           localStorage.setItem("user", JSON.stringify(user))
         } else {
           localStorage.removeItem("user")
+          localStorage.removeItem("token")
+          clearUserScopedState()
+        }
+
+        if (identityChanged) {
+          localStorage.removeItem("token")
+          clearUserScopedState()
         }
 
         set(() => ({
           user,
-          isAuthenticated: !!user,
+          token: !user || identityChanged ? null : get().token,
+          isAuthenticated: Boolean(user && !identityChanged && get().token),
         }))
       },
 
       setToken: (token) => {
+        fetchUserRequestSequence++
+        const tokenChanged = Boolean(get().token && token && get().token !== token)
+        const invalidatesSession = !token || tokenChanged
         if (token) {
           localStorage.setItem("token", token)
         } else {
           localStorage.removeItem("token")
+          localStorage.removeItem("user")
+          clearUserScopedState()
         }
-        set(() => ({ token }))
+        if (tokenChanged) {
+          localStorage.removeItem("user")
+          clearUserScopedState()
+        }
+        set(() => ({
+          token,
+          user: invalidatesSession ? null : get().user,
+          isAuthenticated: invalidatesSession ? false : get().isAuthenticated,
+        }))
       },
 
-      fetchUser: async () => {
+      fetchUser: async (tokenOverride) => {
+        const token = tokenOverride || localStorage.getItem("token") || undefined
+        if (!token) return undefined
+        const requestId = ++fetchUserRequestSequence
         set(() => ({ isLoading: true }))
         try {
-          const token = localStorage.getItem("token")
-          if (token) {
-            const user = await authService.getUserInfo(token)
-            console.log('Fetched user info:', user)
-            if (!user) {
-              localStorage.removeItem("user")
-              localStorage.removeItem("token")
-              localStorage.removeItem("rememberMe")
-              localStorage.removeItem("user-storage")
-              try {
-                await fetch(apiUrl('/auth/logout'), {
-                  method: "POST",
-                  headers: {
-                    "Content-Type": "application/json",
-                    Authorization: `Bearer ${token}`,
-                  },
-                })
-              } catch {}
-              document.cookie =
-              "token=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/; secure=true;";
-              set(() => ({
-                user: null,
-                token: null,
-                isAuthenticated: false,
-                rememberMe: false,
-              }))
-            } else {
-              // 处理字段映射：后端返回 userId，前端期望 id
-              const userWithMappedFields = {
-                ...user,
-                id: user.id || user.userId, // 如果没有 id，用 userId 代替
-                userType: user.userType || 'sys_user' // 默认设置为 sys_user
-              };
-              get().setUser(userWithMappedFields)
-            }
-            return user
+          const user = await authService.getUserInfo(token)
+          if (requestId !== fetchUserRequestSequence) return undefined
+          console.log('Fetched user info:', user)
+          if (!user) {
+            // tokenOverride is only a login candidate until replaceSession commits it. A failed
+            // candidate must not log out the currently authenticated account.
+            if (token !== get().token) return undefined
+            localStorage.removeItem("user")
+            localStorage.removeItem("token")
+            localStorage.removeItem("rememberMe")
+            localStorage.removeItem("user-storage")
+            document.cookie =
+            "token=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/; secure=true;";
+            clearUserScopedState()
+            set(() => ({
+              user: null,
+              token: null,
+              isAuthenticated: false,
+              rememberMe: false,
+              isLoading: false,
+            }))
+            void fetch(apiUrl('/auth/logout'), {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  Authorization: `Bearer ${token}`,
+                },
+              }).catch(() => {})
+            return undefined
           }
+          // 处理字段映射：后端返回 userId，前端期望 id
+          const userWithMappedFields: User = {
+            ...user,
+            id: user.id || user.userId,
+            userType: user.userType || 'sys_user'
+          };
+          get().replaceSession(userWithMappedFields, token)
+          return userWithMappedFields
         } catch (error) {
-          console.error(error)
+          if (requestId === fetchUserRequestSequence) console.error(error)
+          return undefined
         } finally {
-          set(() => ({ isLoading: false }))
+          if (requestId === fetchUserRequestSequence) {
+            set(() => ({ isLoading: false }))
+          }
         }
       },
 
-      login: (user, token) => {
+      replaceSession: (user, token) => {
+        fetchUserRequestSequence++
+        const currentUser = get().user
+        if (!get().isAuthenticated || userIdentity(currentUser) !== userIdentity(user)) {
+          clearUserScopedState()
+        }
         localStorage.setItem("user", JSON.stringify(user))
         localStorage.setItem("token", token)
 
@@ -128,10 +177,16 @@ const useUserStore = create<UserState>()(
           token,
           isAuthenticated: true,
           isLoginModalOpen: false,
+          isLoading: false,
         }))
       },
 
+      login: (user, token) => {
+        get().replaceSession(user, token)
+      },
+
       logout: () => {
+        fetchUserRequestSequence++
         const token = localStorage.getItem("token")
         if (!window.electron) {
           document.cookie =
@@ -155,6 +210,7 @@ const useUserStore = create<UserState>()(
         localStorage.removeItem("token")
         localStorage.removeItem("rememberMe")
         localStorage.removeItem("user-storage")
+        clearUserScopedState()
         set(() => ({
           user: null,
           token: null,

@@ -1,6 +1,7 @@
 package com.alibaba.cloud.ai.copilot.controller.chat;
 
 import com.alibaba.cloud.ai.copilot.core.domain.R;
+import com.alibaba.cloud.ai.copilot.core.exception.ServiceException;
 import com.alibaba.cloud.ai.copilot.domain.dto.ChatMessage;
 import com.alibaba.cloud.ai.copilot.domain.dto.ConversationDTO;
 import com.alibaba.cloud.ai.copilot.domain.dto.CreateConversationRequest;
@@ -130,6 +131,8 @@ public class ConversationController {
             return R.ok();
         } catch (IllegalArgumentException e) {
             return R.fail(e.getMessage());
+        } catch (ServiceException e) {
+            return R.fail(e.getCode() == null ? 500 : e.getCode(), e.getMessage());
         } catch (Exception e) {
             log.error("删除会话失败", e);
             return R.fail("删除会话失败: " + e.getMessage());
